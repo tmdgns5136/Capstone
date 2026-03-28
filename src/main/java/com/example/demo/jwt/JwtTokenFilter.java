@@ -23,6 +23,6 @@ public class JwtTokenFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = authorizationHeader.substring(7);
+        String token;
     }
 }
