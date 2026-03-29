@@ -7,14 +7,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
 @RequiredArgsConstructor
 public class JwtTokenFilter extends OncePerRequestFilter {
-    private final UserService userService;
-    private final String secretKey;
+    private final TokenProvider tokenProvider;
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
@@ -23,6 +24,15 @@ public class JwtTokenFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token;
+        String tokenStr = authorizationHeader.substring(7);
+        Token token = tokenProvider.convertToken(tokenStr);
+
+        if(token.validate()){
+            Authentication authentication = tokenProvider.getAuthentication(token);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
+
+        filterChain.doFilter(request, response);
+
     }
 }

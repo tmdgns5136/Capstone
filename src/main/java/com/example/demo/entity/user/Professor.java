@@ -33,6 +33,9 @@ public class Professor {
     @Column(name = "PROFESSOR_NAME", length = 20, nullable = false)
     private String professorName;
 
+    @Column(name = "PROFESSOR_EMAIL", length = 20, unique = true, nullable = false)
+    private String professorEmail;
+
     @Column(name = "PROFESSOR_PHONENUM", length = 20, unique = true, nullable = false)
     private String professorPhoneNum;
 

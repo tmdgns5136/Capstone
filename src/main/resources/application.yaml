@@ -1,3 +1,53 @@
 spring:
   application:
     name: demo
+
+  jwt:
+    secret: this-is-my-super-secret-key-1234567890-abcdefg
+
+
+  spring:
+    servlet:
+      multipart:
+        enabled: true
+        location: C:/Users/lsh/Desktop/photo
+        max-file-size: 10MB
+        max-request-size: 50MB
+
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.0:3306/demo?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: root
+    password: '5136'
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  # 사용자 정의 업로드 경로
+  com:
+    example:
+      upload:
+        path:
+          profileImg: C:/Users/lsh/Desktop/photo
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: tmdgns5136@gmail.com
+    password: nfjjbprhppyylzlw
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  data:
+    redis:
+      host: localhost
+      port: 6379

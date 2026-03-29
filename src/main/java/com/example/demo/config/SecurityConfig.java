@@ -1,5 +1,7 @@
 package com.example.demo.config;
 
+import com.example.demo.jwt.JwtTokenFilter;
+import com.example.demo.jwt.TokenProvider;
 import com.example.demo.service.UserService;
 import jakarta.websocket.Session;
 import lombok.RequiredArgsConstructor;
@@ -10,12 +12,13 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @RequiredArgsConstructor
 @EnableWebSecurity
 public class SecurityConfig {
-    private final UserService userService;
+    private final TokenProvider tokenProvider;
 
     private String secretKey;
     @Bean
@@ -24,9 +27,9 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(new JwtTokenFilter(UserService, secretKey))
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers("api/home", "/api/home/signup", "/api/home/login").permitAll()
-                                .anyRequest().authenticated()).build();
+                        auth.requestMatchers("api/home", "api/home/login", "api/home/signup", "api/home/refresh").permitAll()
+                                .anyRequest().authenticated())
+                .addFilterBefore(new JwtTokenFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class).build();
     }
 }
