@@ -63,7 +63,7 @@ public class Professor {
     private List<Objection> answeredObjections = new ArrayList<>();
 
     @Builder.Default
-    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL)
     private List<Official> officials = new ArrayList<>();
 
 

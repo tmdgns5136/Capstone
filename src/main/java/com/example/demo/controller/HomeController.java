@@ -56,6 +56,7 @@ public class HomeController {
                     .redirectUrl("/api/home/login").build();
             return ResponseEntity.ok(commonResponse);
         }catch (RuntimeException e){
+           e.printStackTrace();
            CommonResponse commonResponse = CommonResponse.builder()
                    .status(409)
                    .success(false)
@@ -202,7 +203,7 @@ public class HomeController {
     }
 
     @PatchMapping("/password-change")
-    public ResponseEntity<CommonResponse> passwordChange(@RequestBody EditRequest editRequest){
+    public ResponseEntity<CommonResponse> passwordChange(@Valid @RequestBody EditRequest editRequest){
         userService.edit(editRequest);
 
         CommonResponse response = CommonResponse.builder()
@@ -210,5 +211,7 @@ public class HomeController {
                 .success(true)
                 .message("비밀번호가 성공적으로 변경되었습니다.")
                 .redirectUrl("/api/home/login").build();
+
+        return ResponseEntity.ok(response);
     }
 }

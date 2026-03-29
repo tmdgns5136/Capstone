@@ -23,6 +23,8 @@ public class EmailService {
 
             String emailBody = createHtmlEmailBody(code);
             mimeMessageHelper.setText(emailBody, true);
+            javaMailSender.send(mimeMessage);
+
         } catch (MessagingException e) {
             throw new RuntimeException(e);
         }

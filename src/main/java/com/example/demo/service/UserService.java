@@ -3,10 +3,7 @@ package com.example.demo.service;
 import com.example.demo.dto.user.*;
 import com.example.demo.entity.enumerate.ImagePosition;
 import com.example.demo.entity.enumerate.RoleType;
-import com.example.demo.entity.user.Image;
-import com.example.demo.entity.user.Professor;
-import com.example.demo.entity.user.RefreshToken;
-import com.example.demo.entity.user.Student;
+import com.example.demo.entity.user.*;
 import com.example.demo.jwt.Token;
 import com.example.demo.jwt.TokenProvider;
 import com.example.demo.repository.user.*;
@@ -62,6 +59,7 @@ public class UserService {
                 .studentName(joinRequest.getUserName())
                 .studentEmail(joinRequest.getUserEmail())
                 .studentPassword(passwordEncoder.encode(joinRequest.getPassword()))
+                .studentPhoneNum(joinRequest.getUserPhoneNum())
                 .roleType(RoleType.STUDENT).build();
 
         studentRepository.saveAndFlush(student);
@@ -98,6 +96,7 @@ public class UserService {
                 .professorName(joinRequest.getUserName())
                 .professorEmail(joinRequest.getUserEmail())
                 .professorPassword(passwordEncoder.encode(joinRequest.getPassword()))
+                .professorPhoneNum(joinRequest.getUserPhoneNum())
                 .roleType(RoleType.PROFESSOR).build();
 
         professorRepository.saveAndFlush(professor);
@@ -108,7 +107,15 @@ public class UserService {
         String roleCode = "";
         String userName = "";
         String encodedPassword;
-        if(loginRequest.getUserNum().length() == 9){
+        if(("master").equals(loginRequest.getUserNum())){
+            Master master = masterRepository.findByMasterNum(loginRequest.getUserNum());
+            roleCode = master.getRoleType().getCode();
+            encodedPassword = master.getMasterPassword();
+            if(!passwordEncoder.matches(loginRequest.getPassword(), encodedPassword)){
+                return failResponse("비밀번호가 일치하지 않습니다.");
+            }
+        }
+        else if(loginRequest.getUserNum().length() == 9){
             Student student = studentRepository.findByStudentNum(loginRequest.getUserNum());
             if(student == null){
                 return failResponse("가입되지 않은 학번입니다.");
@@ -146,6 +153,19 @@ public class UserService {
 
         tokenEntity.updateToken(refreshToken.getToken());
         refreshTokenRepository.save(tokenEntity);
+
+        if(("master").equals(loginRequest.getUserNum())){
+            return LoginResponse.builder()
+                    .status(200)
+                    .success(true)
+                    .data(LoginResponse.LoginData.builder()
+                            .role(roleCode.replace("ROLE_", ""))
+                            .accessToken(accessToken.getToken())
+                            .build())
+                    .message("로그인이 완료되었습니다.")
+                    .redirectUrl("/api/home")
+                    .build();
+        }
 
         return LoginResponse.builder()
                 .status(200)
@@ -189,7 +209,18 @@ public class UserService {
             throw new RuntimeException("유효하지 않은 토큰 요청");
         }
 
-        String newAccessToken = tokenProvider.createToken(userNum, "ROLE_STUDENT", newAccessExpiry).getToken();
+        String newAccessToken = "";
+        if(studentRepository.existsByStudentNum(userNum)){
+            newAccessToken = tokenProvider.createToken(userNum, "ROLE_STUDENT", newAccessExpiry).getToken();
+        }
+
+        else if(professorRepository.existsByProfessorNum(userNum)){
+            newAccessToken = tokenProvider.createToken(userNum, "ROLE_PROFESSOR", newAccessExpiry).getToken();
+        }
+        else{
+            newAccessToken = tokenProvider.createToken(userNum, "ROLE_MASTER", newAccessExpiry).getToken();
+        }
+
 
         return LoginResponse.builder()
                 .status(200)

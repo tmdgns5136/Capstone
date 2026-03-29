@@ -29,10 +29,6 @@ public class Token {
         this.token = createToken(id, role, expiry);
     }
 
-    public Token(String token, SecretKey key) {
-        this.token = token;
-        this.key = key;
-    }
 
     private String createToken(String id, Date expiry){
         return Jwts.builder()

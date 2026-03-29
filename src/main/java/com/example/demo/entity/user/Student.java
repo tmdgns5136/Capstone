@@ -34,7 +34,7 @@ public class Student {
     @Column(name = "STUDENT_NAME", length = 20, nullable = false)
     private String studentName;
 
-    @Column(name = "STUDENT_EMAIL", length = 20, unique = true, nullable = false)
+    @Column(name = "STUDENT_EMAIL", length = 30, unique = true, nullable = false)
     private String studentEmail;
 
     @Column(name = "STUDENT_PHONENUM", length = 20, unique = true, nullable = false)
