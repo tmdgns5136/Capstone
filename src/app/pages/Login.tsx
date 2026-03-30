@@ -206,7 +206,7 @@ export default function Login() {
             <a href="#" className="text-xs text-zinc-400 hover:text-zinc-600">Terms of Service</a>
           </div>
           <p className="text-xs text-zinc-400">Team 천천히, 꾸준히</p>
-          <p className="text-xs text-zinc-400">&copy; 2024 FaceAttend Inc. All rights reserved.</p>
+          <p className="text-xs text-zinc-400">&copy; 2026 FaceAttend Inc. All rights reserved.</p>
         </div>
       </footer>
     </div>
