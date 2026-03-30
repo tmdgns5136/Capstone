@@ -46,11 +46,14 @@ public class Image {
     @Column(name = "IMAGE_POSITION", length = 20, nullable = false)
     private ImagePosition position;
 
+    @Column(name = "REQUEST_ID")
+    private String requestId;
+
     @Column(name = "REJECT_REASON")
     private String rejectReason;
 
     @CreatedDate
-    @Column(name = "IMAGE_CREATED_AT")
+    @Column(name = "IMAGE_CREATED_AT", updatable = false)
     private LocalDateTime imageCreated;
 
     @LastModifiedDate

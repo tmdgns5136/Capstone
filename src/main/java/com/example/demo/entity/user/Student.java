@@ -38,10 +38,10 @@ public class Student {
     private String studentEmail;
 
     @Column(name = "STUDENT_PHONENUM", length = 20, unique = true, nullable = false)
-    private String studentPhoneNum;
+    private String phoneNum;
 
     @Column(name = "STUDENT_PASSWORD", length = 100, nullable = false)
-    private String studentPassword;
+    private String password;
 
     @Column(name = "ROLE_TYPE", length = 20, nullable = false)
     @Enumerated(EnumType.STRING)

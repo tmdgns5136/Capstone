@@ -1,7 +1,7 @@
 package com.example.demo.controller;
 
-import com.example.demo.dto.user.*;
-import com.example.demo.entity.user.Student;
+import com.example.demo.dto.home.*;
+import com.example.demo.dto.mypage.PasswordCheck;
 import com.example.demo.repository.user.ProfessorRepository;
 import com.example.demo.repository.user.StudentRepository;
 import com.example.demo.service.EmailService;
@@ -47,13 +47,9 @@ public class HomeController {
                                                         @RequestPart("centerImage") MultipartFile centerImage,
                                                         @RequestPart("rightImage") MultipartFile rightImage){
        try{
-            userService.createStudent(joinRequest, leftImage, centerImage, rightImage);
-
-            CommonResponse commonResponse = CommonResponse.builder()
-                    .status(200)
-                    .success(true)
-                    .message("회원가입이 완료되었습니다.")
-                    .redirectUrl("/api/home/login").build();
+            CommonResponse commonResponse = userService.createStudent(joinRequest, leftImage, centerImage, rightImage);
+            commonResponse.setMessage("회원가입이 완료되었습니다.");
+            commonResponse.setRedirectUrl("/api/home/login");
             return ResponseEntity.ok(commonResponse);
         }catch (RuntimeException e){
            e.printStackTrace();
@@ -204,7 +200,7 @@ public class HomeController {
 
     @PatchMapping("/password-change")
     public ResponseEntity<CommonResponse> passwordChange(@Valid @RequestBody EditRequest editRequest){
-        userService.edit(editRequest);
+        userService.findPassword(editRequest);
 
         CommonResponse response = CommonResponse.builder()
                 .status(200)
@@ -213,5 +209,22 @@ public class HomeController {
                 .redirectUrl("/api/home/login").build();
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/password-check")
+    public ResponseEntity<CommonResponse> passwordChecking(@RequestBody PasswordCheck passwordCheck, Authentication authentication){
+        if(userService.passwordCheck(passwordCheck, authentication)){
+            CommonResponse commonResponse = CommonResponse.builder()
+                    .status(200)
+                    .success(true).build();
+            return ResponseEntity.ok(commonResponse);
+        }
+
+        CommonResponse commonResponse = CommonResponse.builder()
+                .status(401)
+                .success(false)
+                .message("비밀번호가 일치하지 않습니다.").build();
+        return ResponseEntity.status(401).body(commonResponse);
+
     }
 }

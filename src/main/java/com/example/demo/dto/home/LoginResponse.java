@@ -1,6 +1,5 @@
-package com.example.demo.dto.user;
+package com.example.demo.dto.home;
 
-import com.example.demo.entity.enumerate.RoleType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

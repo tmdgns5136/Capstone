@@ -37,10 +37,10 @@ public class Professor {
     private String professorEmail;
 
     @Column(name = "PROFESSOR_PHONENUM", length = 20, unique = true, nullable = false)
-    private String professorPhoneNum;
+    private String phoneNum;
 
     @Column(name = "PROFESSOR_PASSWORD", length = 100, nullable = false)
-    private String professorPassword;
+    private String password;
 
     @Column(name = "ROLE_TYPE", length = 20, nullable = false)
     @Enumerated(EnumType.STRING)

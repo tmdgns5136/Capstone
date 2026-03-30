@@ -1,6 +1,6 @@
 package com.example.demo.handler;
 
-import com.example.demo.dto.user.CommonResponse;
+import com.example.demo.dto.home.CommonResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;

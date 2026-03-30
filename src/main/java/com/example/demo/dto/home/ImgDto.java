@@ -1,9 +1,11 @@
-package com.example.demo.dto.user;
+package com.example.demo.dto.home;
 
 import com.example.demo.entity.enumerate.ImagePosition;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -13,6 +15,10 @@ public class ImgDto {
     private String fileName;
     private String filePath;
     private String fileType;
+    private String rejectReason;
     private Long fileSize;
+    private String requestId;
     private ImagePosition position;
+    private LocalDateTime createdAt;
+    private LocalDateTime modifiedAt;
 }

@@ -1,4 +1,4 @@
-package com.example.demo.dto.user;
+package com.example.demo.dto.home;
 import jakarta.validation.constraints.*;
 
 import lombok.AllArgsConstructor;
@@ -24,5 +24,7 @@ public class JoinRequest {
     private String password;
 
     @NotBlank
-    private String userPhoneNum;
+    @Pattern(regexp = "^010-\\d{3,4}-\\d{4}$",
+            message = "전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)")
+    private String phoneNum;
 }

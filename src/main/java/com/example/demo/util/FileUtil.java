@@ -1,7 +1,9 @@
 package com.example.demo.util;
 
-import com.example.demo.dto.user.ImgDto;
+import com.example.demo.dto.home.ImgDto;
 import com.example.demo.entity.enumerate.ImagePosition;
+import com.example.demo.service.FileService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,6 +14,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Component
+@RequiredArgsConstructor
 public class FileUtil {
     @Value("${com.example.upload.path.profileImg}")
     private String uploadPath;
@@ -51,6 +54,13 @@ public class FileUtil {
 
     public void deleteFile(ImgDto imgDto){
         File file = getFileFromFileDomain(imgDto);
+        if(file.exists()){
+            file.delete();
+        }
+    }
+
+    public void deleteFileByFilePath(String filePath){
+        File file = new File(filePath);
         if(file.exists()){
             file.delete();
         }
