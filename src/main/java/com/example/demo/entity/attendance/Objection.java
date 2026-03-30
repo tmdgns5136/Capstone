@@ -1,9 +1,8 @@
 package com.example.demo.entity.attendance;
 
-import com.example.demo.entity.enumerate.AttendStatus;
 import com.example.demo.entity.enumerate.Status;
-import com.example.demo.entity.user.Professor;
-import com.example.demo.entity.user.Student;
+import com.example.demo.home.entity.user.Professor;
+import com.example.demo.home.entity.user.Student;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

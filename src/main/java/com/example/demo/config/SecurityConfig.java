@@ -2,8 +2,6 @@ package com.example.demo.config;
 
 import com.example.demo.jwt.JwtTokenFilter;
 import com.example.demo.jwt.TokenProvider;
-import com.example.demo.service.UserService;
-import jakarta.websocket.Session;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

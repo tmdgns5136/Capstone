@@ -1,8 +1,7 @@
 package com.example.demo.entity.board;
 
 import com.example.demo.entity.lecture.Lecture;
-import com.example.demo.entity.user.Professor;
-import com.example.demo.entity.user.Student;
+import com.example.demo.home.entity.user.Professor;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +10,6 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import org.w3c.dom.Text;
 
 import java.time.LocalDateTime;
 

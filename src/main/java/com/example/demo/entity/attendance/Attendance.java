@@ -2,7 +2,7 @@ package com.example.demo.entity.attendance;
 
 import com.example.demo.entity.enumerate.AttendStatus;
 import com.example.demo.entity.lecture.LectureSession;
-import com.example.demo.entity.user.Student;
+import com.example.demo.home.entity.user.Student;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

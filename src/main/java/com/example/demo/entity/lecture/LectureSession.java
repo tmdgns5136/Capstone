@@ -1,7 +1,6 @@
 package com.example.demo.entity.lecture;
 
 import com.example.demo.entity.attendance.Attendance;
-import com.example.demo.entity.user.Student;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
