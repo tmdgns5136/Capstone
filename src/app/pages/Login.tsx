@@ -5,13 +5,8 @@ import { Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { Logo } from "../components/Logo";
 import ThemeToggle from "../components/ThemeToggle";
-
-function resolveRole(loginId: string): "student" | "professor" | "admin" {
-  const id = loginId.trim().toLowerCase();
-  if (id.startsWith("admin")) return "admin";
-  if (/^\d{9}$/.test(id)) return "student";
-  return "professor";
-}
+import { login as apiLogin } from "../api/auth";
+import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -27,12 +22,22 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
-      const role = resolveRole(loginId);
-      login(role);
-      navigate(`/${role}`);
+    try {
+      const res = await apiLogin(loginId, password);
+      const { role, userName, accessToken, refreshToken } = res.data;
+      login(role, userName, accessToken, refreshToken);
+
+      const mappedRole = role.toUpperCase().includes("STUDENT")
+        ? "student"
+        : role.toUpperCase().includes("PROFESSOR")
+          ? "professor"
+          : "admin";
+      navigate(`/${mappedRole}`);
+    } catch (err: any) {
+      toast.error(err.message || "로그인에 실패했습니다.");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (

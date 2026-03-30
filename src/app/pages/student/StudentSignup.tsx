@@ -5,6 +5,7 @@ import { User, Hash, Check, ArrowLeft, ArrowRight, Mail, Eye, EyeOff, RefreshCcw
 import { OtpInput } from "../../components/OtpInput";
 import { toast } from "sonner";
 import { useVerificationTimer } from "../../hooks/useVerificationTimer";
+import { sendEmailCode, verifyEmailCode, signupStudent } from "../../api/auth";
 
 const spring = { type: "spring" as const, stiffness: 100, damping: 20 };
 
@@ -51,7 +52,12 @@ export default function StudentSignup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const timer = useVerificationTimer();
 
-  // Face photos
+  // Face photos (base64 for preview, File for upload)
+  const [photoFiles, setPhotoFiles] = useState<{ front: File | null; left: File | null; right: File | null }>({
+    front: null,
+    left: null,
+    right: null,
+  });
   const [photos, setPhotos] = useState<{ front: string | null; left: string | null; right: string | null }>({
     front: null,
     left: null,
@@ -87,29 +93,30 @@ export default function StudentSignup() {
 
     setLoading(true);
     try {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setSentCode(code);
+      await sendEmailCode(email);
+      setSentCode("sent");
       setVerificationCode("");
       timer.start();
-      toast.success(`시스템 인증번호: ${code} (이메일 전송 시뮬레이션)`);
-    } catch {
-      toast.error("인증번호 전송 오류");
+      toast.success("인증번호가 이메일로 전송되었습니다.");
+    } catch (err: any) {
+      toast.error(err.message || "인증번호 전송 오류");
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyCode = () => {
+  const verifyCode = async () => {
     if (timer.expired) {
       toast.error("인증번호가 만료되었습니다. 재전송해 주세요.");
       return;
     }
-    if (verificationCode === sentCode) {
+    try {
+      await verifyEmailCode(email, verificationCode);
       timer.clear();
       setIsEmailVerified(true);
       toast.success("인증 완료되었습니다");
-    } else {
-      toast.error("인증번호가 일치하지 않습니다");
+    } catch (err: any) {
+      toast.error(err.message || "인증번호가 일치하지 않습니다");
     }
   };
 
@@ -126,6 +133,9 @@ export default function StudentSignup() {
       toast.error("파일 크기는 10MB 이하여야 합니다.");
       return;
     }
+
+    // File 객체 저장 (API 전송용)
+    setPhotoFiles(prev => ({ ...prev, [type]: file }));
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -162,6 +172,7 @@ export default function StudentSignup() {
 
   const removePhoto = (type: "front" | "left" | "right") => {
     setPhotos(prev => ({ ...prev, [type]: null }));
+    setPhotoFiles(prev => ({ ...prev, [type]: null }));
     setIsFaceAuthenticated(false);
   };
 
@@ -187,7 +198,7 @@ export default function StudentSignup() {
       return;
     }
 
-    if (!photos.front || !photos.left || !photos.right) {
+    if (!photoFiles.front || !photoFiles.left || !photoFiles.right) {
       toast.error("얼굴 사진 3장을 모두 등록해주세요");
       return;
     }
@@ -199,13 +210,20 @@ export default function StudentSignup() {
 
     setLoading(true);
     try {
-      setTimeout(() => {
-        toast.success("프로필 생성이 완료되었습니다");
-        navigate("/login");
-        setLoading(false);
-      }, 1500);
+      await signupStudent(
+        studentId,
+        name,
+        email,
+        password,
+        photoFiles.left,
+        photoFiles.front,
+        photoFiles.right,
+      );
+      toast.success("회원가입이 완료되었습니다");
+      navigate("/login");
     } catch (error: any) {
-      toast.error(error.message || "프로필 생성 오류");
+      toast.error(error.message || "회원가입 오류");
+    } finally {
       setLoading(false);
     }
   };
