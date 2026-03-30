@@ -11,11 +11,12 @@ import { toast } from "sonner";
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [loginId, setLoginId] = useState("");
+  const savedId = localStorage.getItem("savedLoginId");
+  const [loginId, setLoginId] = useState(savedId || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [saveId, setSaveId] = useState(false);
+  const [saveId, setSaveId] = useState(!!savedId);
   const [stayLoggedIn, setStayLoggedIn] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -25,6 +26,12 @@ export default function Login() {
     try {
       const res = await apiLogin(loginId, password);
       const { role, userName, accessToken, refreshToken } = res.data;
+      if (saveId) {
+        localStorage.setItem("savedLoginId", loginId);
+      } else {
+        localStorage.removeItem("savedLoginId");
+      }
+
       login(role, userName, accessToken, refreshToken);
 
       const mappedRole = role.toUpperCase().includes("STUDENT")

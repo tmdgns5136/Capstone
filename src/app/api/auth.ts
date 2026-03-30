@@ -27,6 +27,7 @@ export async function signupStudent(
   userName: string,
   userEmail: string,
   password: string,
+  phoneNum: string,
   leftImage: File,
   centerImage: File,
   rightImage: File,
@@ -34,7 +35,7 @@ export async function signupStudent(
   const formData = new FormData();
   formData.append(
     "joinRequest",
-    new Blob([JSON.stringify({ userNum, userName, userEmail, password })], {
+    new Blob([JSON.stringify({ userNum, userName, userEmail, password, phoneNum })], {
       type: "application/json",
     }),
   );
@@ -55,17 +56,27 @@ export async function signupProfessor(
   userName: string,
   userEmail: string,
   password: string,
+  phoneNum: string,
 ) {
   return api("/signup/professor", {
     method: "POST",
     skipAuth: true,
-    body: JSON.stringify({ userNum, userName, userEmail, password }),
+    body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum }),
   });
 }
 
-// 이메일 인증번호 발송
+// 이메일 인증번호 발송 (회원가입용)
 export async function sendEmailCode(email: string) {
   return api("/email-send", {
+    method: "POST",
+    skipAuth: true,
+    body: JSON.stringify({ email }),
+  });
+}
+
+// 이메일 인증번호 발송 (비밀번호 찾기용)
+export async function sendPasswordEmailCode(email: string) {
+  return api("/password-email-send", {
     method: "POST",
     skipAuth: true,
     body: JSON.stringify({ email }),
@@ -81,7 +92,7 @@ export async function verifyEmailCode(email: string, code: string) {
   });
 }
 
-// 비밀번호 변경
+// 1-4. 비밀번호 찾기 변경
 export async function changePassword(
   newPassword: string,
   userEmail: string,
@@ -90,5 +101,13 @@ export async function changePassword(
     method: "PATCH",
     skipAuth: true,
     body: JSON.stringify({ newPassword, userEmail }),
+  });
+}
+
+// 1-6. 비밀번호 확인
+export async function checkPassword(currentPassword: string) {
+  return api("/password-check", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword }),
   });
 }

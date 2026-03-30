@@ -5,7 +5,7 @@ import { Mail, Lock, ArrowLeft, ArrowRight, GraduationCap, Eye, EyeOff, CheckCir
 import { OtpInput } from "../components/OtpInput";
 import { toast } from "sonner";
 import { useVerificationTimer } from "../hooks/useVerificationTimer";
-import { sendEmailCode, verifyEmailCode, changePassword } from "../api/auth";
+import { sendPasswordEmailCode, verifyEmailCode, changePassword } from "../api/auth";
 
 const spring = { type: "spring" as const, stiffness: 100, damping: 20 };
 
@@ -27,7 +27,7 @@ export default function PasswordReset() {
     e.preventDefault();
     setLoading(true);
     try {
-      await sendEmailCode(email);
+      await sendPasswordEmailCode(email);
       toast.success("인증번호가 이메일로 전송되었습니다.");
       setStep(2);
       setCode("");
@@ -42,7 +42,7 @@ export default function PasswordReset() {
   const handleResendCode = async () => {
     setLoading(true);
     try {
-      await sendEmailCode(email);
+      await sendPasswordEmailCode(email);
       toast.success("인증번호가 재전송되었습니다.");
       setCode("");
       timer.start();

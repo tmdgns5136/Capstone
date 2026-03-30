@@ -1,13 +1,20 @@
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { User, Hash, Check, ArrowLeft, ArrowRight, Mail, Eye, EyeOff, RefreshCcw, ShieldCheck, Upload, ImagePlus, X, Info } from "lucide-react";
+import { User, Hash, Check, ArrowLeft, ArrowRight, Mail, Eye, EyeOff, RefreshCcw, ShieldCheck, Upload, ImagePlus, X, Info, Phone } from "lucide-react";
 import { OtpInput } from "../../components/OtpInput";
 import { toast } from "sonner";
 import { useVerificationTimer } from "../../hooks/useVerificationTimer";
 import { sendEmailCode, verifyEmailCode, signupStudent } from "../../api/auth";
 
 const spring = { type: "spring" as const, stiffness: 100, damping: 20 };
+
+function formatPhone(value: string) {
+  const nums = value.replace(/\D/g, "").slice(0, 11);
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Face Guideline Images                                              */
@@ -45,6 +52,7 @@ export default function StudentSignup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [sentCode, setSentCode] = useState("");
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -215,6 +223,7 @@ export default function StudentSignup() {
         name,
         email,
         password,
+        phone,
         photoFiles.left,
         photoFiles.front,
         photoFiles.right,
@@ -337,6 +346,26 @@ export default function StudentSignup() {
                           <p className="text-xs text-rose-500 mt-1">학번은 9자리 숫자로 입력해주세요.</p>
                         )}
                       </div>
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 mb-1.5">전화번호</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                        <input
+                          type="tel"
+                          placeholder="010-1234-5678"
+                          value={phone}
+                          onChange={(e) => setPhone(formatPhone(e.target.value))}
+                          maxLength={13}
+                          className={`${phone.length > 0 && phone.replace(/-/g, '').length < 10 ? inputErrorClass : inputClass} pl-10`}
+                          required
+                        />
+                      </div>
+                      {phone.length > 0 && phone.replace(/-/g, '').length < 10 && (
+                        <p className="text-xs text-rose-500 mt-1">전화번호를 올바르게 입력해주세요.</p>
+                      )}
                     </div>
 
                     {/* Email */}

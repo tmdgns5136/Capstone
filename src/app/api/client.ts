@@ -69,14 +69,15 @@ export async function api<T = any>(
     headers.set("Content-Type", "application/json");
   }
 
-  let res = await fetch(`${BASE_URL}${endpoint}`, { ...rest, headers });
+  const url = endpoint.startsWith("/api/") ? endpoint : `${BASE_URL}${endpoint}`;
+  let res = await fetch(url, { ...rest, headers });
 
   // 401이면 토큰 재발급 후 재시도
   if (res.status === 401 && !skipAuth) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers.set("Authorization", `Bearer ${newToken}`);
-      res = await fetch(`${BASE_URL}${endpoint}`, { ...rest, headers });
+      res = await fetch(url, { ...rest, headers });
     }
   }
 

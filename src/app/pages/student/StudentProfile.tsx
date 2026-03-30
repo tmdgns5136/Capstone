@@ -1,7 +1,18 @@
-import { useState, useRef } from "react";
-import { User, Camera, Key, X, Eye, EyeOff, Upload, Trash2, CheckCircle, Info, Clock, XCircle, FileText } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { User, Camera, Key, X, Eye, EyeOff, Upload, Trash2, CheckCircle, Info, Clock, XCircle, FileText, Phone, LogOut } from "lucide-react";
 import { toast } from "sonner";
-import { usePhotoRequests } from "../../hooks/usePhotoRequests";
+import { useNavigate } from "react-router";
+import { checkPassword } from "../../api/auth";
+import {
+  getProfile,
+  updateProfile,
+  changePasswordMypage,
+  requestPhotoChange,
+  getPhotoRequests,
+  withdraw,
+  type ProfileData,
+  type PhotoRequestItem,
+} from "../../api/mypage";
 
 const faceGuideImages: Record<string, string> = {
   front: "/guideline/정면.png",
@@ -9,12 +20,26 @@ const faceGuideImages: Record<string, string> = {
   right: "/guideline/우측.png",
 };
 
+function formatPhone(value: string) {
+  const nums = value.replace(/\D/g, "").slice(0, 11);
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+}
+
 export default function StudentProfile() {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState("강신우");
-  const [studentId] = useState("202110898");
-  const [department] = useState("컴퓨터과학과");
-  const [email] = useState("202110898@sangmyung.kr");
+  const [loading, setLoading] = useState(false);
+
+  // Profile data from API
+  const [name, setName] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [department, setDepartment] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [faceStatus, setFaceStatus] = useState<string>("");
+  const [profileImages, setProfileImages] = useState<Record<string, string>>({});
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // Password modal state
@@ -30,11 +55,44 @@ export default function StudentProfile() {
   const [isPhotoHistoryOpen, setIsPhotoHistoryOpen] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [photoFiles, setPhotoFiles] = useState<{ front: string | null; left: string | null; right: string | null }>({ front: null, left: null, right: null });
+  const [photoFileObjects, setPhotoFileObjects] = useState<{ front: File | null; left: File | null; right: File | null }>({ front: null, left: null, right: null });
   const [photoPwd, setPhotoPwd] = useState("");
   const [showPhotoPwd, setShowPhotoPwd] = useState(false);
   const fileRefs = { front: useRef<HTMLInputElement>(null), left: useRef<HTMLInputElement>(null), right: useRef<HTMLInputElement>(null) };
-  const { requests: photoRequests, addRequest } = usePhotoRequests();
-  const myPhotoRequests = photoRequests.filter(r => r.studentId === studentId);
+  const [myPhotoRequests, setMyPhotoRequests] = useState<PhotoRequestItem[]>([]);
+
+  // 프로필 조회 (1-5)
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getProfile();
+        const d = res.data;
+        setName(d.userName);
+        setStudentId(d.userNum);
+        setDepartment(d.major || "");
+        setEmail(d.userEmail);
+        setPhone(d.phoneNum ? formatPhone(d.phoneNum) : "");
+        setFaceStatus(d.faceRegistrationsStatus);
+        const imgs: Record<string, string> = {};
+        d.profileImages?.forEach((img) => {
+          imgs[img.orientation] = img.url;
+        });
+        setProfileImages(imgs);
+      } catch {
+        // API 실패 시 빈 상태 유지
+      }
+    })();
+  }, []);
+
+  // 사진 변경 요청 내역 조회 (1-5-4)
+  const fetchPhotoRequests = async () => {
+    try {
+      const res = await getPhotoRequests();
+      setMyPhotoRequests(res.data);
+    } catch {
+      // 내역 없으면 빈 배열 유지
+    }
+  };
 
   const resizeImage = (dataUrl: string, maxWidth: number, maxHeight: number): Promise<string> => {
     return new Promise((resolve) => {
@@ -61,6 +119,7 @@ export default function StudentProfile() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { toast.error("파일 크기는 10MB 이하여야 합니다"); return; }
+    setPhotoFileObjects((prev) => ({ ...prev, [key]: file }));
     const reader = new FileReader();
     reader.onload = async () => {
       const resized = await resizeImage(reader.result as string, 400, 533);
@@ -69,48 +128,60 @@ export default function StudentProfile() {
     reader.readAsDataURL(file);
   };
 
-  const handlePhotoSubmit = () => {
-    if (!photoFiles.front || !photoFiles.left || !photoFiles.right) { toast.error("3장의 사진을 모두 등록해주세요"); return; }
+  const handlePhotoSubmit = async () => {
+    if (!photoFileObjects.front || !photoFileObjects.left || !photoFileObjects.right) { toast.error("3장의 사진을 모두 등록해주세요"); return; }
     if (!photoPwd) { toast.error("비밀번호를 입력해주세요"); return; }
-    const lastRequestDate = localStorage.getItem(`photo_request_last_${studentId}`);
-    const today = new Date().toISOString().split("T")[0];
-    if (lastRequestDate === today) { toast.error("사진 변경 요청은 1일 1회만 가능합니다."); return; }
-    if (!confirm("정말 변경 요청을 하시겠습니까?\n\n사진 변경은 1일 1회로 제한됩니다.")) return;
+
     try {
-      addRequest({
-        studentId,
-        studentName: name,
-        department,
-        photos: {
-          front: photoFiles.front,
-          left: photoFiles.left,
-          right: photoFiles.right,
-        },
-      });
-      localStorage.setItem(`photo_request_last_${studentId}`, today);
+      await checkPassword(photoPwd);
+    } catch {
+      toast.error("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    if (!confirm("정말 변경 요청을 하시겠습니까?\n\n사진 변경은 1일 1회로 제한됩니다.")) return;
+
+    setLoading(true);
+    try {
+      await requestPhotoChange(photoFileObjects.left, photoFileObjects.front, photoFileObjects.right);
       toast.success("사진 변경 요청이 접수되었습니다. 관리자 승인 후 반영됩니다.");
       setIsPhotoModalOpen(false);
       setPhotoFiles({ front: null, left: null, right: null });
+      setPhotoFileObjects({ front: null, left: null, right: null });
       setPhotoPwd("");
-    } catch {
-      toast.error("저장 공간이 부족합니다. 기존 요청을 정리한 후 다시 시도해주세요.");
+      fetchPhotoRequests();
+    } catch (err: any) {
+      toast.error(err.message || "사진 변경 요청에 실패했습니다.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const closePhotoModal = () => {
     setIsPhotoModalOpen(false);
     setPhotoFiles({ front: null, left: null, right: null });
+    setPhotoFileObjects({ front: null, left: null, right: null });
     setPhotoPwd("");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isEditing && !confirmPassword) {
       toast.error("정보 수정을 위해 비밀번호를 입력해주세요");
       return;
     }
-    setIsEditing(false);
-    setConfirmPassword("");
-    toast.success("정보가 저장되었습니다");
+
+    setLoading(true);
+    try {
+      await checkPassword(confirmPassword);
+      await updateProfile(phone);
+      setIsEditing(false);
+      setConfirmPassword("");
+      toast.success("정보가 저장되었습니다");
+    } catch (err: any) {
+      toast.error(err.message || "정보 수정에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -118,7 +189,7 @@ export default function StudentProfile() {
     setConfirmPassword("");
   };
 
-  const handleSubmitPasswordChange = () => {
+  const handleSubmitPasswordChange = async () => {
     if (!currentPwd || !newPwd || !confirmNewPwd) {
       toast.error("모든 칸을 입력해주세요");
       return;
@@ -127,11 +198,21 @@ export default function StudentProfile() {
       toast.error("새 비밀번호가 일치하지 않습니다");
       return;
     }
-    toast.success("비밀번호가 변경되었습니다");
-    setIsPasswordModalOpen(false);
-    setCurrentPwd("");
-    setNewPwd("");
-    setConfirmNewPwd("");
+
+    setLoading(true);
+    try {
+      await checkPassword(currentPwd);
+      await changePasswordMypage(newPwd);
+      toast.success("비밀번호가 변경되었습니다");
+      setIsPasswordModalOpen(false);
+      setCurrentPwd("");
+      setNewPwd("");
+      setConfirmNewPwd("");
+    } catch (err: any) {
+      toast.error(err.message || "비밀번호 변경에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -159,10 +240,8 @@ export default function StudentProfile() {
             <label className="text-sm font-medium text-zinc-700 mb-1 block">이름</label>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={!isEditing}
-              className={`w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary ${!isEditing ? "bg-zinc-50 text-zinc-500 cursor-not-allowed" : "bg-white"
-                }`}
+              disabled
+              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
             />
           </div>
           <div>
@@ -187,6 +266,19 @@ export default function StudentProfile() {
               value={email}
               disabled
               className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
+              <Phone className="w-3.5 h-3.5 text-zinc-400" /> 전화번호
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(formatPhone(e.target.value))}
+              disabled={!isEditing}
+              className={`w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary ${!isEditing ? "bg-zinc-50 text-zinc-500 cursor-not-allowed" : "bg-white"
+                }`}
             />
           </div>
         </div>
@@ -242,23 +334,26 @@ export default function StudentProfile() {
 
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { label: "정면", icon: "face", imgUrl: "/mypage/마이페이지 정면.png" },
-            { label: "좌측", icon: "phone-left", imgUrl: "/mypage/마이페이지 좌측.png" },
-            { label: "우측", icon: "phone-right", imgUrl: "/mypage/마이페이지 우측.png" },
+            { label: "정면", icon: "face", imgUrl: profileImages.c },
+            { label: "좌측", icon: "phone-left", imgUrl: profileImages.l },
+            { label: "우측", icon: "phone-right", imgUrl: profileImages.r },
           ].map((item) => (
             <div key={item.label} className="bg-zinc-50 rounded-xl border border-zinc-200 overflow-hidden flex flex-col items-center">
               <div className="w-full aspect-[3/4] bg-zinc-100 flex items-center justify-center overflow-hidden">
-                <img
-                  src={item.imgUrl}
-                  alt={item.label}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                    (e.target as HTMLImageElement).parentElement!.innerHTML = item.icon === "face"
-                      ? '<span class="text-4xl">😐</span>'
-                      : '<span class="text-zinc-400">📱</span>';
-                  }}
-                />
+                {item.imgUrl ? (
+                  <img
+                    src={item.imgUrl}
+                    alt={item.label}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                      (e.target as HTMLImageElement).parentElement!.innerHTML =
+                        '<div class="w-full h-full flex items-center justify-center text-zinc-300 text-xs">이미지 없음</div>';
+                    }}
+                  />
+                ) : (
+                  <span className="text-zinc-300 text-xs">이미지 없음</span>
+                )}
               </div>
               <span className="text-sm font-medium text-zinc-600 py-3">{item.label}</span>
             </div>
@@ -267,13 +362,13 @@ export default function StudentProfile() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => setIsPhotoHistoryOpen(true)}
+            onClick={() => { fetchPhotoRequests(); setIsPhotoHistoryOpen(true); }}
             className="flex-1 bg-white text-zinc-700 text-sm font-medium py-3 rounded-lg border border-zinc-200 hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
           >
             <FileText className="w-4 h-4" /> 요청 내역 확인
-            {myPhotoRequests.filter(r => r.status === "대기").length > 0 && (
+            {myPhotoRequests.filter(r => r.status === "PENDING").length > 0 && (
               <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                {myPhotoRequests.filter(r => r.status === "대기").length}
+                {myPhotoRequests.filter(r => r.status === "PENDING").length}
               </span>
             )}
           </button>
@@ -285,12 +380,31 @@ export default function StudentProfile() {
           </button>
         </div>
 
-        <p className="text-xs text-zinc-400 text-center mt-3">마지막 업데이트: 2026년 6월 25일</p>
+        {faceStatus && (
+          <p className="text-xs text-zinc-400 text-center mt-3">
+            얼굴 등록 상태: {faceStatus === "APPROVED" ? "승인됨" : faceStatus === "PENDING" ? "대기 중" : "거절됨"}
+          </p>
+        )}
       </div>
 
-      {/* 서비스 탈퇴 */}
+      {/* 서비스 탈퇴 (1-7) */}
       <div className="text-right pb-8">
-        <button className="text-xs text-zinc-400 hover:text-zinc-600 underline underline-offset-2">서비스탈퇴</button>
+        <button
+          onClick={async () => {
+            if (!confirm("정말 탈퇴하시겠습니까?\n\n탈퇴 후 복구할 수 없습니다.")) return;
+            try {
+              await withdraw();
+              toast.success("회원 탈퇴가 완료되었습니다.");
+              localStorage.clear();
+              navigate("/login");
+            } catch (err: any) {
+              toast.error(err.message || "회원 탈퇴에 실패했습니다.");
+            }
+          }}
+          className="text-xs text-zinc-400 hover:text-zinc-600 underline underline-offset-2"
+        >
+          서비스탈퇴
+        </button>
       </div>
 
       {/* Password Change Modal */}
@@ -423,18 +537,17 @@ export default function StudentProfile() {
                   <div key={slot.key} className="flex flex-col items-center gap-2">
                     <div
                       onClick={() => fileRefs[slot.key].current?.click()}
-                      className={`w-full aspect-[3/4] rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden transition-colors ${
-                        photoFiles[slot.key]
+                      className={`w-full aspect-[3/4] rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden transition-colors ${photoFiles[slot.key]
                           ? "border-primary bg-primary/5"
                           : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:bg-zinc-100"
-                      }`}
+                        }`}
                     >
                       {photoFiles[slot.key] ? (
                         <div className="relative w-full h-full group">
                           <img src={photoFiles[slot.key]!} alt={slot.label} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-zinc-900/0 group-hover:bg-zinc-900/40 transition-colors flex items-center justify-center">
                             <button
-                              onClick={(e) => { e.stopPropagation(); setPhotoFiles((prev) => ({ ...prev, [slot.key]: null })); }}
+                              onClick={(e) => { e.stopPropagation(); setPhotoFiles((prev) => ({ ...prev, [slot.key]: null })); setPhotoFileObjects((prev) => ({ ...prev, [slot.key]: null })); }}
                               className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
                             >
                               <Trash2 className="w-4 h-4 text-rose-500" />
@@ -524,14 +637,14 @@ export default function StudentProfile() {
               {myPhotoRequests.length > 0 ? (
                 <div className="space-y-4">
                   {myPhotoRequests.map((req) => (
-                    <div key={req.id} className="bg-zinc-50 rounded-xl border border-zinc-200 p-4 space-y-3">
+                    <div key={req.requestId} className="bg-zinc-50 rounded-xl border border-zinc-200 p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-zinc-500">{req.requestDate}</span>
-                        {req.status === "대기" ? (
+                        {req.status === "PENDING" ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
                             <Clock className="w-3 h-3" /> 대기 중
                           </span>
-                        ) : req.status === "승인" ? (
+                        ) : req.status === "APPROVED" ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
                             <CheckCircle className="w-3 h-3" /> 승인
                           </span>
@@ -542,22 +655,30 @@ export default function StudentProfile() {
                         )}
                       </div>
                       <div className="grid grid-cols-3 gap-2">
-                        {(["front", "left", "right"] as const).map((dir) => (
-                          <div key={dir} className="aspect-[3/4] rounded-lg bg-zinc-100 overflow-hidden border border-zinc-200">
-                            <img
-                              src={req.photos[dir]}
-                              alt={dir}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = "none";
-                                (e.target as HTMLImageElement).parentElement!.innerHTML =
-                                  '<div class="w-full h-full flex items-center justify-center text-zinc-300 text-xs">이미지 없음</div>';
-                              }}
-                            />
-                          </div>
-                        ))}
+                        {(["CENTER", "LEFT", "RIGHT"] as const).map((dir) => {
+                          const img = req.profileImages?.find((i) => i.orientation === dir);
+                          const altText = dir === "CENTER" ? "정면" : dir === "LEFT" ? "좌측" : "우측";
+                          return (
+                            <div key={dir} className="aspect-[3/4] rounded-lg bg-zinc-100 overflow-hidden border border-zinc-200">
+                              {img ? (
+                                <img
+                                  src={img.url}
+                                  alt={altText}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = "none";
+                                    (e.target as HTMLImageElement).parentElement!.innerHTML =
+                                      '<div class="w-full h-full flex items-center justify-center text-zinc-300 text-xs">이미지 없음</div>';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-zinc-300 text-xs">이미지 없음</div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                      {req.status === "거절" && req.rejectReason && (
+                      {req.status === "REJECTED" && req.rejectReason && (
                         <div className="bg-rose-50 rounded-lg p-3 text-xs text-rose-700">
                           <span className="font-medium text-rose-500">거절 사유: </span>{req.rejectReason}
                         </div>
