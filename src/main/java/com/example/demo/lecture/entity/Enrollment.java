@@ -1,4 +1,4 @@
-package com.example.demo.entity.lecture;
+package com.example.demo.lecture.entity;
 
 import com.example.demo.home.entity.user.Student;
 import jakarta.persistence.*;

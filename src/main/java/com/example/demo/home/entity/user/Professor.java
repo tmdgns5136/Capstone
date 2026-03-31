@@ -5,7 +5,7 @@ import com.example.demo.entity.attendance.Official;
 import com.example.demo.entity.board.NoticeBoard;
 import com.example.demo.entity.board.QuestionBoard;
 import com.example.demo.entity.enumerate.RoleType;
-import com.example.demo.entity.lecture.Lecture;
+import com.example.demo.lecture.entity.Lecture;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

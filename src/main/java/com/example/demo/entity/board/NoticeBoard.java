@@ -1,6 +1,6 @@
 package com.example.demo.entity.board;
 
-import com.example.demo.entity.lecture.Lecture;
+import com.example.demo.lecture.entity.Lecture;
 import com.example.demo.home.entity.user.Professor;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

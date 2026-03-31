@@ -25,7 +25,7 @@ public class FileUtil {
     @PostConstruct
     public void init() {
         try {
-            Path root = Paths.get(uploadPath);
+            Path root = Paths.get(uploadPath).toAbsolutePath(); // 절대 경로로 변환
             // 폴더가 없으면 상위 폴더까지 싹 다 만듭니다 (mkdir -p와 동일)
             if (!Files.exists(root)) {
                 Files.createDirectories(root);
@@ -55,8 +55,20 @@ public class FileUtil {
         return new File(uploadPath, fileName);
     }
 
-    public File getMultipartFileToFile(MultipartFile multipartFile)throws IOException {
-        File file = new File(uploadPath, getFileNameWithUUID(multipartFile.getOriginalFilename()));
+    public File getMultipartFileToFile(MultipartFile multipartFile) throws IOException {
+        // 1. 파일명 생성
+        String fileName = getFileNameWithUUID(multipartFile.getOriginalFilename());
+
+        // 2. 경로를 절대 경로로 정규화해서 가져오기
+        Path targetPath = Paths.get(uploadPath).toAbsolutePath().normalize().resolve(fileName);
+        File file = targetPath.toFile();
+
+        // 3. 디렉토리가 혹시 없으면 여기서 한 번 더 생성
+        if (!file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
+
+        // 4. transferTo를 쓸 때 절대 경로 파일 객체를 넘기면 중복 경로가 안 생깁니다.
         multipartFile.transferTo(file);
         return file;
     }
@@ -83,17 +95,15 @@ public class FileUtil {
         }
     }
 
-    public ImgDto getFIleDtoFromMultipartFile(MultipartFile multipartFile, ImagePosition position) throws IOException{
+    public ImgDto getFIleDtoFromMultipartFile(MultipartFile multipartFile, ImagePosition position) throws IOException {
         File file = getMultipartFileToFile(multipartFile);
-        String fileName = file.getName();
-        String fileType = getExtension(Objects.requireNonNull(multipartFile.getOriginalFilename()));
-        Long fileSize = multipartFile.getSize();
 
+        // 5. DTO에 담을 때도 파일의 실제 절대 경로를 가져와서 담습니다.
         return ImgDto.builder()
-                .fileName(fileName)
-                .filePath(uploadPath + File.separator + fileName)
-                .fileType(fileType)
-                .fileSize(fileSize)
+                .fileName(file.getName())
+                .filePath(file.getAbsolutePath()) // 상대 경로가 아닌 전체 경로 저장
+                .fileType(getExtension(Objects.requireNonNull(multipartFile.getOriginalFilename())))
+                .fileSize(multipartFile.getSize())
                 .position(position)
                 .build();
     }

@@ -5,7 +5,7 @@ import com.example.demo.entity.attendance.Objection;
 import com.example.demo.entity.attendance.Official;
 import com.example.demo.entity.board.QuestionBoard;
 import com.example.demo.entity.enumerate.RoleType;
-import com.example.demo.entity.lecture.Enrollment;
+import com.example.demo.lecture.entity.Enrollment;
 import com.example.demo.home.entity.etc.Image;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

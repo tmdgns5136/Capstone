@@ -1,4 +1,4 @@
-package com.example.demo.entity.lecture;
+package com.example.demo.lecture.entity;
 
 import com.example.demo.entity.attendance.Attendance;
 import jakarta.persistence.*;
