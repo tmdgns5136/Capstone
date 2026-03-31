@@ -132,6 +132,7 @@ public class HomeController {
     @PostMapping("/email-send")
     public ResponseEntity<CommonResponse> sendEmail(@RequestBody Map<String, String> request){
         String email = request.get("email");
+        String type = "join";
         if(studentRepository.existsByStudentEmail(email)){
             CommonResponse response = CommonResponse.builder()
                     .status(409)
@@ -152,7 +153,7 @@ public class HomeController {
         int code = 100000 + random.nextInt(900000);
         String verificationCode = String.valueOf(code);
 
-        emailService.sendEmail(email, verificationCode);
+        emailService.sendEmail(email, verificationCode, type);
 
         redisTemplate.opsForValue().set(
                 "EMAIL_VERIFY:" + email,
@@ -200,6 +201,41 @@ public class HomeController {
                 .message("인증이 완료되었습니다.").build();
 
         return ResponseEntity.status(200).body(response);
+    }
+
+    // 비밀번호 찾기
+    @PostMapping("/password-email-send")
+    public ResponseEntity<CommonResponse> sendPasswordEmail(@RequestBody Map<String, String> request){
+        String email = request.get("email");
+        String type = "password";
+
+        if(!studentRepository.existsByStudentEmail(email) && !professorRepository.existsByProfessorEmail(email)){
+            CommonResponse response = CommonResponse.builder()
+                    .status(404)
+                    .success(false)
+                    .message("등록되지 않은 이메일입니다.").build();
+            return ResponseEntity.status(404).body(response);
+        }
+
+        SecureRandom random = new SecureRandom();
+        int code = 100000 + random.nextInt(900000);
+        String verificationCode = String.valueOf(code);
+
+        emailService.sendEmail(email, verificationCode, type);
+
+        redisTemplate.opsForValue().set(
+                "EMAIL_VERIFY:" + email,
+                verificationCode, Duration.ofMinutes(3)
+        );
+
+        CommonResponse response = CommonResponse.builder()
+                .status(200)
+                .success(true)
+                .message("인증 번호가 발송되었습니다.").build();
+
+        return ResponseEntity.ok(response);
+
+
     }
 
     @PatchMapping("/password-change")

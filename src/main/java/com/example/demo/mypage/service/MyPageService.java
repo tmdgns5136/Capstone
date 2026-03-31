@@ -77,13 +77,16 @@ public class MyPageService {
         }
         return inquiryResponse;
     }
-    private InquiryResponse.ProfileImage createProfileImage(String userNum, ImagePosition position, String orientation) {
-        ImgDto imgDto = fileService.getFileByPosition(userNum, position);
-        String path = (imgDto != null) ? imgDto.getFilePath() : "C:/Users/lsh/Desktop/photo/1.png";
+    private InquiryResponse.ProfileImage createProfileImage(String userNum, ImagePosition position, String suffix) {
+        // 실제 파일명을 결정하는 로직 (예: 20210001_l.jpg)
+        String fileName = userNum + "_" + suffix + ".jpg";
+
+        // 핵심: 물리 경로(C:/...)가 아니라 아까 만든 API 주소를 넣습니다.
+        String displayUrl = "/api/mypage/image/" + fileName;
 
         return InquiryResponse.ProfileImage.builder()
-                .orientation(orientation)
-                .url(path)
+                .orientation(position.toString())
+                .url(displayUrl) // 브라우저가 이 주소로 GET 요청을 보냅니다.
                 .build();
     }
 

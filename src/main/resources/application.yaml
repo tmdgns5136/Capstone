@@ -11,7 +11,7 @@ spring:
   servlet:
     multipart:
       enabled: true
-      location: C:/Users/lsh/Desktop/photo
+      location: ${UPLOAD_PATH:./uploads/photo}
       max-file-size: 10MB
       max-request-size: 50MB
 
@@ -51,4 +51,4 @@ com:
   example:
     upload:
       path:
-        profileImg: C:/Users/lsh/Desktop/photo
+        profileImg: ${UPLOAD_PATH:./uploads/photo}
