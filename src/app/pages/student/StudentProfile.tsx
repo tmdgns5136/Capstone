@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { User, Camera, Key, X, Eye, EyeOff, Upload, Trash2, CheckCircle, Info, Clock, XCircle, FileText, Phone, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
 import { checkPassword } from "../../api/auth";
 import {
   getProfile,
@@ -29,6 +30,7 @@ function formatPhone(value: string) {
 
 export default function StudentProfile() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -334,9 +336,9 @@ export default function StudentProfile() {
 
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { label: "정면", icon: "face", imgUrl: profileImages.c },
-            { label: "좌측", icon: "phone-left", imgUrl: profileImages.l },
-            { label: "우측", icon: "phone-right", imgUrl: profileImages.r },
+            { label: "정면", icon: "face", imgUrl: profileImages.CENTER },
+            { label: "좌측", icon: "phone-left", imgUrl: profileImages.LEFT },
+            { label: "우측", icon: "phone-right", imgUrl: profileImages.RIGHT },
           ].map((item) => (
             <div key={item.label} className="bg-zinc-50 rounded-xl border border-zinc-200 overflow-hidden flex flex-col items-center">
               <div className="w-full aspect-[3/4] bg-zinc-100 flex items-center justify-center overflow-hidden">
@@ -395,7 +397,7 @@ export default function StudentProfile() {
             try {
               await withdraw();
               toast.success("회원 탈퇴가 완료되었습니다.");
-              localStorage.clear();
+              logout();
               navigate("/login");
             } catch (err: any) {
               toast.error(err.message || "회원 탈퇴에 실패했습니다.");
