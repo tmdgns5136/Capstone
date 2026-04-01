@@ -1,0 +1,582 @@
+import { useState, useRef } from "react";
+import { User, Camera, Key, X, Eye, EyeOff, Upload, Trash2, CheckCircle, Info, Clock, XCircle, FileText } from "lucide-react";
+import { toast } from "sonner";
+import { usePhotoRequests } from "../../hooks/usePhotoRequests";
+
+const faceGuideImages: Record<string, string> = {
+  front: "/guideline/정면.png",
+  left: "/guideline/좌측.png",
+  right: "/guideline/우측.png",
+};
+
+export default function StudentProfile() {
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState("강신우");
+  const [studentId] = useState("202110898");
+  const [department] = useState("컴퓨터과학과");
+  const [email] = useState("202110898@sangmyung.kr");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Password modal state
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmNewPwd, setConfirmNewPwd] = useState("");
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+
+  // Photo change request modal state
+  const [isPhotoHistoryOpen, setIsPhotoHistoryOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [photoFiles, setPhotoFiles] = useState<{ front: string | null; left: string | null; right: string | null }>({ front: null, left: null, right: null });
+  const [photoPwd, setPhotoPwd] = useState("");
+  const [showPhotoPwd, setShowPhotoPwd] = useState(false);
+  const fileRefs = { front: useRef<HTMLInputElement>(null), left: useRef<HTMLInputElement>(null), right: useRef<HTMLInputElement>(null) };
+  const { requests: photoRequests, addRequest } = usePhotoRequests();
+  const myPhotoRequests = photoRequests.filter(r => r.studentId === studentId);
+
+  const resizeImage = (dataUrl: string, maxWidth: number, maxHeight: number): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = dataUrl;
+    });
+  };
+
+  const handlePhotoSelect = (key: "front" | "left" | "right", e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error("파일 크기는 10MB 이하여야 합니다"); return; }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const resized = await resizeImage(reader.result as string, 400, 533);
+      setPhotoFiles((prev) => ({ ...prev, [key]: resized }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePhotoSubmit = () => {
+    if (!photoFiles.front || !photoFiles.left || !photoFiles.right) { toast.error("3장의 사진을 모두 등록해주세요"); return; }
+    if (!photoPwd) { toast.error("비밀번호를 입력해주세요"); return; }
+    const lastRequestDate = localStorage.getItem(`photo_request_last_${studentId}`);
+    const today = new Date().toISOString().split("T")[0];
+    if (lastRequestDate === today) { toast.error("사진 변경 요청은 1일 1회만 가능합니다."); return; }
+    if (!confirm("정말 변경 요청을 하시겠습니까?\n\n사진 변경은 1일 1회로 제한됩니다.")) return;
+    try {
+      addRequest({
+        studentId,
+        studentName: name,
+        department,
+        photos: {
+          front: photoFiles.front,
+          left: photoFiles.left,
+          right: photoFiles.right,
+        },
+      });
+      localStorage.setItem(`photo_request_last_${studentId}`, today);
+      toast.success("사진 변경 요청이 접수되었습니다. 관리자 승인 후 반영됩니다.");
+      setIsPhotoModalOpen(false);
+      setPhotoFiles({ front: null, left: null, right: null });
+      setPhotoPwd("");
+    } catch {
+      toast.error("저장 공간이 부족합니다. 기존 요청을 정리한 후 다시 시도해주세요.");
+    }
+  };
+
+  const closePhotoModal = () => {
+    setIsPhotoModalOpen(false);
+    setPhotoFiles({ front: null, left: null, right: null });
+    setPhotoPwd("");
+  };
+
+  const handleSave = () => {
+    if (isEditing && !confirmPassword) {
+      toast.error("정보 수정을 위해 비밀번호를 입력해주세요");
+      return;
+    }
+    setIsEditing(false);
+    setConfirmPassword("");
+    toast.success("정보가 저장되었습니다");
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setConfirmPassword("");
+  };
+
+  const handleSubmitPasswordChange = () => {
+    if (!currentPwd || !newPwd || !confirmNewPwd) {
+      toast.error("모든 칸을 입력해주세요");
+      return;
+    }
+    if (newPwd !== confirmNewPwd) {
+      toast.error("새 비밀번호가 일치하지 않습니다");
+      return;
+    }
+    toast.success("비밀번호가 변경되었습니다");
+    setIsPasswordModalOpen(false);
+    setCurrentPwd("");
+    setNewPwd("");
+    setConfirmNewPwd("");
+  };
+
+  return (
+    <div className="space-y-8 max-w-3xl mx-auto">
+      {/* Header */}
+      <h1 className="text-3xl font-bold text-zinc-900">마이페이지</h1>
+
+      {/* 기본 정보 관리 */}
+      <div className="bg-white rounded-xl border border-zinc-200 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-semibold text-zinc-900 flex items-center gap-2">
+            <User className="w-4 h-4 text-zinc-400" /> 기본 정보 관리
+          </h2>
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="text-sm font-medium text-primary hover:text-primary-hover border border-primary px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+            >
+              정보 수정
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-1 block">이름</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={!isEditing}
+              className={`w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary ${!isEditing ? "bg-zinc-50 text-zinc-500 cursor-not-allowed" : "bg-white"
+                }`}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-1 block">학번</label>
+            <input
+              value={studentId}
+              disabled
+              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-1 block">학과</label>
+            <input
+              value={department}
+              disabled
+              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-1 block">이메일</label>
+            <input
+              value={email}
+              disabled
+              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
+            />
+          </div>
+        </div>
+
+        {/* Edit mode: password confirmation */}
+        {isEditing && (
+          <div className="mt-5 pt-4 border-t border-zinc-100 space-y-4">
+            <div>
+              <label className="text-sm font-medium text-rose-500 mb-1 block flex items-center gap-1">
+                <Key className="w-3.5 h-3.5" /> 정보 수정을 위해 현재 비밀번호를 입력해주세요
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="현재 비밀번호"
+                className="w-full rounded-lg border border-zinc-200 p-3 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSave}
+                className="flex-1 bg-zinc-900 text-white text-sm font-medium py-3 rounded-lg hover:bg-zinc-800"
+              >
+                저장하기
+              </button>
+              <button
+                onClick={handleCancel}
+                className="flex-1 bg-white text-zinc-700 text-sm font-medium py-3 rounded-lg border border-zinc-200 hover:bg-zinc-50"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isEditing && (
+          <div className="mt-5 pt-4 border-t border-zinc-100">
+            <button
+              onClick={() => setIsPasswordModalOpen(true)}
+              className="text-sm text-primary hover:text-primary-hover font-medium underline underline-offset-2 flex items-center gap-1"
+            >
+              <Key className="w-3.5 h-3.5" /> 비밀번호변경
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 얼굴 인식 데이터 관리 */}
+      <div className="bg-white rounded-xl border border-zinc-200 p-6">
+        <h2 className="text-base font-semibold text-zinc-900 mb-1">얼굴 인식 데이터 관리</h2>
+        <p className="text-sm text-zinc-400 mb-6">현재 등록된 얼굴 데이터입니다.</p>
+
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { label: "정면", icon: "face", imgUrl: "/mypage/마이페이지 정면.png" },
+            { label: "좌측", icon: "phone-left", imgUrl: "/mypage/마이페이지 좌측.png" },
+            { label: "우측", icon: "phone-right", imgUrl: "/mypage/마이페이지 우측.png" },
+          ].map((item) => (
+            <div key={item.label} className="bg-zinc-50 rounded-xl border border-zinc-200 overflow-hidden flex flex-col items-center">
+              <div className="w-full aspect-[3/4] bg-zinc-100 flex items-center justify-center overflow-hidden">
+                <img
+                  src={item.imgUrl}
+                  alt={item.label}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    (e.target as HTMLImageElement).parentElement!.innerHTML = item.icon === "face"
+                      ? '<span class="text-4xl">😐</span>'
+                      : '<span class="text-zinc-400">📱</span>';
+                  }}
+                />
+              </div>
+              <span className="text-sm font-medium text-zinc-600 py-3">{item.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => setIsPhotoHistoryOpen(true)}
+            className="flex-1 bg-white text-zinc-700 text-sm font-medium py-3 rounded-lg border border-zinc-200 hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <FileText className="w-4 h-4" /> 요청 내역 확인
+            {myPhotoRequests.filter(r => r.status === "대기").length > 0 && (
+              <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                {myPhotoRequests.filter(r => r.status === "대기").length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setIsPhotoModalOpen(true)}
+            className="flex-1 bg-zinc-100 text-zinc-700 text-sm font-medium py-3 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+          >
+            <Camera className="w-4 h-4" /> 사진 변경 요청하기
+          </button>
+        </div>
+
+        <p className="text-xs text-zinc-400 text-center mt-3">마지막 업데이트: 2026년 6월 25일</p>
+      </div>
+
+      {/* 서비스 탈퇴 */}
+      <div className="text-right pb-8">
+        <button className="text-xs text-zinc-400 hover:text-zinc-600 underline underline-offset-2">서비스탈퇴</button>
+      </div>
+
+      {/* Password Change Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/30 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
+                <Key className="w-5 h-5 text-zinc-400" /> 비밀번호 변경
+              </h2>
+              <button
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center"
+              >
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1 block">현재 비밀번호</label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPwd ? "text" : "password"}
+                    value={currentPwd}
+                    onChange={(e) => setCurrentPwd(e.target.value)}
+                    placeholder="현재 비밀번호를 입력하세요"
+                    className="w-full rounded-lg border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                  <button
+                    onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  >
+                    {showCurrentPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1 block">새 비밀번호</label>
+                <div className="relative">
+                  <input
+                    type={showNewPwd ? "text" : "password"}
+                    value={newPwd}
+                    onChange={(e) => setNewPwd(e.target.value)}
+                    placeholder="새 비밀번호를 입력하세요"
+                    className="w-full rounded-lg border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                  <button
+                    onClick={() => setShowNewPwd(!showNewPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  >
+                    {showNewPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-zinc-700 mb-1 block">새 비밀번호 확인</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPwd ? "text" : "password"}
+                    value={confirmNewPwd}
+                    onChange={(e) => setConfirmNewPwd(e.target.value)}
+                    placeholder="새 비밀번호를 다시 입력하세요"
+                    className="w-full rounded-lg border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                  <button
+                    onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  >
+                    {showConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-zinc-100 flex justify-end gap-3">
+              <button
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="text-sm text-zinc-500 px-4 py-2 hover:text-zinc-700"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSubmitPasswordChange}
+                className="bg-zinc-900 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-zinc-800"
+              >
+                변경
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Change Request Modal */}
+      {isPhotoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/30 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-lg max-h-[90dvh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
+                <Camera className="w-5 h-5 text-zinc-400" /> 사진 변경 요청
+              </h2>
+              <button
+                onClick={closePhotoModal}
+                className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center"
+              >
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <p className="text-sm text-zinc-500">새로 등록할 얼굴 사진 3장을 업로드해주세요. 관리자 승인 후 반영됩니다.</p>
+
+              {/* Guideline Info */}
+              <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 flex gap-3">
+                <Info className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" strokeWidth={1.5} />
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium text-sky-800">촬영 가이드라인</p>
+                  <ul className="text-xs text-sky-700 space-y-1 leading-relaxed">
+                    <li>- 주변에 사람이 없는 밝은 곳에서 촬영한 사진을 사용해주세요</li>
+                    <li>- 얼굴이 사진의 중앙에 위치하도록 해주세요</li>
+                    <li>- 모자, 선글라스 등 얼굴을 가리는 액세서리를 제거해주세요</li>
+                    <li>- JPG, PNG 형식 / 10MB 이하 파일만 업로드 가능합니다</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {([
+                  { key: "front" as const, label: "정면 (Front)" },
+                  { key: "left" as const, label: "왼쪽 30°" },
+                  { key: "right" as const, label: "오른쪽 30°" },
+                ]).map((slot) => (
+                  <div key={slot.key} className="flex flex-col items-center gap-2">
+                    <div
+                      onClick={() => fileRefs[slot.key].current?.click()}
+                      className={`w-full aspect-[3/4] rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden transition-colors ${
+                        photoFiles[slot.key]
+                          ? "border-primary bg-primary/5"
+                          : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:bg-zinc-100"
+                      }`}
+                    >
+                      {photoFiles[slot.key] ? (
+                        <div className="relative w-full h-full group">
+                          <img src={photoFiles[slot.key]!} alt={slot.label} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-zinc-900/0 group-hover:bg-zinc-900/40 transition-colors flex items-center justify-center">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setPhotoFiles((prev) => ({ ...prev, [slot.key]: null })); }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
+                            >
+                              <Trash2 className="w-4 h-4 text-rose-500" />
+                            </button>
+                          </div>
+                          <div className="absolute top-2 right-2">
+                            <CheckCircle className="w-5 h-5 text-primary drop-shadow" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="w-16 h-20 opacity-40 mb-2">
+                            <img src={faceGuideImages[slot.key]} alt={`${slot.label} 가이드`} className="w-full h-full object-contain" />
+                          </div>
+                          <Upload className="w-4 h-4 text-zinc-400 mb-0.5" />
+                          <span className="text-[11px] text-zinc-400">파일 선택</span>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={fileRefs[slot.key]}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handlePhotoSelect(slot.key, e)}
+                    />
+                    <span className="text-xs font-medium text-zinc-600">{slot.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-zinc-100">
+                <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5" /> 본인 확인을 위해 비밀번호를 입력해주세요
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPhotoPwd ? "text" : "password"}
+                    value={photoPwd}
+                    onChange={(e) => setPhotoPwd(e.target.value)}
+                    placeholder="현재 비밀번호"
+                    className="w-full rounded-lg border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                  <button
+                    onClick={() => setShowPhotoPwd(!showPhotoPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  >
+                    {showPhotoPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-zinc-100 flex justify-end gap-3">
+              <button
+                onClick={closePhotoModal}
+                className="text-sm text-zinc-500 px-4 py-2 hover:text-zinc-700"
+              >
+                취소
+              </button>
+              <button
+                onClick={handlePhotoSubmit}
+                className="bg-zinc-900 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center gap-2"
+              >
+                <Camera className="w-4 h-4" /> 변경 요청
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Request History Modal */}
+      {isPhotoHistoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/30 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-lg max-h-[90dvh] flex flex-col">
+            <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between shrink-0">
+              <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-zinc-400" /> 사진 변경 요청 내역
+              </h2>
+              <button
+                onClick={() => setIsPhotoHistoryOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center"
+              >
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              {myPhotoRequests.length > 0 ? (
+                <div className="space-y-4">
+                  {myPhotoRequests.map((req) => (
+                    <div key={req.id} className="bg-zinc-50 rounded-xl border border-zinc-200 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-zinc-500">{req.requestDate}</span>
+                        {req.status === "대기" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
+                            <Clock className="w-3 h-3" /> 대기 중
+                          </span>
+                        ) : req.status === "승인" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
+                            <CheckCircle className="w-3 h-3" /> 승인
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-700">
+                            <XCircle className="w-3 h-3" /> 거절
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(["front", "left", "right"] as const).map((dir) => (
+                          <div key={dir} className="aspect-[3/4] rounded-lg bg-zinc-100 overflow-hidden border border-zinc-200">
+                            <img
+                              src={req.photos[dir]}
+                              alt={dir}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = "none";
+                                (e.target as HTMLImageElement).parentElement!.innerHTML =
+                                  '<div class="w-full h-full flex items-center justify-center text-zinc-300 text-xs">이미지 없음</div>';
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {req.status === "거절" && req.rejectReason && (
+                        <div className="bg-rose-50 rounded-lg p-3 text-xs text-rose-700">
+                          <span className="font-medium text-rose-500">거절 사유: </span>{req.rejectReason}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center">
+                  <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center mx-auto mb-3">
+                    <Camera className="w-6 h-6 text-zinc-300" />
+                  </div>
+                  <p className="text-sm text-zinc-500">요청 내역이 없습니다</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
