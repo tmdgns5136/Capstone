@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>얼굴 인식 시스템</title>
+    <script async src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="headerContainer">
+
+    <div class="header-container">
+        <h1 class="header-title">얼굴 인식 시스템</h1>
+        <p class="header-desc">웹캠 또는 사진 업로드를 통해 얼굴을 감지합니다</p>
+        <div id="userInfoArea" style="display: none; margin-top: 15px;">
+            <p id="currentUser" style="color: #333; font-weight: bold; margin: 0;"></p>
+            <button id="logoutBtn" class="nav-btn" style="background: #f44336; color: white; margin-top: 10px;">로그아웃</button>
+        </div>
+        <div id="authNav" class="header-nav" style="display: none;">
+            <button class="nav-btn active" id="loginPageBtn">로그인</button>
+            <button class="nav-btn inactive" id="signupPageBtn">회원가입</button>
+        </div>
+        <div id="mainNav" class="header-nav" style="display: none;">
+            <button class="nav-btn active" id="registerPageBtn">사진 등록</button>
+            <button class="nav-btn inactive" id="galleryPageBtn">등록된 사진</button>
+            <button class="nav-btn inactive" id="profilePageBtn">프로필 수정</button>
+        </div>
+    </div>
+
+    <div id="loginPage" class="page">
+        <div class="card">
+            <h2 style="margin-bottom: 30px;">로그인</h2>
+            <div class="input-group">
+                <label for="loginUsername">이메일:</label>
+                <input type="email" id="loginUsername" placeholder="이메일을 입력해주세요">
+            </div>
+            <div class="input-group">
+                <label for="loginPassword">비밀번호:</label>
+                <input type="password" id="loginPassword" placeholder="비밀번호를 입력해주세요">
+            </div>
+            <button class="action-btn btn-webcam" id="loginSubmitBtn" style="width: 100%; margin-bottom: 20px;">로그인</button>
+            <p style="color: gray; margin: 0;">계정이 없으신가요? <a href="#" id="signupLink" style="color: #2196F3; cursor: pointer; text-decoration: none;">회원가입</a></p>
+        </div>
+    </div>
+
+    <div id="signupPage" class="page">
+        <div class="card">
+            <h2 style="margin-bottom: 30px;">회원가입</h2>
+            <div class="input-group">
+                <label for="signupName">이름:</label>
+                <input type="text" id="signupName" placeholder="이름을 입력해주세요">
+            </div>
+            <div class="input-group">
+                <label for="signupEmail">이메일:</label>
+                <input type="email" id="signupEmail" placeholder="이메일을 입력해주세요">
+            </div>
+            <div class="input-group">
+                <label for="signupPassword">비밀번호:</label>
+                <input type="password" id="signupPassword" placeholder="6자 이상의 비밀번호">
+            </div>
+            <div class="input-group">
+                <label for="signupPasswordConfirm">비밀번호 확인:</label>
+                <input type="password" id="signupPasswordConfirm" placeholder="비밀번호를 다시 입력해주세요">
+            </div>
+            <button class="action-btn btn-upload" id="signupSubmitBtn" style="width: 100%; margin-bottom: 20px;">회원가입</button>
+            <p style="color: gray; margin: 0;">이미 계정이 있으신가요? <a href="#" id="loginLink" style="color: #2196F3; cursor: pointer; text-decoration: none;">로그인</a></p>
+        </div>
+    </div>
+
+    <div id="registerPage" class="page">
+        <div class="card">
+            <div class="button-group">
+                <button class="action-btn btn-webcam" id="webcamBtn">
+                    <span class="btn-icon">📷</span>
+                    <span class="btn-title">얼굴 인증</span>
+                    <span class="btn-desc">웹캠으로 출석 체크</span>
+                </button>
+    
+                <button class="action-btn btn-upload" id="uploadBtn">
+                    <span class="btn-icon">⬆</span> 
+                    <span class="btn-title">사진 등록</span>
+                    <span class="btn-desc">기준 사진 업로드</span>
+               </button>
+            </div>
+
+            <div id="result-area">
+                <img id="preview-image" src="" alt="Preview">
+
+                <div class="result-btn-group">
+                    <button class="result-btn" id="compareBtn">비교하기</button>
+                    <button class="result-btn" id="registerBtn">등록</button>
+                    <button class="result-btn" id="retryBtn">다시 찍기</button>
+                    <button class="result-btn" id="deleteBtn">삭제</button>
+                </div>
+
+                <div id="compare-result" style="display: none; margin-top: 30px; width: 100%;">
+                    <div style="background: #f0f0f0; padding: 30px; border-radius: 15px; text-align: center;">
+                        <h3 id="compareTitle" style="margin-top: 0; font-size: 1.5rem; color: #333;"></h3>
+                        <p id="compareMessage" style="font-size: 1.1rem; color: #666; margin: 15px 0;"></p>
+                        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                            <button class="result-btn" id="closeCompareBtn">닫기</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="galleryPage" class="page">
+        <div class="card main-card">
+            <h2>등록된 사진</h2>
+            <div id="galleryContainer" class="gallery-container"></div>
+            <div id="emptyMessage" class="empty-message" style="display: none;">
+                등록된 사진이 없습니다.
+            </div>
+        </div>
+    </div>
+
+    <div id="profilePage" class="page">
+        <div class="card">
+            <h2 style="margin-bottom: 30px;">프로필 수정</h2>
+            <div class="profile-info">
+                <div class="profile-item">
+                    <span class="profile-label">이름:</span>
+                    <span class="profile-value" id="profileName">-</span>
+                </div>
+                <div class="profile-item">
+                    <span class="profile-label">이메일:</span>
+                    <span class="profile-value" id="profileEmail">-</span>
+                </div>
+            </div>
+            <div class="edit-btn-group">
+                <button class="edit-btn edit-btn-primary" id="editProfileBtn">정보 수정</button>
+                <button class="edit-btn edit-btn-danger" id="deleteAccountBtn">계정 삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editProfilePage" class="page">
+        <div class="card">
+            <h2 style="margin-bottom: 30px;">정보 수정</h2>
+            <div class="input-group">
+                <label for="editName">이름:</label>
+                <input type="text" id="editName" placeholder="이름을 입력해주세요">
+            </div>
+            <div class="input-group">
+                <label for="editEmail">이메일:</label>
+                <input type="email" id="editEmail" placeholder="이메일을 입력해주세요">
+            </div>
+            <div class="edit-btn-group" style="margin-top: 30px;">
+                <button class="edit-btn edit-btn-primary" id="saveEditBtn">저장</button>
+                <button class="edit-btn" id="cancelEditBtn" style="background: #ddd; color: #333;">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="camera-modal">
+        <div class="modal-content">
+            <h2>카메라 촬영</h2>
+            <video id="webcam-video" playsinline autoplay></video>
+            <div class="modal-btn-group">
+                <button class="modal-btn" id="captureBtn">촬영!</button>
+                <button class="modal-btn" id="closeModalBtn">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="real-input" accept="image/*" style="display: none;">
+
+    <div id="passwordModal">
+        <div class="password-modal-content">
+            <h3>비밀번호 확인</h3>
+            <p style="color: #666; margin-bottom: 20px;">정보를 수정하기 위해 비밀번호를 입력해주세요.</p>
+            <div class="input-group">
+                <label for="passwordInput">비밀번호:</label>
+                <input type="password" id="passwordInput" placeholder="비밀번호를 입력해주세요">
+            </div>
+            <div id="passwordError" class="error-message" style="display: none;"></div>
+            <div class="password-modal-buttons">
+                <button class="password-modal-btn" id="confirmPasswordBtn">확인</button>
+                <button class="password-modal-btn" id="cancelPasswordBtn">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
