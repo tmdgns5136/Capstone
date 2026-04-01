@@ -17,9 +17,6 @@ export default defineConfig({
     },
   },
 
-  server: {
-    port: 8080,
-  },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
