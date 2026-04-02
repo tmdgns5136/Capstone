@@ -1,28 +1,73 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useNavigate } from "react-router";
 import { Play, Square, Wifi, Clock, MapPin, Users, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
 import { useClassSimulator } from "../../hooks/useClassSimulator";
+import { getTodayLectures, getDashboardStats, startLecture, endLecture, TodayLecture, DashboardStats  } from "../../api/lecture";
 
-const todaySchedule = [
-  { id: 1, name: "객체지향 프로그래밍", location: "제1공학관 209호", time: "09:00 - 10:50", status: "진행 중" as const },
-  { id: 2, name: "알고리즘", location: "제1공학관 201호", time: "13:00 - 14:50", status: "진행 전" as const },
-  { id: 3, name: "데이터베이스", location: "제1공학관 209호", time: "15:00 - 16:50", status: "진행 전" as const },
-];
-
-const pendingRequests = [
-  { name: "박민수", course: "데이터베이스", date: "2026-03-10", reason: "병원 진료" },
-  { name: "정수진", course: "알고리즘", date: "2026-03-11", reason: "가족 행사" },
-];
 
 export default function ProfessorHome() {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const { isActive, elapsedTime, attendanceData, selectedCourse: simCourse, scheduledCourse, startSimulation, stopSimulation } = useClassSimulator();
+  
+  const [todayLectures, setTodayLectures] = useState<TodayLecture[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const {isActive, attendanceData, elapsedTime, selectedCourse: simCourse, startSimulation, stopSimulation } = useClassSimulator();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // 임시 공결 대기 데이터
+
+  const tempPendingRequests = [
+    { name: "임정택", course: "데이터베이스", date: "2026-03-24", reason: "예비군 훈련" },
+    { name: "강신우", course: "알고리즘", date: "2026-03-25", reason: "병원 진료" },
+  ];
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        const [lecturesResponse, statsResponse] = await Promise.all([getTodayLectures(), getDashboardStats()]);
+
+        if (lecturesResponse.success) {
+          setTodayLectures(lecturesResponse.data);
+        } 
+        if (statsResponse.success) {
+          setStats(statsResponse.data);
+        } 
+      }catch (error) {
+        console.error("대시보드 데이터 로드 실패:", error);
+      }finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboardData();
+  }, []);
+
+  const handleStartLecture = async (lectureId: string) => {
+    try {
+      const response = await startLecture(lectureId);
+      if (response.success) {
+        startSimulation();
+      }
+    } catch (error) {
+      console.error("강의 시작 실패:", error);
+    }
+  };
+
+  const handleEndLecture = async (lectureId: string) => {
+    try {
+      const response = await endLecture(lectureId);
+      if (response.success) {
+        stopSimulation();
+      }
+    } catch (error) {
+      console.error("강의 종료 실패:", error);
+    }
+  };
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
@@ -33,14 +78,9 @@ export default function ProfessorHome() {
   };
 
   // 시간표 자동 감지된 강의 또는 선택된 강의
-  const activeCourse = scheduledCourse || simCourse;
+  const activeCourse = todayLectures.find(lecture => lecture.status === "IN_PROGRESS") || todayLectures[0];
 
-  const stats = {
-    totalStudents: 126,
-    avgAttendance: 89.5,
-    pendingRequests: 3,
-    todayClasses: todaySchedule.length,
-  };
+  if (loading) return <div className="p-10 text-center text-zinc-500">데이터를 불러오는 중...</div>;
 
   return (
     <div className="space-y-6">
@@ -63,16 +103,16 @@ export default function ProfessorHome() {
             <span className="text-sm text-zinc-400">총 수강생</span>
             <Users className="w-4 h-4 text-rose-400" />
           </div>
-          <span className="text-3xl font-bold text-zinc-900">{stats.totalStudents}<span className="text-base font-medium text-zinc-400 ml-1">명</span></span>
+          <span className="text-3xl font-bold text-zinc-900">{stats?.totalStudents}<span className="text-base font-medium text-zinc-400 ml-1">명</span></span>
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-zinc-400">평균 출석률</span>
             <CheckCircle className="w-4 h-4 text-primary" />
           </div>
-          <span className="text-3xl font-bold text-zinc-900">{stats.avgAttendance}%</span>
+          <span className="text-3xl font-bold text-zinc-900">{stats?.avgAttendance}%</span>
           <div className="w-full bg-zinc-100 rounded-full h-1.5 mt-2">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${stats.avgAttendance}%` }} />
+            <div className="h-full rounded-full bg-primary" style={{ width: `${stats?.avgAttendance}%` }} />
           </div>
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5">
@@ -80,14 +120,14 @@ export default function ProfessorHome() {
             <span className="text-sm text-zinc-400">공결 대기</span>
             <AlertCircle className="w-4 h-4 text-amber-400" />
           </div>
-          <span className="text-3xl font-bold text-zinc-900">{stats.pendingRequests}<span className="text-base font-medium text-zinc-400 ml-1">건</span></span>
+          <span className="text-3xl font-bold text-zinc-900">{stats?.pendingAbsences}<span className="text-base font-medium text-zinc-400 ml-1">건</span></span>
         </div>
         <div className="bg-zinc-900 rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-zinc-400">오늘 강의</span>
             <Clock className="w-4 h-4 text-primary" />
           </div>
-          <span className="text-3xl font-bold text-white">{stats.todayClasses}<span className="text-base font-medium text-zinc-400 ml-1">개</span></span>
+          <span className="text-3xl font-bold text-white">{stats?.todayClasses}<span className="text-base font-medium text-zinc-400 ml-1">개</span></span>
         </div>
       </div>
 
@@ -111,7 +151,7 @@ export default function ProfessorHome() {
               {activeCourse ? (
                 <p className={`text-sm mt-2 flex items-center gap-2 ${isActive ? "text-zinc-400" : "text-zinc-400"}`}>
                   <MapPin className="w-3.5 h-3.5" />
-                  {activeCourse.room} | {activeCourse.schedule}
+                  {activeCourse.location} | {activeCourse.time}
                 </p>
               ) : (
                 <p className="text-sm mt-2 text-zinc-400">현재 시간표에 해당하는 강의가 없습니다</p>
@@ -179,8 +219,8 @@ export default function ProfessorHome() {
           </h2>
           <div className="border-t-2 border-primary mb-4" />
           <div className="space-y-4">
-            {todaySchedule.map((course) => (
-              <div key={course.id} className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
+            {todayLectures.map((course) => (
+              <div key={course.lectureId} className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
                 <div>
                   <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-medium mb-2 ${course.status === "진행 중"
                       ? "bg-primary/20 text-primary-dark"
@@ -194,7 +234,7 @@ export default function ProfessorHome() {
                   </p>
                 </div>
                 <button
-                  onClick={() => navigate("/professor/courses", { state: { courseId: course.id } })}
+                  onClick={() => navigate("/professor/courses", { state: { courseId: course.lectureId } })}
                   className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-primary-hover transition-colors shrink-0"
                 >
                   강의실 입장 <ArrowRight className="w-3.5 h-3.5" />
@@ -212,7 +252,7 @@ export default function ProfessorHome() {
           <h2 className="text-base font-semibold text-zinc-900">공결 대기</h2>
         </div>
         <div className="p-4 space-y-3">
-          {pendingRequests.map((request, index) => (
+          {tempPendingRequests.map((request, index) => (
             <div key={index} className="flex items-start justify-between p-4 bg-amber-50 rounded-lg border border-amber-100 hover:bg-amber-100/50 transition-colors cursor-pointer">
               <div>
                 <p className="font-semibold text-zinc-900">{request.name}</p>

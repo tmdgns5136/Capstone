@@ -5,17 +5,10 @@ import { FormModal } from "../../components/FormModal";
 import { ProfessorCourseAttendance } from "./ProfessorCourseAttendance";
 import { ProfessorCourseNotices } from "./ProfessorCourseNotices";
 import { ProfessorCourseQA } from "./ProfessorCourseQA";
-
-interface Course {
-  id: number;
-  name: string;
-  time: string;
-  room: string;
-  status: string;
-}
+import { Lecture } from "../../api/lecture";
 
 interface ProfessorCourseDetailProps {
-  course: Course;
+  course: Lecture;
   onBack: () => void;
 }
 
@@ -42,7 +35,7 @@ export function ProfessorCourseDetail({ course, onBack }: ProfessorCourseDetailP
           </button>
           <h1 className="text-3xl font-bold text-zinc-900">{course.name}</h1>
           <p className="text-sm text-zinc-400 mt-1 flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5" /> {course.time} | {course.room}
+            <Clock className="w-3.5 h-3.5" /> {course.schedule} | {course.room}
           </p>
         </div>
         <div className="text-right">

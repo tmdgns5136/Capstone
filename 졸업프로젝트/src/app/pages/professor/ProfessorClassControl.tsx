@@ -5,7 +5,7 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { useClassSimulator } from "../../hooks/useClassSimulator";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
 
 export default function ProfessorClassControl() {
   const {
@@ -66,7 +66,7 @@ export default function ProfessorClassControl() {
       <div className="bg-white rounded-xl border border-zinc-200 p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            {scheduledCourse && selectedCourse?.id === scheduledCourse.id ? (
+            {scheduledCourse && selectedCourse?.lectureId === scheduledCourse.lectureId ? (
               <div className="flex items-center gap-2 mb-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
@@ -88,17 +88,17 @@ export default function ProfessorClassControl() {
           <div className="relative">
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
             <select
-              value={selectedCourse?.id ?? ""}
+              value={selectedCourse?.lectureId ?? ""}
               onChange={(e) => {
-                const found = courses.find((c) => c.id === Number(e.target.value));
+                const found = courses.find((c) => c.lectureId === e.target.value);
                 if (found) setSelectedCourse(found);
               }}
               disabled={isActive}
               className="rounded-xl border border-zinc-200 bg-white p-3 pr-9 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}{c.id === scheduledCourse?.id ? " (현재 시간표)" : ""}
+                <option key={c.lectureId} value={c.lectureId}>
+                  {c.name}{c.lectureId === scheduledCourse?.lectureId ? " (현재 시간표)" : ""}
                 </option>
               ))}
             </select>

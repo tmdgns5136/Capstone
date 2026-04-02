@@ -1,11 +1,19 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { User, Hash, Check, Mail, Eye, EyeOff } from "lucide-react";
+import { User, Hash, Check, Mail, Eye, EyeOff, Phone } from "lucide-react";
 import { OtpInput } from "../../components/OtpInput";
 import { toast } from "sonner";
+import { sendEmailCode, verifyEmailCode, signupProfessor } from "../../api/auth";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
+
+function formatPhone(value: string) {
+  const nums = value.replace(/\D/g, "").slice(0, 11);
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+}
 
 export default function ProfessorSignup() {
   const navigate = useNavigate();
@@ -16,6 +24,7 @@ export default function ProfessorSignup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [sentCode, setSentCode] = useState("");
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -47,7 +56,7 @@ export default function ProfessorSignup() {
 
   const handleProfessorIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
-    setProfessorId(value.slice(0, 7));
+    setProfessorId(value.slice(0, 6));
   };
 
   const sendVerificationCode = async () => {
@@ -58,37 +67,38 @@ export default function ProfessorSignup() {
 
     setLoading(true);
     try {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setSentCode(code);
+      await sendEmailCode(email);
+      setSentCode("sent");
       setVerificationCode("");
       startTimer();
-      toast.success(`시스템 인증번호: ${code} (이메일 전송 시뮬레이션)`);
-    } catch (error) {
-      toast.error("인증번호 전송 오류");
+      toast.success("인증번호가 이메일로 전송되었습니다.");
+    } catch (err: any) {
+      toast.error(err.message || "인증번호 전송 오류");
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyCode = () => {
+  const verifyCode = async () => {
     if (expired) {
       toast.error("인증번호가 만료되었습니다. 재전송해 주세요.");
       return;
     }
-    if (verificationCode === sentCode) {
+    try {
+      await verifyEmailCode(email, verificationCode);
       clearTimer();
       setIsEmailVerified(true);
       toast.success("인증 완료되었습니다");
-    } else {
-      toast.error("인증번호가 일치하지 않습니다");
+    } catch (err: any) {
+      toast.error(err.message || "인증번호가 일치하지 않습니다");
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (professorId.length !== 7) {
-      toast.error("사번은 숫자 7자리여야 합니다.");
+    if (professorId.length !== 6) {
+      toast.error("사번은 숫자 6자리여야 합니다.");
       return;
     }
     if (password !== confirmPassword) {
@@ -102,13 +112,12 @@ export default function ProfessorSignup() {
 
     setLoading(true);
     try {
-      setTimeout(() => {
-        toast.success("프로필 생성이 완료되었습니다");
-        navigate("/login");
-        setLoading(false);
-      }, 1500);
+      await signupProfessor(professorId, name, email, password, phone);
+      toast.success("회원가입이 완료되었습니다");
+      navigate("/login");
     } catch (error: any) {
-      toast.error(error.message || "프로필 생성 오류");
+      toast.error(error.message || "회원가입 오류");
+    } finally {
       setLoading(false);
     }
   };
@@ -175,22 +184,42 @@ export default function ProfessorSignup() {
 
                   {/* Professor ID */}
                   <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">사번 (7자리 숫자)</label>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">사번 (6자리 숫자)</label>
                     <div className="relative">
                       <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
                       <input
-                        placeholder="1234567"
+                        placeholder="123456"
                         value={professorId}
                         onChange={handleProfessorIdChange}
-                        maxLength={7}
-                        className={`${professorId.length > 0 && professorId.length !== 7 ? inputErrorClass : inputClass} pl-10`}
+                        maxLength={6}
+                        className={`${professorId.length > 0 && professorId.length !== 6 ? inputErrorClass : inputClass} pl-10`}
                         required
                       />
                     </div>
-                    {professorId.length > 0 && professorId.length !== 7 && (
-                      <p className="text-xs text-rose-500 mt-1">사번은 7자리 숫자여야 합니다.</p>
+                    {professorId.length > 0 && professorId.length !== 6 && (
+                      <p className="text-xs text-rose-500 mt-1">사번은 6자리 숫자여야 합니다.</p>
                     )}
                   </div>
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">전화번호</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                    <input
+                      type="tel"
+                      placeholder="010-1234-5678"
+                      value={phone}
+                      onChange={(e) => setPhone(formatPhone(e.target.value))}
+                      maxLength={13}
+                      className={`${phone.length > 0 && phone.replace(/-/g, '').length < 10 ? inputErrorClass : inputClass} pl-10`}
+                      required
+                    />
+                  </div>
+                  {phone.length > 0 && phone.replace(/-/g, '').length < 10 && (
+                    <p className="text-xs text-rose-500 mt-1">전화번호를 올바르게 입력해주세요.</p>
+                  )}
                 </div>
 
                 {/* Email */}

@@ -1,12 +1,20 @@
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { User, Hash, Check, ArrowLeft, ArrowRight, Mail, Eye, EyeOff, RefreshCcw, ShieldCheck, Upload, ImagePlus, X, Info } from "lucide-react";
+import { User, Hash, Check, ArrowLeft, ArrowRight, Mail, Eye, EyeOff, RefreshCcw, ShieldCheck, Upload, ImagePlus, X, Info, Phone } from "lucide-react";
 import { OtpInput } from "../../components/OtpInput";
 import { toast } from "sonner";
 import { useVerificationTimer } from "../../hooks/useVerificationTimer";
+import { sendEmailCode, verifyEmailCode, signupStudent } from "../../api/auth";
 
 const spring = { type: "spring" as const, stiffness: 100, damping: 20 };
+
+function formatPhone(value: string) {
+  const nums = value.replace(/\D/g, "").slice(0, 11);
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Face Guideline Images                                              */
@@ -44,6 +52,7 @@ export default function StudentSignup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [sentCode, setSentCode] = useState("");
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -51,7 +60,12 @@ export default function StudentSignup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const timer = useVerificationTimer();
 
-  // Face photos
+  // Face photos (base64 for preview, File for upload)
+  const [photoFiles, setPhotoFiles] = useState<{ front: File | null; left: File | null; right: File | null }>({
+    front: null,
+    left: null,
+    right: null,
+  });
   const [photos, setPhotos] = useState<{ front: string | null; left: string | null; right: string | null }>({
     front: null,
     left: null,
@@ -87,29 +101,30 @@ export default function StudentSignup() {
 
     setLoading(true);
     try {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setSentCode(code);
+      await sendEmailCode(email);
+      setSentCode("sent");
       setVerificationCode("");
       timer.start();
-      toast.success(`시스템 인증번호: ${code} (이메일 전송 시뮬레이션)`);
-    } catch {
-      toast.error("인증번호 전송 오류");
+      toast.success("인증번호가 이메일로 전송되었습니다.");
+    } catch (err: any) {
+      toast.error(err.message || "인증번호 전송 오류");
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyCode = () => {
+  const verifyCode = async () => {
     if (timer.expired) {
       toast.error("인증번호가 만료되었습니다. 재전송해 주세요.");
       return;
     }
-    if (verificationCode === sentCode) {
+    try {
+      await verifyEmailCode(email, verificationCode);
       timer.clear();
       setIsEmailVerified(true);
       toast.success("인증 완료되었습니다");
-    } else {
-      toast.error("인증번호가 일치하지 않습니다");
+    } catch (err: any) {
+      toast.error(err.message || "인증번호가 일치하지 않습니다");
     }
   };
 
@@ -126,6 +141,9 @@ export default function StudentSignup() {
       toast.error("파일 크기는 10MB 이하여야 합니다.");
       return;
     }
+
+    // File 객체 저장 (API 전송용)
+    setPhotoFiles(prev => ({ ...prev, [type]: file }));
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -162,6 +180,7 @@ export default function StudentSignup() {
 
   const removePhoto = (type: "front" | "left" | "right") => {
     setPhotos(prev => ({ ...prev, [type]: null }));
+    setPhotoFiles(prev => ({ ...prev, [type]: null }));
     setIsFaceAuthenticated(false);
   };
 
@@ -187,7 +206,7 @@ export default function StudentSignup() {
       return;
     }
 
-    if (!photos.front || !photos.left || !photos.right) {
+    if (!photoFiles.front || !photoFiles.left || !photoFiles.right) {
       toast.error("얼굴 사진 3장을 모두 등록해주세요");
       return;
     }
@@ -199,13 +218,21 @@ export default function StudentSignup() {
 
     setLoading(true);
     try {
-      setTimeout(() => {
-        toast.success("프로필 생성이 완료되었습니다");
-        navigate("/login");
-        setLoading(false);
-      }, 1500);
+      await signupStudent(
+        studentId,
+        name,
+        email,
+        password,
+        phone,
+        photoFiles.left,
+        photoFiles.front,
+        photoFiles.right,
+      );
+      toast.success("회원가입이 완료되었습니다");
+      navigate("/login");
     } catch (error: any) {
-      toast.error(error.message || "프로필 생성 오류");
+      toast.error(error.message || "회원가입 오류");
+    } finally {
       setLoading(false);
     }
   };
@@ -319,6 +346,26 @@ export default function StudentSignup() {
                           <p className="text-xs text-rose-500 mt-1">학번은 9자리 숫자로 입력해주세요.</p>
                         )}
                       </div>
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 mb-1.5">전화번호</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                        <input
+                          type="tel"
+                          placeholder="010-1234-5678"
+                          value={phone}
+                          onChange={(e) => setPhone(formatPhone(e.target.value))}
+                          maxLength={13}
+                          className={`${phone.length > 0 && phone.replace(/-/g, '').length < 10 ? inputErrorClass : inputClass} pl-10`}
+                          required
+                        />
+                      </div>
+                      {phone.length > 0 && phone.replace(/-/g, '').length < 10 && (
+                        <p className="text-xs text-rose-500 mt-1">전화번호를 올바르게 입력해주세요.</p>
+                      )}
                     </div>
 
                     {/* Email */}

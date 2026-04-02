@@ -5,6 +5,7 @@ import { Mail, Lock, ArrowLeft, ArrowRight, GraduationCap, Eye, EyeOff, CheckCir
 import { OtpInput } from "../components/OtpInput";
 import { toast } from "sonner";
 import { useVerificationTimer } from "../hooks/useVerificationTimer";
+import { sendPasswordEmailCode, verifyEmailCode, changePassword } from "../api/auth";
 
 const spring = { type: "spring" as const, stiffness: 100, damping: 20 };
 
@@ -22,29 +23,37 @@ export default function PasswordReset() {
   const [loading, setLoading] = useState(false);
   const timer = useVerificationTimer();
 
-  const handleSendCode = (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await sendPasswordEmailCode(email);
       toast.success("인증번호가 이메일로 전송되었습니다.");
       setStep(2);
       setCode("");
       timer.start();
+    } catch (err: any) {
+      toast.error(err.message || "인증번호 전송에 실패했습니다.");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await sendPasswordEmailCode(email);
       toast.success("인증번호가 재전송되었습니다.");
       setCode("");
       timer.start();
+    } catch (err: any) {
+      toast.error(err.message || "재전송에 실패했습니다.");
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
-  const handleVerifyCode = (e: React.FormEvent) => {
+  const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (timer.expired) {
       toast.error("인증번호가 만료되었습니다. 재전송해 주세요.");
@@ -55,15 +64,19 @@ export default function PasswordReset() {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await verifyEmailCode(email, code);
       timer.clear();
       toast.success("인증이 완료되었습니다.");
       setStep(3);
+    } catch (err: any) {
+      toast.error(err.message || "인증번호가 일치하지 않습니다.");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 8) {
       toast.error("비밀번호는 8자 이상이어야 합니다.");
@@ -74,11 +87,15 @@ export default function PasswordReset() {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await changePassword(newPassword, email);
       toast.success("비밀번호가 성공적으로 변경되었습니다.");
       setStep(4);
+    } catch (err: any) {
+      toast.error(err.message || "비밀번호 변경에 실패했습니다.");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const stepTitles: Record<Step, { title: string; desc: string }> = {
