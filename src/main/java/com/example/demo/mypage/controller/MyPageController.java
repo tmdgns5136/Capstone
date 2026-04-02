@@ -31,7 +31,7 @@ public class MyPageController {
     @Value("${com.example.upload.path.profileImg}")
     private String uploadPath;
 
-    @GetMapping("/api/mypage/image/{fileName}")
+    @GetMapping("/image/{fileName}")
     public ResponseEntity<Resource> serveImage(@PathVariable String fileName) {
         try {
             // 1. 파일의 실제 물리적 경로 찾기

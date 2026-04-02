@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -59,7 +60,7 @@ public class MyPageService {
                             .userNum(student.getStudentNum())
                             .phoneNum(student.getPhoneNum())
                             .userEmail(student.getStudentEmail())
-                            .faceRegistrationsStatus("PENDING")
+                            .faceRegistrationsStatus("")
                             .profileImages(profileImages)
                             .build())
                     .build();
@@ -78,11 +79,10 @@ public class MyPageService {
         return inquiryResponse;
     }
     private InquiryResponse.ProfileImage createProfileImage(String userNum, ImagePosition position, String suffix) {
-        // 실제 파일명을 결정하는 로직 (예: 20210001_l.jpg)
-        String fileName = userNum + "_" + suffix + ".jpg";
-
-        // 핵심: 물리 경로(C:/...)가 아니라 아까 만든 API 주소를 넣습니다.
-        String displayUrl = "/api/mypage/image/" + fileName;
+        Student student = studentRepository.findByStudentNum(userNum);
+        String displayUrl = imageRepository.findByStudentAndPosition(student, position)
+                .map(img -> "/api/mypage/image/" + Paths.get(img.getFilePath()).getFileName().toString())
+                .orElse(null);
 
         return InquiryResponse.ProfileImage.builder()
                 .orientation(position.toString())
@@ -163,9 +163,9 @@ public class MyPageService {
             imageRepository.flush();
         }
 
-        ImgDto leftImgDto = fileUtil.getFIleDtoFromMultipartFile(leftImage, ImagePosition.LEFT);
-        ImgDto centerImgDto = fileUtil.getFIleDtoFromMultipartFile(centerImage, ImagePosition.CENTER);
-        ImgDto rightImgDto = fileUtil.getFIleDtoFromMultipartFile(rightImage, ImagePosition.RIGHT);
+        ImgDto leftImgDto = fileUtil.getFIleDtoFromMultipartFile(leftImage, ImagePosition.LEFT, student.getStudentNum());
+        ImgDto centerImgDto = fileUtil.getFIleDtoFromMultipartFile(centerImage, ImagePosition.CENTER, student.getStudentNum());
+        ImgDto rightImgDto = fileUtil.getFIleDtoFromMultipartFile(rightImage, ImagePosition.RIGHT, student.getStudentNum());
 
         fileService.saveImage(leftImgDto, userNum, requestId);
         fileService.saveImage(centerImgDto, userNum, requestId);
@@ -202,7 +202,7 @@ public class MyPageService {
                             .profileImages(images.stream()
                                     .map(img-> ImgRequestList.ProfileImages
                                             .builder().orientation(img.getPosition().name())
-                                            .url(img.getFilePath()).build())
+                                            .url("/api/mypage/image/" + Paths.get(img.getFilePath()).getFileName().toString()).build())
                                     .collect(Collectors.toList())).build();
 
                 }).sorted(Comparator.comparing(ImgRequestList.ListData::getRequestDate).reversed())

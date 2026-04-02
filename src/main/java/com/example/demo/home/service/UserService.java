@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -55,7 +56,8 @@ public class UserService {
                 .studentPhoneNum(student.getPhoneNum())
                 .roleType(student.getRoleType())
                 .imageUrls(student.getImages() != null ? student.getImages().stream()
-                        .map(Image::getFilePath).collect(Collectors.toList()):null).build();
+                        .map(img -> "/api/mypage/image/" + Paths.get(img.getFilePath()).getFileName().toString())
+                        .collect(Collectors.toList()): null).build();
     }
 
     // 학생 회원가입
@@ -90,9 +92,9 @@ public class UserService {
 
         studentRepository.saveAndFlush(student);
 
-        ImgDto leftImgDto = fileUtil.getFIleDtoFromMultipartFile(leftImage, ImagePosition.LEFT);
-        ImgDto centerImgDto = fileUtil.getFIleDtoFromMultipartFile(centerImage, ImagePosition.CENTER);
-        ImgDto rightImgDto = fileUtil.getFIleDtoFromMultipartFile(rightImage, ImagePosition.RIGHT);
+        ImgDto leftImgDto = fileUtil.getFIleDtoFromMultipartFile(leftImage, ImagePosition.LEFT, student.getStudentNum());
+        ImgDto centerImgDto = fileUtil.getFIleDtoFromMultipartFile(centerImage, ImagePosition.CENTER, student.getStudentNum());
+        ImgDto rightImgDto = fileUtil.getFIleDtoFromMultipartFile(rightImage, ImagePosition.RIGHT, student.getStudentNum());
 
         String requestId = "REQ-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + "-" + UUID.randomUUID().toString().substring(0, 5);
