@@ -13,6 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 @Service
@@ -22,6 +28,7 @@ public class FileService {
     private final StudentRepository studentRepository;
     private final ImageRepository imageRepository;
     private final FileUtil fileUtil;
+    private final String uploadPath = Paths.get(System.getProperty("user.dir"), "uploads", "official").toString();
 
     private ImgDto mapToImageDto(Image image){
         return ImgDto.builder()
@@ -51,6 +58,7 @@ public class FileService {
                 .map(this::mapToImageDto)
                 .orElse(null);
     }
+
 
     // 이미지인지  확인
     public boolean checkImage(MultipartFile multipartFile){
@@ -91,5 +99,19 @@ public class FileService {
 
         Image savedImage = imageRepository.saveAndFlush(image);
         return mapToImageDto(savedImage);
+    }
+
+    // 증명 서류 저장
+    public String saveEvidenceFile(MultipartFile multipartFile) throws IOException {
+        File directory = new File(uploadPath);
+        if(!directory.exists()){
+            directory.mkdirs();
+        }
+
+        String savedFileName = fileUtil.getFileNameWithUUID(multipartFile.getOriginalFilename());
+        Path targetPath = Paths.get(uploadPath, savedFileName);
+        Files.copy(multipartFile.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+        return savedFileName;
     }
 }

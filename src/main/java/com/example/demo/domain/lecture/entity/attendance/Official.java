@@ -4,6 +4,7 @@ import com.example.demo.domain.entity.enumerate.Status;
 import com.example.demo.domain.home.entity.user.Professor;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.lecture.entity.lecture.Lecture;
+import com.example.demo.domain.lecture.entity.lecture.LectureSession;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,6 +14,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Data
@@ -47,7 +49,7 @@ public class Official {
 
     @CreatedDate
     @Column(name = "OFFICIAL_CREATED_AT")
-    private LocalDateTime objectionCreated;
+    private LocalDateTime officialCreated;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "STUDENT_ID")
@@ -60,4 +62,8 @@ public class Official {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "LECTURE_ID")
     private Lecture lecture;
+
+    @ManyToOne(fetch = FetchType.LAZY) // 여러 공결 신청이 하나의 수업 세션에 해당할 수 있음
+    @JoinColumn(name = "SESSION_ID")
+    private LectureSession lectureSession;
 }
