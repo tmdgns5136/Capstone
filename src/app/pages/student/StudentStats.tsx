@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Calendar, MoreHorizontal, ArrowRight, AlertCircle, CheckCircle, XCircle, Clock, Trash2 } from "lucide-react";
+import { Calendar, MoreHorizontal, ArrowRight, AlertCircle, CheckCircle, XCircle, Clock, Trash2, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ScrollableCardList } from "../../components/ScrollableCardList";
 import { ATTENDANCE_STATUS_COLORS } from "../../constants/attendance";
@@ -10,7 +10,23 @@ import { Pagination } from "../../components/Pagination";
 import { FilterTabs } from "../../components/FilterTabs";
 import { FormModal } from "../../components/FormModal";
 import { PageHeader } from "../../components/PageHeader";
-import { useAppealRequests } from "../../hooks/useAppealRequests";
+import {
+  getMyLectures,
+  getObjectionRequests,
+  applyObjectionAbsence,
+  deleteObjectionRequest,
+  MyLectureData,
+  AbsenceRequestData,
+} from "../../api/studentLecture";
+
+// 백엔드 status 코드를 한글로 변환
+function statusLabel(status: string) {
+  switch (status) {
+    case "APPROVED": return "승인";
+    case "REJECTED": return "거절";
+    default: return "대기";
+  }
+}
 
 const coursesSummary = [
   { name: "알고리즘", professor: "임정택 교수님", rate: 95 },
@@ -34,13 +50,23 @@ export default function StudentStats() {
   const navigate = useNavigate();
   const [semester, setSemester] = useState("2026년 1학기");
   const [filter, setFilter] = useState<"전체" | "출석" | "결석">("전체");
+
+  // 이의 신청 모달
   const [showAppealModal, setShowAppealModal] = useState(false);
   const [appealRecord, setAppealRecord] = useState<{ course: string; date: string } | null>(null);
   const [appealReason, setAppealReason] = useState("");
-  const { requests: appealRequests, addRequest: addAppeal, deleteRequest: deleteAppeal } = useAppealRequests();
+  const [appealTitle, setAppealTitle] = useState("");
+  const [appealFile, setAppealFile] = useState<File | null>(null);
+  const [submittingAppeal, setSubmittingAppeal] = useState(false);
 
-  // 현재 학생(강신우)의 이의신청 내역만 필터
-  const myAppeals = appealRequests.filter((r) => r.studentId === "20240201");
+  // 강의 목록 (이의 신청에 사용할 lectureId 매핑)
+  const [lectures, setLectures] = useState<MyLectureData[]>([]);
+  const [selectedAppealLectureId, setSelectedAppealLectureId] = useState("");
+
+  // 이의 신청 내역 (API)
+  const [appealRequests, setAppealRequests] = useState<AbsenceRequestData[]>([]);
+  const [loadingAppeals, setLoadingAppeals] = useState(false);
+
   const [page, setPage] = useState(1);
   const [scrollPage] = useState(() => {
     const saved = sessionStorage.getItem("statsScrollPage");
@@ -49,6 +75,87 @@ export default function StudentStats() {
   const handleScrollPageChange = useCallback((p: number) => {
     sessionStorage.setItem("statsScrollPage", String(p));
   }, []);
+
+  // 강의 목록 로드
+  useEffect(() => {
+    getMyLectures(2026, "1")
+      .then((res) => setLectures(res.data))
+      .catch(() => setLectures([]));
+  }, []);
+
+  // 선택한 강의의 이의 신청 내역 로드
+  const loadAppeals = useCallback(async (lectureId: string) => {
+    if (!lectureId) {
+      setAppealRequests([]);
+      return;
+    }
+    setLoadingAppeals(true);
+    try {
+      const res = await getObjectionRequests(lectureId);
+      setAppealRequests(res.data);
+    } catch {
+      setAppealRequests([]);
+    } finally {
+      setLoadingAppeals(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedAppealLectureId) {
+      loadAppeals(selectedAppealLectureId);
+    }
+  }, [selectedAppealLectureId, loadAppeals]);
+
+  // 첫 번째 강의를 기본 선택
+  useEffect(() => {
+    if (lectures.length > 0 && !selectedAppealLectureId) {
+      setSelectedAppealLectureId(lectures[0].lectureId);
+    }
+  }, [lectures, selectedAppealLectureId]);
+
+  const handleSubmitAppeal = async () => {
+    if (!appealTitle.trim() || !appealReason.trim() || !selectedAppealLectureId) {
+      toast.error("필수 항목을 모두 입력해주세요.");
+      return;
+    }
+    if (!appealFile) {
+      toast.error("증빙 서류를 첨부해주세요.");
+      return;
+    }
+
+    setSubmittingAppeal(true);
+    try {
+      // TODO: 세션 목록 조회 API가 추가되면 수업 날짜 → sessionId 매핑 필요
+      await applyObjectionAbsence(
+        selectedAppealLectureId,
+        { sessionId: 0, title: appealTitle, reason: appealReason },
+        appealFile,
+      );
+      toast.success("이의 신청이 접수되었습니다. 교수님 검토 후 처리됩니다.");
+      setShowAppealModal(false);
+      setAppealTitle("");
+      setAppealReason("");
+      setAppealFile(null);
+
+      // 목록 새로고침
+      await loadAppeals(selectedAppealLectureId);
+    } catch (err: any) {
+      toast.error(err.message || "이의 신청에 실패했습니다.");
+    } finally {
+      setSubmittingAppeal(false);
+    }
+  };
+
+  const handleDeleteAppeal = async (requestId: number) => {
+    if (!window.confirm("정말 취소하시겠습니까?")) return;
+    try {
+      await deleteObjectionRequest(selectedAppealLectureId, requestId);
+      toast.success("이의 신청이 취소되었습니다.");
+      setAppealRequests((prev) => prev.filter((r) => r.requestId !== requestId));
+    } catch (err: any) {
+      toast.error(err.message || "취소에 실패했습니다.");
+    }
+  };
 
   const filteredRecords = filter === "전체"
     ? detailedRecords
@@ -173,40 +280,55 @@ export default function StudentStats() {
 
         {/* 우: 이의 신청 내역 (5/12) */}
         <div className="lg:col-span-5 bg-white rounded-xl border border-zinc-200 overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-2">
-            <h2 className="text-lg font-bold text-zinc-900">이의 신청 내역</h2>
-            {myAppeals.filter((r) => r.status === "대기").length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                {myAppeals.filter((r) => r.status === "대기").length}건 대기
-              </span>
-            )}
+          <div className="px-5 py-4 border-b border-zinc-100 space-y-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-zinc-900">이의 신청 내역</h2>
+              {appealRequests.filter((r) => r.status === "PENDING").length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                  {appealRequests.filter((r) => r.status === "PENDING").length}건 대기
+                </span>
+              )}
+            </div>
+            {/* 강의 선택 */}
+            <select
+              value={selectedAppealLectureId}
+              onChange={(e) => setSelectedAppealLectureId(e.target.value)}
+              className="w-full appearance-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="" disabled>강의를 선택하세요</option>
+              {lectures.map((l) => (
+                <option key={l.lectureId} value={l.lectureId}>
+                  {l.lectureName}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {myAppeals.length > 0 ? (
+          {loadingAppeals ? (
+            <div className="flex items-center justify-center py-12 flex-1">
+              <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+            </div>
+          ) : appealRequests.length > 0 ? (
             <div className="p-4 space-y-3 flex-1 overflow-y-auto">
-              {myAppeals.map((appeal) => (
+              {appealRequests.map((appeal) => (
                 <div
-                  key={appeal.id}
+                  key={appeal.requestId}
                   className="bg-zinc-50 rounded-lg p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                        <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-white text-zinc-600 border border-zinc-200">
-                          {appeal.course}
-                        </span>
-                        <span className="text-xs text-zinc-400">{appeal.date}</span>
+                        <span className="text-sm font-medium text-zinc-900">{appeal.title}</span>
                       </div>
-                      <p className="text-sm text-zinc-700 line-clamp-2">{appeal.reason}</p>
                       <p className="text-xs text-zinc-400 mt-1.5">신청일: {appeal.requestDate}</p>
                     </div>
                     <div className="shrink-0">
                       <div className="flex flex-col items-end gap-1.5">
-                        {appeal.status === "승인" ? (
+                        {appeal.status === "APPROVED" ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
                             <CheckCircle className="w-3 h-3" /> 승인
                           </span>
-                        ) : appeal.status === "거절" ? (
+                        ) : appeal.status === "REJECTED" ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-700">
                             <XCircle className="w-3 h-3" /> 반려
                           </span>
@@ -215,14 +337,9 @@ export default function StudentStats() {
                             <Clock className="w-3 h-3" /> 대기
                           </span>
                         )}
-                        {appeal.status === "대기" && (
+                        {appeal.status === "PENDING" && (
                           <button
-                            onClick={() => {
-                              if (window.confirm("정말 취소하시겠습니까?")) {
-                                deleteAppeal(appeal.id);
-                                toast.success("이의 신청이 취소되었습니다.");
-                              }
-                            }}
+                            onClick={() => handleDeleteAppeal(appeal.requestId)}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                           >
                             <Trash2 className="w-3 h-3" /> 취소
@@ -231,13 +348,7 @@ export default function StudentStats() {
                       </div>
                     </div>
                   </div>
-                  {appeal.status === "거절" && appeal.rejectReason && (
-                    <div className="mt-3 bg-rose-50 border border-rose-100 rounded-lg p-3">
-                      <p className="text-xs text-rose-600 font-medium">반려 사유</p>
-                      <p className="text-sm text-rose-700 mt-0.5">{appeal.rejectReason}</p>
-                    </div>
-                  )}
-                  {appeal.status === "승인" && (
+                  {appeal.status === "APPROVED" && (
                     <div className="mt-3 bg-primary/5 border border-primary/20 rounded-lg p-3">
                       <p className="text-xs text-primary-dark font-medium">승인 완료 — 출결이 출석으로 변경되었습니다.</p>
                     </div>
@@ -259,31 +370,17 @@ export default function StudentStats() {
       {/* 이의 신청 모달 */}
       <FormModal
         open={showAppealModal}
-        onClose={() => { setShowAppealModal(false); setAppealReason(""); }}
+        onClose={() => { setShowAppealModal(false); setAppealTitle(""); setAppealReason(""); setAppealFile(null); }}
         title="출결 이의 신청"
         titleIcon={<AlertCircle className="w-5 h-5 text-amber-500" />}
         footer={<>
-          <button onClick={() => { setShowAppealModal(false); setAppealReason(""); }} className="text-sm text-zinc-500 px-4 py-2 hover:text-zinc-700">취소</button>
+          <button onClick={() => { setShowAppealModal(false); setAppealTitle(""); setAppealReason(""); setAppealSessionId(""); setAppealFile(null); }} className="text-sm text-zinc-500 px-4 py-2 hover:text-zinc-700">취소</button>
           <button
-            onClick={() => {
-              if (!appealReason.trim()) {
-                toast.error("이의 신청 사유를 입력해주세요");
-                return;
-              }
-              addAppeal({
-                studentId: "20240201",
-                studentName: "강신우",
-                course: appealRecord?.course || "",
-                date: appealRecord?.date || "",
-                reason: appealReason,
-              });
-              toast.success("이의 신청이 접수되었습니다. 교수님 검토 후 처리됩니다.");
-              setShowAppealModal(false);
-              setAppealReason("");
-            }}
-            className="bg-zinc-900 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-zinc-800"
+            onClick={handleSubmitAppeal}
+            disabled={submittingAppeal}
+            className="bg-zinc-900 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-zinc-800 disabled:opacity-50 flex items-center gap-2"
           >
-            신청하기
+            {submittingAppeal ? <><Loader2 className="w-4 h-4 animate-spin" /> 제출 중...</> : "신청하기"}
           </button>
         </>}
       >
@@ -304,6 +401,15 @@ export default function StudentStats() {
           </div>
         </div>
         <div>
+          <label className="text-sm font-medium text-zinc-700 mb-1 block">제목</label>
+          <input
+            value={appealTitle}
+            onChange={(e) => setAppealTitle(e.target.value)}
+            placeholder="이의 신청 제목"
+            className="w-full rounded-lg border border-zinc-200 p-3 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+        <div>
           <label className="text-sm font-medium text-zinc-700 mb-1 block">이의 신청 사유</label>
           <textarea
             value={appealReason}
@@ -311,6 +417,36 @@ export default function StudentStats() {
             placeholder="예: 수업에 참석했으나 얼굴 인식 단말기가 정상적으로 인식하지 못했습니다."
             className="w-full rounded-lg border border-zinc-200 p-3 text-sm resize-none h-28 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-zinc-700 mb-1 block">증빙 서류</label>
+          <input
+            id="appeal-file-upload"
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) => setAppealFile(e.target.files?.[0] || null)}
+            className="hidden"
+          />
+          {appealFile ? (
+            <div className="flex items-center justify-between rounded-lg border border-primary bg-primary/10 p-3 text-sm">
+              <span className="truncate flex-1 text-primary-dark font-medium">{appealFile.name}</span>
+              <button
+                type="button"
+                onClick={() => setAppealFile(null)}
+                className="p-1 rounded hover:bg-primary/20 text-primary-dark transition-colors ml-2"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => document.getElementById("appeal-file-upload")?.click()}
+              className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-200 p-4 text-sm text-zinc-400 hover:border-primary hover:text-primary-dark transition-all"
+            >
+              <Upload className="w-4 h-4" /> 파일 첨부하기
+            </button>
+          )}
         </div>
       </FormModal>
     </div>

@@ -10,6 +10,7 @@ interface Course {
   category: string;
   name: string;
   professor: string;
+  lectureId?: string;
 }
 
 interface StudentCourseDetailProps {
