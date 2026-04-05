@@ -8,13 +8,13 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class OfficialDto {
-    private Long officialId;
-    private String officialTitle;
-    private String officialReason;
+public class ObjectionDto {
+    private Long objectionId;
+    private String objectionTitle;
+    private String objectionReason;
     private String evidencePath;
     private Status status;
     private String rejectedReason;
     private Long sessionId;
-    private LocalDateTime officialCreated;
+    private LocalDateTime objectionCreated;
 }

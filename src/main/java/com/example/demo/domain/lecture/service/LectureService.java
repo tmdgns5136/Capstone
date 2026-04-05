@@ -7,14 +7,12 @@ import com.example.demo.domain.home.repository.StudentRepository;
 import com.example.demo.domain.home.service.FileService;
 import com.example.demo.domain.home.util.FileUtil;
 import com.example.demo.domain.lecture.dto.*;
+import com.example.demo.domain.lecture.entity.attendance.Objection;
 import com.example.demo.domain.lecture.entity.attendance.Official;
 import com.example.demo.domain.lecture.entity.lecture.Enrollment;
 import com.example.demo.domain.lecture.entity.lecture.Lecture;
 import com.example.demo.domain.lecture.entity.lecture.LectureSession;
-import com.example.demo.domain.lecture.repository.EnrollmentRepository;
-import com.example.demo.domain.lecture.repository.LectureRepository;
-import com.example.demo.domain.lecture.repository.LectureSessionRepository;
-import com.example.demo.domain.lecture.repository.OfficialRepository;
+import com.example.demo.domain.lecture.repository.*;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
@@ -22,6 +20,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -34,6 +33,7 @@ public class LectureService {
     private final EnrollmentRepository enrollmentRepository;
     private final LectureRepository lectureRepository;
     private final OfficialRepository officialRepository;
+    private final ObjectionRepository objectionRepository;
     private final LectureSessionRepository lectureSessionRepository;
     private final FileService fileService;
     private final FileUtil fileUtil;
@@ -62,17 +62,30 @@ public class LectureService {
 
     public OfficialDto mapToOfficialDto(Official official){
         return OfficialDto.builder()
+                .officialId(official.getOfficialId())
                 .officialTitle(official.getOfficialTitle())
                 .officialReason(official.getOfficialReason())
                 .evidencePath(official.getEvidencePath())
                 .rejectedReason(official.getRejectedReason())
-                .objectionCreated(official.getOfficialCreated())
+                .officialCreated(official.getOfficialCreated())
                 .status(official.getStatus()).build();
 
     }
 
+    public ObjectionDto mapToObjectionDto(Objection objection){
+        return ObjectionDto.builder()
+                .objectionId(objection.getObjectionId())
+                .objectionTitle(objection.getObjectionTitle())
+                .objectionReason(objection.getObjectionReason())
+                .evidencePath(objection.getEvidencePath())
+                .rejectedReason(objection.getRejectedReason())
+                .objectionCreated(objection.getObjectionCreated())
+                .status(objection.getStatus()).build();
+
+    }
+
     @Transactional
-    public OfficialDto createOfficialAbsence(Authentication authentication, OfficialRequest request, MultipartFile evidenceFile, Long lectureId) throws IOException {
+    public OfficialDto createOfficialAbsence(Authentication authentication, AbsenceRequest request, MultipartFile evidenceFile, Long lectureId) throws IOException {
         String userNum = authentication.getName();
         Student student = studentRepository.findByStudentNum(userNum);
 
@@ -81,7 +94,7 @@ public class LectureService {
         LectureSession session = lectureSessionRepository.findById(request.getSessionId())
                 .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
 
-        String savedPath = fileService.saveEvidenceFile(evidenceFile);
+        String savedPath = fileService.saveEvidenceFile(evidenceFile, "official");
         Official official = Official.builder()
                 .officialTitle(request.getTitle())
                 .officialReason(request.getReason())
@@ -95,16 +108,16 @@ public class LectureService {
         return mapToOfficialDto(savedOfficial);
     }
 
-    public ApiResponse<OfficialData> applyOfficialAbsence(Authentication authentication, OfficialRequest request, MultipartFile evidenceFile, Long lectureId) throws IOException {
+    public ApiResponse<AbsenceData> applyOfficialAbsence(Authentication authentication, AbsenceRequest request, MultipartFile evidenceFile, Long lectureId) throws IOException {
         OfficialDto officialDto = createOfficialAbsence(authentication, request, evidenceFile, lectureId);
 
-        OfficialData officialData = OfficialData.builder().requestId(officialDto.getOfficialId())
+        AbsenceData absenceData = AbsenceData.builder().requestId(officialDto.getOfficialId())
                 .status(officialDto.getStatus().getCode()).build();
 
-        return ApiResponse.success(200, officialData, "공결 신청이 정상적으로 접수되었습니다.");
+        return ApiResponse.success(200, absenceData, "공결 신청이 정상적으로 접수되었습니다.");
     }
 
-    public ApiResponse<List<OfficialRequestData>> getMyOfficialRequests(Authentication authentication, Long lectureId){
+    public ApiResponse<List<AbsenceRequestData>> getMyOfficialRequests(Authentication authentication, Long lectureId){
         String userNum = authentication.getName();
         Student student = studentRepository.findByStudentNum(userNum);
 
@@ -114,14 +127,96 @@ public class LectureService {
 
         List<Official> officialList = officialRepository.findByStudentAndLecture(student, lecture);
 
-        List<OfficialRequestData> requestDataList = officialList.stream()
-                .map(official -> OfficialRequestData.builder()
+        List<AbsenceRequestData> requestDataList = officialList.stream()
+                .map(official -> AbsenceRequestData.builder()
                         .requestId(official.getOfficialId())
                         .title(official.getOfficialTitle())
                         .status(official.getStatus().getCode())
                         .requestDate(official.getOfficialCreated().toLocalDate().toString()).build()).toList();
 
         return ApiResponse.success(200, requestDataList);
+
+    }
+
+    public ApiResponse<AbsenceDetailData> getMyDetailOfficialRequests(Authentication authentication, Long lectureId, Long requestId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        Official official = officialRepository.findById(requestId).orElseThrow(() -> new CustomException(404, "해당 공결신청 내역을 찾을 수 없습니다."));
+
+        if (!official.getStudent().getStudentNum().equals(userNum)) {
+            throw new CustomException(403, "해당 신청을 삭제할 권한이 없습니다.");
+        }
+
+        AbsenceDetailData absenceDetailData = AbsenceDetailData.builder()
+                .requestId(official.getOfficialId())
+                .title(official.getOfficialTitle())
+                .reason(official.getOfficialReason())
+                .status(official.getStatus().getCode())
+                .requestData(official.getOfficialCreated().toLocalDate().toString())
+                .sessionId(official.getLectureSession() != null ? official.getLectureSession().getSessionId() : null)
+                .evidenceFileUrl(official.getEvidencePath()).build();
+
+        return ApiResponse.success(200, absenceDetailData);
+
+    }
+
+    @Transactional
+    public ApiResponse<AbsenceData> modifyOfficialRequest(Authentication authentication, Long lectureId, Long requestId, AbsenceRequest request, MultipartFile evidenceFile) throws IOException {
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        Official official = officialRepository.findById(requestId).orElseThrow(() -> new CustomException(404, "해당 공결신청 내역을 찾을 수 없습니다."));
+
+        if (!official.getStudent().getStudentNum().equals(userNum)) {
+            throw new CustomException(403, "해당 신청을 수정할 권한이 없습니다.");
+        }
+
+        if(!official.getStatus().getCode().equals("PENDING")){
+            throw  new CustomException(400, "이미 처리가 완료된 신청은 수정할 수 없습니다.");
+        }
+
+        if (request.getSessionId() != null) {
+            LectureSession session = lectureSessionRepository.findById(request.getSessionId())
+                    .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
+            official.setLectureSession(session);
+        }
+
+        if(request.getTitle() != null){
+            official.setOfficialTitle(request.getTitle());
+        }
+
+        if(request.getReason() != null){
+            official.setOfficialReason(request.getReason());
+        }
+
+        if (request.getSessionId() != null) {
+            LectureSession session = lectureSessionRepository.findById(request.getSessionId())
+                    .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
+            official.setLectureSession(session);
+        }
+
+        if (evidenceFile != null && !evidenceFile.isEmpty()) {
+            String oldFullPath = System.getProperty("user.dir") + official.getEvidencePath();
+            fileUtil.deleteFileByFilePath(oldFullPath);
+
+            // 2. 새 파일 저장 (아까 수정한 대로 "official" 인자 추가!)
+            String savedFileName = fileService.saveEvidenceFile(evidenceFile, "official");
+            official.setEvidencePath("/uploads/official/" + savedFileName);
+        }
+
+        AbsenceData absenceData = AbsenceData.builder().requestId(requestId)
+                .status(official.getStatus().getCode()).build();
+
+        return ApiResponse.success(200, absenceData, "공결 신청이 수정되었습니다. 담당 교수 승인 후 처리됩니다.");
 
     }
 
@@ -148,6 +243,163 @@ public class LectureService {
 
         officialRepository.delete(official);
         return ActionResponse.success(200, "공결 신청이 취소되었습니다.",
+                "api/mylecture/" + lectureId + "/official-requests");
+
+    }
+
+    @Transactional
+    public ObjectionDto createObjectionAbsence(Authentication authentication, AbsenceRequest request, MultipartFile evidenceFile, Long lectureId) throws IOException {
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        LectureSession session = lectureSessionRepository.findById(request.getSessionId())
+                .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
+
+        String savedPath = fileService.saveEvidenceFile(evidenceFile, "objection");
+        Objection objection = Objection.builder()
+                .objectionTitle(request.getTitle())
+                .objectionReason(request.getReason())
+                .evidencePath("/uploads/objection/" + savedPath)
+                .status(Status.PENDING)
+                .lectureSession(session)
+                .student(student)
+                .lecture(lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."))).build();
+
+        Objection savedObjection = objectionRepository.save(objection);
+        return mapToObjectionDto(savedObjection);
+    }
+
+    public ApiResponse<AbsenceData> applyObjectionAbsence(Authentication authentication, AbsenceRequest request, MultipartFile evidenceFile, Long lectureId) throws IOException {
+        ObjectionDto objectionDto = createObjectionAbsence(authentication, request, evidenceFile, lectureId);
+
+        AbsenceData absenceData = AbsenceData.builder().requestId(objectionDto.getObjectionId())
+                .status(objectionDto.getStatus().getCode()).build();
+
+        return ApiResponse.success(200, absenceData, "출결 이의 신청이 정상적으로 접수되었습니다.");
+    }
+
+    public ApiResponse<List<AbsenceRequestData>> getMyObjectionRequests(Authentication authentication, Long lectureId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        List<Objection> objectionList = objectionRepository.findByStudentAndLecture(student, lecture);
+
+        List<AbsenceRequestData> requestDataList = objectionList.stream()
+                .map(objection -> AbsenceRequestData.builder()
+                        .requestId(objection.getObjectionId())
+                        .title(objection.getObjectionTitle())
+                        .status(objection.getStatus().getCode())
+                        .requestDate(objection.getObjectionCreated().toLocalDate().toString()).build()).toList();
+
+        return ApiResponse.success(200, requestDataList);
+
+    }
+
+    public ApiResponse<AbsenceDetailData> getMyDetailObjectionRequests(Authentication authentication, Long lectureId, Long requestId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        Objection objection = objectionRepository.findById(requestId).orElseThrow(() -> new CustomException(404, "해당 공결신청 내역을 찾을 수 없습니다."));
+
+        if (!objection.getStudent().getStudentNum().equals(userNum)) {
+            throw new CustomException(403, "해당 신청을 삭제할 권한이 없습니다.");
+        }
+
+        AbsenceDetailData absenceDetailData = AbsenceDetailData.builder()
+                .requestId(objection.getObjectionId())
+                .title(objection.getObjectionTitle())
+                .reason(objection.getObjectionReason())
+                .status(objection.getStatus().getCode())
+                .requestData(objection.getObjectionCreated().toLocalDate().toString())
+                .sessionId(objection.getLectureSession() != null ? objection.getLectureSession().getSessionId() : null)
+                .evidenceFileUrl(objection.getEvidencePath()).build();
+
+        return ApiResponse.success(200, absenceDetailData);
+
+    }
+
+    @Transactional
+    public ApiResponse<AbsenceData> modifyObjectionRequest(Authentication authentication, Long lectureId, Long requestId, AbsenceRequest request, MultipartFile evidenceFile) throws IOException {
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        Objection objection = objectionRepository.findById(requestId).orElseThrow(() -> new CustomException(404, "해당 공결신청 내역을 찾을 수 없습니다."));
+
+        if (!objection.getStudent().getStudentNum().equals(userNum)) {
+            throw new CustomException(403, "해당 신청을 수정할 권한이 없습니다.");
+        }
+
+        if(!objection.getStatus().getCode().equals("PENDING")){
+            throw  new CustomException(400, "이미 처리가 완료된 신청은 수정할 수 없습니다.");
+        }
+
+        if(request.getTitle() != null){
+            objection.setObjectionTitle(request.getTitle());
+        }
+
+        if(request.getReason() != null){
+            objection.setObjectionReason(request.getReason());
+        }
+
+        if (request.getSessionId() != null) {
+            LectureSession session = lectureSessionRepository.findById(request.getSessionId())
+                    .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
+            objection.setLectureSession(session);
+        }
+
+        if (evidenceFile != null && !evidenceFile.isEmpty()) {
+            String oldFullPath = System.getProperty("user.dir") + objection.getEvidencePath();
+            fileUtil.deleteFileByFilePath(oldFullPath);
+
+            // 2. 새 파일 저장 (아까 수정한 대로 "official" 인자 추가!)
+            String savedFileName = fileService.saveEvidenceFile(evidenceFile, "official");
+            objection.setEvidencePath("/uploads/official/" + savedFileName);
+        }
+
+        AbsenceData absenceData = AbsenceData.builder().requestId(requestId)
+                .status(objection.getStatus().getCode()).build();
+
+        return ApiResponse.success(200, absenceData, "출결 이의 신청이 수정되었습니다. 담당 교수 승인 후 처리됩니다.");
+
+    }
+
+    @Transactional
+    public ActionResponse deleteObjectionRequest(Authentication authentication, Long lectureId, Long requestId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        Objection objection = objectionRepository.findById(requestId).orElseThrow(() -> new CustomException(404, "해당 이의신청 내역을 찾을 수 없습니다."));
+
+        if (!objection.getStudent().getStudentNum().equals(userNum)) {
+            throw new CustomException(403, "해당 신청을 삭제할 권한이 없습니다.");
+        }
+
+        if(!objection.getStatus().getCode().equals("PENDING")){
+            throw  new CustomException(400, "이미 처리가 완료된 신청은 취소할 수 없습니다.");
+        }
+        String fullPath = System.getProperty("user.dir") + objection.getEvidencePath();
+        fileUtil.deleteFileByFilePath(fullPath);
+
+        objectionRepository.delete(objection);
+        return ActionResponse.success(200, "출결 이의 신청이 취소되었습니다.",
                 "api/mylecture/" + lectureId + "/official-requests");
 
     }

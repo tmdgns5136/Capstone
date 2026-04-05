@@ -50,4 +50,4 @@ com:
   example:
     upload:
       path:
-        profileImg: ${UPLOAD_PATH:./uploads/photo}
+        profileImg: ${UPLOAD_PATH:./uploads}

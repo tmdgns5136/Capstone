@@ -3,6 +3,8 @@ package com.example.demo.domain.lecture.entity.attendance;
 import com.example.demo.domain.entity.enumerate.Status;
 import com.example.demo.domain.home.entity.user.Professor;
 import com.example.demo.domain.home.entity.user.Student;
+import com.example.demo.domain.lecture.entity.lecture.Lecture;
+import com.example.demo.domain.lecture.entity.lecture.LectureSession;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,7 +29,7 @@ public class Objection {
     private Long objectionId;
 
     @Column(name = "OBJECTION_TITLE", nullable = false)
-    private String objecetionTitle;
+    private String objectionTitle;
 
     @Lob
     @Column(name = "OBJECTION_REASON", nullable = false, columnDefinition = "TEXT")
@@ -55,5 +57,13 @@ public class Objection {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PROFESSOR_ID")
     private Professor professor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "LECTURE_ID")
+    private Lecture lecture;
+
+    @ManyToOne(fetch = FetchType.LAZY) // 여러 공결 신청이 하나의 수업 세션에 해당할 수 있음
+    @JoinColumn(name = "SESSION_ID")
+    private LectureSession lectureSession;
 
 }

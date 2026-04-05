@@ -28,7 +28,7 @@ public class FileService {
     private final StudentRepository studentRepository;
     private final ImageRepository imageRepository;
     private final FileUtil fileUtil;
-    private final String uploadPath = Paths.get(System.getProperty("user.dir"), "uploads", "official").toString();
+    private final String uploadPath = Paths.get(System.getProperty("user.dir"), "uploads").toString();
 
     private ImgDto mapToImageDto(Image image){
         return ImgDto.builder()
@@ -102,14 +102,18 @@ public class FileService {
     }
 
     // 증명 서류 저장
-    public String saveEvidenceFile(MultipartFile multipartFile) throws IOException {
-        File directory = new File(uploadPath);
-        if(!directory.exists()){
-            directory.mkdirs();
+    public String saveEvidenceFile(MultipartFile multipartFile, String subDir) throws IOException {
+        Path targetDir = Paths.get(uploadPath).resolve(subDir);
+
+        // 3. 해당 폴더가 없으면 생성
+        if (!Files.exists(targetDir)) {
+            Files.createDirectories(targetDir);
         }
 
+        // 4. UUID 파일명 생성 및 저장
         String savedFileName = fileUtil.getFileNameWithUUID(multipartFile.getOriginalFilename());
-        Path targetPath = Paths.get(uploadPath, savedFileName);
+        Path targetPath = targetDir.resolve(savedFileName);
+
         Files.copy(multipartFile.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
         return savedFileName;

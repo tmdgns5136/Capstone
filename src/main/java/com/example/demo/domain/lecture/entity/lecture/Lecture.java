@@ -3,6 +3,7 @@ package com.example.demo.domain.lecture.entity.lecture;
 import com.example.demo.domain.entity.board.NoticeBoard;
 import com.example.demo.domain.entity.board.QuestionBoard;
 import com.example.demo.domain.home.entity.user.Professor;
+import com.example.demo.domain.lecture.entity.attendance.Objection;
 import com.example.demo.domain.lecture.entity.attendance.Official;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -69,6 +70,10 @@ public class Lecture {
     @Builder.Default
     @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Official> officials = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Objection> objections = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PROFESSOR_ID")

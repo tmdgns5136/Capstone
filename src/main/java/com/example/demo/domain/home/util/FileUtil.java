@@ -26,10 +26,17 @@ public class FileUtil {
     public void init() {
         try {
             Path root = Paths.get(uploadPath).toAbsolutePath(); // 절대 경로로 변환
+
             // 폴더가 없으면 상위 폴더까지 싹 다 만듭니다 (mkdir -p와 동일)
-            if (!Files.exists(root)) {
-                Files.createDirectories(root);
-                System.out.println("✅ 폴더가 생성되었습니다: " + uploadPath);
+            String[] directories = {"official", "objection", "photo"};
+
+            for (String dirName : directories) {
+                Path targetPath = root.resolve(dirName); // uploads/official, uploads/objection
+
+                if (!Files.exists(targetPath)) {
+                    Files.createDirectories(targetPath);
+                    System.out.println("✅ 폴더 생성 완료: " + targetPath);
+                }
             }
         } catch (IOException e) {
             throw new RuntimeException("❌ 폴더를 생성할 수 없습니다!", e);

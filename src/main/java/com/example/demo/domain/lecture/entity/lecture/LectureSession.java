@@ -1,6 +1,8 @@
 package com.example.demo.domain.lecture.entity.lecture;
 
 import com.example.demo.domain.lecture.entity.attendance.Attendance;
+import com.example.demo.domain.lecture.entity.attendance.Objection;
+import com.example.demo.domain.lecture.entity.attendance.Official;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +33,12 @@ public class LectureSession {
     @Column(name = "SCHEDULED_AT", nullable = false)
     private LocalDateTime scheduled_at;
 
+    @Column(name = "SESSION_START", nullable = false)
+    private LocalDateTime sessionStart;
+
+    @Column(name = "SESSION_END", nullable = false)
+    private LocalDateTime sessionEnd;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "LECTURE_ID")
     private Lecture lecture;
@@ -38,4 +46,12 @@ public class LectureSession {
     @Builder.Default
     @OneToMany(mappedBy = "lectureSession", cascade = CascadeType.ALL)
     private List<Attendance> attendances = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "lectureSession", cascade = CascadeType.ALL)
+    private List<Official> officials = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "lectureSession", cascade = CascadeType.ALL)
+    private List<Objection> objections = new ArrayList<>();
 }

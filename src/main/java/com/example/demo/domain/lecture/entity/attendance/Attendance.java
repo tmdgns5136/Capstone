@@ -33,7 +33,7 @@ public class Attendance {
     private LocalDateTime checkTime;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "LECTURE_SESSION_ID")
+    @JoinColumn(name = "SESSION_ID")
     private LectureSession lectureSession;
 
     @ManyToOne(fetch = FetchType.LAZY)

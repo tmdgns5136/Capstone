@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 @Builder
 @AllArgsConstructor
-public class OfficialRequest {
+public class AbsenceRequest {
     private String studentNum;
     private Long sessionId;
     private String title;
