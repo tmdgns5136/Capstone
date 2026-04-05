@@ -1,29 +1,26 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { ChevronDown, ArrowRight } from "lucide-react";
+import { ChevronDown, ArrowRight, Loader2 } from "lucide-react";
 import { ProfessorCourseDetail } from "./ProfessorCourseDetail";
-
-const coursesData = [
-  { id: 1, name: "알고리즘", time: "월 09:00 AM - 10:50 AM", room: "G207", status: "수업 진행 중" },
-  { id: 2, name: "데이터베이스 설계", time: "수 09:00 AM - 09:50 AM", room: "G201", status: "" },
-  { id: 3, name: "운영체제 기초", time: "금 13:00 - 14:50", room: "G208", status: "" },
-];
+import { useProfessorCourses, Course } from "../../hooks/useProfessorCourses";
 
 export default function ProfessorCourses() {
   const location = useLocation();
   const navigate = useNavigate();
   const [semester, setSemester] = useState("2026학년도 1학기");
-  const [selectedCourse, setSelectedCourse] = useState<typeof coursesData[0] | null>(null);
-
-  const fromHome = !!(location.state as { courseId?: number } | null)?.courseId;
+  
+  const { courses, loading, error } = useProfessorCourses();
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const fromHome = !!(location.state as { lectureId?: string } | null)?.lectureId;
 
   useEffect(() => {
-    const courseId = (location.state as { courseId?: number } | null)?.courseId;
-    if (courseId) {
-      const found = coursesData.find((c) => c.id === courseId);
+    const lectureId = (location.state as { lectureId?: string } | null)?.lectureId;
+   
+    if (lectureId && courses.length > 0) {
+      const found = courses.find((c) => c.lectureId === lectureId);
       if (found) setSelectedCourse(found);
     }
-  }, [location.state]);
+  }, [location.state, courses]);
 
   const handleBack = () => {
     if (fromHome) {
@@ -33,6 +30,17 @@ export default function ProfessorCourses() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-zinc-300" />
+      </div>
+    );
+  }
+  if (error) {
+    return <div className="p-10 text-center text-rose-500">{error}</div>;
+  }
+
   if (selectedCourse) {
     return (
       <ProfessorCourseDetail
@@ -41,7 +49,6 @@ export default function ProfessorCourses() {
       />
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -65,12 +72,12 @@ export default function ProfessorCourses() {
 
       {/* Course List */}
       <div className="space-y-4">
-        {coursesData.map((course) => (
-          <div key={course.id} className="bg-white rounded-xl border border-zinc-200 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:shadow-sm transition-shadow">
+        {courses.map((course) => (
+          <div key={course.lectureId} className="bg-white rounded-xl border border-zinc-200 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:shadow-sm transition-shadow">
             <div>
               {course.status && (
                 <span className="inline-block px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 text-zinc-600 mb-2">
-                  {course.status}
+                  {course.status === "IN_PROGRESS" ? "수업 진행 중" : course.status}
                 </span>
               )}
               <h3 className="text-lg font-bold text-zinc-900">{course.name}</h3>

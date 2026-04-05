@@ -4,7 +4,7 @@ import { Edit, Search, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
 
 const studentsData = [
   { id: 1, name: "김철수", studentId: "20240101", date: "2026-03-10", status: "출석", attendanceRate: 95 },
@@ -95,7 +95,7 @@ export default function ProfessorAttendanceEdit() {
                 className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary appearance-none"
               >
                 {courses.map((course) => (
-                  <option key={course.id} value={course.name}>
+                  <option key={course.lectureId} value={course.name}>
                     {course.name}
                   </option>
                 ))}

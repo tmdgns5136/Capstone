@@ -6,7 +6,7 @@ import { OtpInput } from "../../components/OtpInput";
 import { toast } from "sonner";
 import { sendEmailCode, verifyEmailCode, signupProfessor } from "../../api/auth";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
 
 function formatPhone(value: string) {
   const nums = value.replace(/\D/g, "").slice(0, 11);

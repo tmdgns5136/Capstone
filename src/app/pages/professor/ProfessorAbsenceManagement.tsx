@@ -4,7 +4,7 @@ import { FileCheck, CheckCircle, XCircle, Clock, Download, FileText, X, AlertTri
 import { toast } from "sonner";
 import { useAbsenceRequests } from "../../hooks/useAbsenceRequests";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
 
 export default function ProfessorAbsenceManagement() {
   const { requests, updateStatus } = useAbsenceRequests();

@@ -4,7 +4,7 @@ import { FileCheck, CheckCircle, XCircle, Clock, FileText, X, AlertTriangle, Use
 import { toast } from "sonner";
 import { useAppealRequests } from "../../hooks/useAppealRequests";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
 
 export default function ProfessorAppealManagement() {
   const { requests, updateStatus } = useAppealRequests();

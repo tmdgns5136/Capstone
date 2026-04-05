@@ -1,45 +1,40 @@
 import { useState, useEffect } from "react";
+import { getLectures, Lecture } from "../api/lecture";
+import { useAuth } from "./useAuth";
 
-export interface Course {
-  id: number;
-  name: string;
-  students: number;
-  schedule: string;
-  room?: string;
-}
-
-const KIM_COURSES = [
-  { id: 1, name: "데이터베이스", students: 45, schedule: "월 09:00-10:30", room: "공학관 301" },
-  { id: 2, name: "인공지능", students: 38, schedule: "월 13:00-14:30", room: "공학관 405" },
-  { id: 3, name: "컴퓨터네트워크", students: 42, schedule: "화 10:00-11:30", room: "IT관 201" },
-  { id: 4, name: "C프로그래밍1", students: 55, schedule: "목 14:00-16:00", room: "공학관 203" },
-];
-
-const LEE_COURSES = [
-  { id: 11, name: "운영체제", students: 50, schedule: "월 10:00-12:00", room: "공학관 101" },
-  { id: 12, name: "이산수학", students: 40, schedule: "수 13:00-14:30", room: "공학관 102" },
-  { id: 13, name: "파이썬프로그래밍", students: 60, schedule: "금 09:00-11:00", room: "IT관 301" },
-];
-
-const PARK_COURSES = [
-  { id: 21, name: "컴퓨터네트워크", students: 42, schedule: "화 10:00-11:30", room: "IT관 201" },
-  { id: 22, name: "C프로그래밍1", students: 55, schedule: "목 14:00-16:00", room: "공학관 203" },
-];
+export type Course = Lecture;
 
 export function useProfessorCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [professorName, setProfessorName] = useState("교수님");
+  const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated, role, userName } = useAuth();
 
   useEffect(() => {
     async function loadCourses() {
-      // Always load demo courses
-      setCourses(KIM_COURSES);
-      setProfessorName("김교수 (데모)");
-      setLoading(false);
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await getLectures();
+
+        if (response.success){
+          setCourses(response.data);
+        }
+      } catch (err) {
+        console.error("데이터 로드 실패:", err);
+        setError("강의 정보를 불러오는 데 실패했습니다.");
+      } finally {
+        setLoading(false);
+      }
     }
     loadCourses();
-  }, []);
+  }, [isAuthenticated, role]);
 
-  return { courses, professorName, loading };
+  return {
+    courses, 
+    professorName: userName, 
+    loading,
+    error
+  };
 }

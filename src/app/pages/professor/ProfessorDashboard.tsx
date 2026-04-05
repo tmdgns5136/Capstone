@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, use, useDebugValue } from "react";
 import { Routes, Route } from "react-router";
 import ProfessorHome from "./ProfessorHome";
 import ProfessorClassControl from "./ProfessorClassControl";
@@ -11,6 +11,8 @@ import NotificationsPage from "../shared/NotificationsPage";
 import TopNav from "../../components/layout/TopNav";
 import Footer from "../../components/layout/Footer";
 import { ClassSimulatorProvider } from "../../hooks/useClassSimulator";
+import { useAuth } from "../../hooks/useAuth";
+import { useDragControls } from "motion/react";
 
 const navItems = [
   { name: "홈", href: "/professor" },
@@ -23,19 +25,15 @@ const navItems = [
 ];
 
 export default function ProfessorDashboard() {
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    setUser({ user_metadata: { name: "임정택 교수" }, email: "professor@univ.ac.kr", department: "컴퓨터과학과" });
-  }, []);
+  const {isAuthenticated, role, userName} = useAuth();
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-white dark:bg-[#09090b]">
       <TopNav
         role="professor"
         navItems={navItems}
-        userName={user?.user_metadata?.name || "교수"}
-        userDepartment={user?.department || ""}
+        userName={userName || "교수"}
+        userDepartment="컴퓨터과학과" //추후 api에서 받아오는 정보로 변경
       />
       <main className="flex-1 pt-14">
         <ClassSimulatorProvider>
