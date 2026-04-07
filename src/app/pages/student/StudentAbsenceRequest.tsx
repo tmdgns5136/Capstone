@@ -4,11 +4,13 @@ import { FileText, Upload, Clock, CheckCircle, XCircle, BookOpen, AlertTriangle,
 import { toast } from "sonner";
 import {
   getMyLectures,
+  getLectureSessions,
   getOfficialRequests,
   getOfficialRequestDetail,
   applyOfficialAbsence,
   deleteOfficialRequest,
   MyLectureData,
+  SessionData,
   AbsenceRequestData,
   AbsenceDetailData,
 } from "../../api/studentLecture";
@@ -29,45 +31,70 @@ export default function StudentAbsenceRequest() {
   const [courses, setCourses] = useState<MyLectureData[]>([]);
   const [selectedLectureId, setSelectedLectureId] = useState("");
 
+  // 세션 목록 (날짜 → sessionId 매핑용)
+  const [sessions, setSessions] = useState<SessionData[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
   // 신청 폼
   const [title, setTitle] = useState("");
-  const [absenceDate, setAbsenceDate] = useState("");
+  const [selectedSessionId, setSelectedSessionId] = useState("");
   const [reason, setReason] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // 신청 내역
-  const [requests, setRequests] = useState<AbsenceRequestData[]>([]);
+  // 신청 내역 (전체 강의 + 강의별 필터링)
+  const [allRequests, setAllRequests] = useState<(AbsenceRequestData & { lectureId: string })[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
 
   // 상세 보기
   const [detailData, setDetailData] = useState<AbsenceDetailData | null>(null);
+  const [detailLectureId, setDetailLectureId] = useState("");
+  const [detailSessionDate, setDetailSessionDate] = useState("");
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // 강의 목록 로드
+  // 강의 목록 로드 + 전체 신청 내역 로드
   useEffect(() => {
+    setLoadingRequests(true);
     getMyLectures(2026, "1")
-      .then((res) => setCourses(res.data))
-      .catch(() => setCourses([]));
+      .then(async (res) => {
+        setCourses(res.data);
+        // 전체 강의의 신청 내역을 한번에 불러옴
+        const all = await Promise.all(
+          res.data.map(async (course) => {
+            try {
+              const r = await getOfficialRequests(course.lectureId);
+              return r.data.map((req) => ({ ...req, lectureId: String(course.lectureId) }));
+            } catch {
+              return [];
+            }
+          }),
+        );
+        setAllRequests(all.flat());
+      })
+      .catch(() => setCourses([]))
+      .finally(() => setLoadingRequests(false));
   }, []);
 
-  // 강의 선택 시 신청 내역 로드
+  // 강의 선택 시 세션 목록 로드
   useEffect(() => {
     if (!selectedLectureId) {
-      setRequests([]);
+      setSessions([]);
       return;
     }
-    setLoadingRequests(true);
-    getOfficialRequests(selectedLectureId)
-      .then((res) => setRequests(res.data))
-      .catch(() => setRequests([]))
-      .finally(() => setLoadingRequests(false));
+    setLoadingSessions(true);
+    getLectureSessions(selectedLectureId)
+      .then((res) => setSessions(res.data))
+      .catch(() => setSessions([]))
+      .finally(() => setLoadingSessions(false));
   }, [selectedLectureId]);
+
+  // 항상 전체 신청 내역 표시
+  const requests = allRequests;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedLectureId || !title || !reason || !absenceDate) {
+    if (!selectedLectureId || !title || !reason || !selectedSessionId) {
       toast.error("필수 항목을 모두 입력해주세요.");
       return;
     }
@@ -78,23 +105,26 @@ export default function StudentAbsenceRequest() {
 
     setSubmitting(true);
     try {
-      // TODO: 세션 목록 조회 API가 추가되면 absenceDate → sessionId 매핑 필요
       await applyOfficialAbsence(
         selectedLectureId,
-        { sessionId: 0, title, reason },
+        { sessionId: Number(selectedSessionId), title, reason },
         file,
       );
       toast.success("공결 신청이 완료되었습니다. 검토 후 처리됩니다.");
 
       // 폼 초기화
       setTitle("");
-      setAbsenceDate("");
+      setSelectedSessionId("");
       setReason("");
       setFile(null);
 
       // 목록 새로고침
       const res = await getOfficialRequests(selectedLectureId);
-      setRequests(res.data);
+      const updated = res.data.map((req) => ({ ...req, lectureId: String(selectedLectureId) }));
+      setAllRequests((prev) => [
+        ...prev.filter((r) => r.lectureId !== selectedLectureId),
+        ...updated,
+      ]);
     } catch (err: any) {
       toast.error(err.message || "공결 신청에 실패했습니다.");
     } finally {
@@ -102,24 +132,40 @@ export default function StudentAbsenceRequest() {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, requestId: number) => {
+  const handleDelete = async (e: React.MouseEvent, requestId: number, lectureId: string) => {
     e.stopPropagation();
     if (!window.confirm("공결 신청을 삭제하시겠습니까?")) return;
 
     try {
-      await deleteOfficialRequest(selectedLectureId, requestId);
+      await deleteOfficialRequest(lectureId, requestId);
       toast.success("공결 신청이 삭제되었습니다.");
-      setRequests((prev) => prev.filter((r) => r.requestId !== requestId));
+      setAllRequests((prev) => prev.filter((r) => r.requestId !== requestId));
     } catch (err: any) {
       toast.error(err.message || "삭제에 실패했습니다.");
     }
   };
 
-  const handleShowDetail = async (requestId: number) => {
+  // lectureId → 강의명 매핑 헬퍼 (백엔드가 숫자로 반환하므로 String 변환 비교)
+  const getCourseName = (lectureId: string) =>
+    courses.find((c) => String(c.lectureId) === String(lectureId))?.lectureName || "";
+  const getProfessorName = (lectureId: string) =>
+    courses.find((c) => String(c.lectureId) === String(lectureId))?.professorName || "";
+
+  const handleShowDetail = async (requestId: number, lectureId: string) => {
     setLoadingDetail(true);
+    setDetailLectureId(lectureId);
+    setDetailSessionDate("");
     try {
-      const res = await getOfficialRequestDetail(selectedLectureId, requestId);
-      setDetailData(res.data);
+      const [detailRes, sessionsRes] = await Promise.all([
+        getOfficialRequestDetail(lectureId, requestId),
+        getLectureSessions(lectureId),
+      ]);
+      setDetailData(detailRes.data);
+      // sessionId → 날짜 매핑
+      const session = sessionsRes.data.find((s) => s.sessionId === detailRes.data.sessionId);
+      if (session) {
+        setDetailSessionDate(`${session.sessionDate} (${session.startTime} ~ ${session.endTime})`);
+      }
     } catch {
       toast.error("상세 정보를 불러올 수 없습니다.");
     } finally {
@@ -219,15 +265,24 @@ export default function StudentAbsenceRequest() {
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-zinc-700">
-                결석 날짜 <span className="text-rose-500">*</span>
+                수업 날짜 <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="date"
-                value={absenceDate}
-                onChange={(e) => setAbsenceDate(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all placeholder:text-zinc-300"
+              <select
+                value={selectedSessionId}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
+                disabled={loadingSessions || sessions.length === 0}
+                className="w-full appearance-none rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                 required
-              />
+              >
+                <option value="" disabled>
+                  {loadingSessions ? "세션 불러오는 중..." : sessions.length === 0 ? "강의를 먼저 선택하세요" : "수업 날짜를 선택하세요"}
+                </option>
+                {sessions.map((s) => (
+                  <option key={s.sessionId} value={s.sessionId}>
+                    {s.sessionDate} ({s.startTime} ~ {s.endTime})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-1.5">
@@ -343,11 +398,7 @@ export default function StudentAbsenceRequest() {
             </div>
 
             <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
-              {!selectedLectureId ? (
-                <div className="text-center py-10 text-sm text-zinc-400">
-                  강의를 선택하면 신청 내역을 확인할 수 있습니다
-                </div>
-              ) : loadingRequests ? (
+              {loadingRequests ? (
                 <div className="flex justify-center py-10">
                   <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
                 </div>
@@ -362,13 +413,13 @@ export default function StudentAbsenceRequest() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.06 }}
-                    onClick={() => handleShowDetail(request.requestId)}
-                    className="rounded-xl border border-zinc-100 p-4 hover:border-zinc-200 transition-colors cursor-pointer"
+                    onClick={() => handleShowDetail(request.requestId, request.lectureId)}
+                    className="rounded-xl border border-zinc-100 p-4 shadow-[0_2px_4px_-1px_rgba(0,0,0,0.08)] hover:border-zinc-200 hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.12)] transition-all cursor-pointer"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h4 className="text-sm font-semibold text-zinc-900">{request.title}</h4>
-                        <p className="text-xs text-zinc-400 mt-0.5">{request.requestDate}</p>
+                        <p className="text-xs font-medium text-primary-dark">{getCourseName(request.lectureId)}</p>
+                        <h4 className="text-sm font-semibold text-zinc-900 mt-0.5">{request.title}</h4>
                       </div>
                       {getStatusBadge(request.status)}
                     </div>
@@ -380,7 +431,7 @@ export default function StudentAbsenceRequest() {
                       <div className="flex items-center gap-2">
                         {request.status === "PENDING" && (
                           <button
-                            onClick={(e) => handleDelete(e, request.requestId)}
+                            onClick={(e) => handleDelete(e, request.requestId, request.lectureId)}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors"
                           >
                             <Trash2 className="w-3 h-3" /> 삭제
@@ -428,16 +479,30 @@ export default function StudentAbsenceRequest() {
                   </div>
 
                   <div className="p-6 space-y-4">
-                    {/* 상태 & 기본 정보 */}
+                    {/* 상태 & 제목 */}
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-lg font-bold text-zinc-900">{detailData.title}</h4>
-                        <p className="text-sm text-zinc-400 mt-0.5">
-                          신청일: {detailData.requestData}
-                          {detailData.sessionId && ` · 세션 #${detailData.sessionId}`}
-                        </p>
-                      </div>
+                      <h4 className="text-lg font-bold text-zinc-900">{detailData.title}</h4>
                       {getStatusBadge(detailData.status)}
+                    </div>
+
+                    {/* 기본 정보 */}
+                    <div className="bg-zinc-50 rounded-xl p-4 grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-zinc-400 font-medium">강의명</p>
+                        <p className="text-sm text-zinc-800 mt-0.5">{getCourseName(detailLectureId)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-400 font-medium">교수명</p>
+                        <p className="text-sm text-zinc-800 mt-0.5">{getProfessorName(detailLectureId)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-400 font-medium">수업 날짜</p>
+                        <p className="text-sm text-zinc-800 mt-0.5">{detailSessionDate || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-400 font-medium">신청일</p>
+                        <p className="text-sm text-zinc-800 mt-0.5">{detailData.requestData}</p>
+                      </div>
                     </div>
 
                     {/* 사유 */}
@@ -510,9 +575,9 @@ export default function StudentAbsenceRequest() {
                         onClick={async () => {
                           if (!window.confirm("공결 신청을 삭제하시겠습니까?")) return;
                           try {
-                            await deleteOfficialRequest(selectedLectureId, detailData.requestId);
+                            await deleteOfficialRequest(detailLectureId, detailData.requestId);
                             toast.success("공결 신청이 삭제되었습니다.");
-                            setRequests((prev) => prev.filter((r) => r.requestId !== detailData.requestId));
+                            setAllRequests((prev) => prev.filter((r) => r.requestId !== detailData.requestId));
                             setDetailData(null);
                           } catch (err: any) {
                             toast.error(err.message || "삭제에 실패했습니다.");

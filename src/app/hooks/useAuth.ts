@@ -1,5 +1,5 @@
 import { useSyncExternalStore, useCallback } from "react";
-import { setTokens, clearTokens, getAccessToken } from "../api/client";
+import { setAccessToken, clearTokens, getAccessToken } from "../api/client";
 
 export type Role = "student" | "professor" | "admin";
 
@@ -60,8 +60,8 @@ export function useAuth() {
   const state = useSyncExternalStore(subscribe, getState);
 
   const login = useCallback(
-    (role: string, userName: string, accessToken: string, refreshToken: string) => {
-      setTokens(accessToken, refreshToken);
+    (role: string, userName: string, accessToken: string) => {
+      setAccessToken(accessToken);
       const newState: AuthState = {
         isAuthenticated: true,
         role: mapRole(role),

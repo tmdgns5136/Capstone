@@ -389,7 +389,7 @@ export default function StudentProfile() {
         )}
       </div>
 
-      {/* 서비스 탈퇴 (1-7) */}
+      {/* 회원 탈퇴 (1-7) */}
       <div className="text-right pb-8">
         <button
           onClick={async () => {
@@ -405,7 +405,7 @@ export default function StudentProfile() {
           }}
           className="text-xs text-zinc-400 hover:text-zinc-600 underline underline-offset-2"
         >
-          서비스탈퇴
+          회원탈퇴
         </button>
       </div>
 
@@ -540,8 +540,8 @@ export default function StudentProfile() {
                     <div
                       onClick={() => fileRefs[slot.key].current?.click()}
                       className={`w-full aspect-[3/4] rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden transition-colors ${photoFiles[slot.key]
-                          ? "border-primary bg-primary/5"
-                          : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:bg-zinc-100"
+                        ? "border-primary bg-primary/5"
+                        : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:bg-zinc-100"
                         }`}
                     >
                       {photoFiles[slot.key] ? (

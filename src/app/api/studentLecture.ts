@@ -16,6 +16,14 @@ export interface MyLectureData {
   professorName: string;
 }
 
+// 1.18 강의별 세션 목록
+export interface SessionData {
+  sessionId: number;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+}
+
 // 1.10 & 1.11 공통 응답
 export interface AbsenceData {
   requestId: number;
@@ -52,6 +60,15 @@ export interface ActionResponse {
 export async function getMyLectures(year: number, semester: string) {
   return api<ApiResponse<MyLectureData[]>>(
     `/api/mylecture?year=${year}&semester=${semester}`,
+    { method: "GET" },
+  );
+}
+
+// ── 1.18 강의별 세션 목록 조회 ──
+
+export async function getLectureSessions(lectureId: string) {
+  return api<ApiResponse<SessionData[]>>(
+    `/api/mylecture/${lectureId}/sessions`,
     { method: "GET" },
   );
 }
