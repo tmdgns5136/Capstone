@@ -63,12 +63,12 @@ public class HomeController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginData>> login(@Valid @RequestBody LoginRequest loginRequest){
+    public ResponseEntity<ApiResponse<LoginData>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletResponse response){
         // 만료시간 1시간
         Date accessExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 60);
         Date refreshExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 60);
 
-        ApiResponse<LoginData> apiResponse = userService.login(loginRequest, accessExpiry, refreshExpiry);
+        ApiResponse<LoginData> apiResponse = userService.login(loginRequest, accessExpiry, refreshExpiry, response);
 
         return ResponseEntity.status(apiResponse.getStatus()).body(apiResponse);
     }

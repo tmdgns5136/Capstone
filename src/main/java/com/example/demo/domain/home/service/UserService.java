@@ -139,7 +139,7 @@ public class UserService {
 
     // 로그인
     @Transactional
-    public ApiResponse<LoginData> login(LoginRequest loginRequest, Date accessExpiry, Date refreshExpiry){
+    public ApiResponse<LoginData> login(LoginRequest loginRequest, Date accessExpiry, Date refreshExpiry, HttpServletResponse response){
         String roleCode;
         String userName = null;
         String encodedPassword;
@@ -192,8 +192,20 @@ public class UserService {
 
         LoginData loginData = LoginData.builder()
                 .role(roleCode.replace("ROLE_", ""))
+                .userName(userName)
                 .accessToken(accessToken.getToken())
                 .build();
+
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken.getToken())
+                .httpOnly(true)
+                .secure(true) // HTTPS 환경 권장
+                .path("/")
+                .maxAge(7 * 24 * 60 * 60) // 7일
+                .sameSite("Lax") // 개발 환경에서의 편의성 고려
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
 
         if(("master").equals(loginRequest.getUserNum())){
             return ApiResponse.success(200, loginData, "로그인이 완료되었습니다.");

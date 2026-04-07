@@ -52,7 +52,8 @@ public class LectureService {
                     Professor professor = lecture.getProfessor();
 
                     return LectureData.builder()
-                            .lectureId(lecture.getLectureCode())
+                            .lectureId(lecture.getLectureId())
+                            .lectureCode(lecture.getLectureCode())
                             .lectureName(lecture.getLectureName())
                             .professorName(professor.getProfessorName()).build();
                 }).toList();
