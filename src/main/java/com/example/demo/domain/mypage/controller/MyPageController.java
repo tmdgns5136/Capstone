@@ -37,7 +37,7 @@ public class MyPageController {
     public ResponseEntity<Resource> serveImage(@PathVariable String fileName) {
         try {
             // 1. 파일의 실제 물리적 경로 찾기
-            Path filePath = Paths.get(uploadPath).resolve(fileName).normalize();
+            Path filePath = Paths.get(uploadPath).resolve("photo").resolve(fileName).normalize();
             Resource resource = new UrlResource(filePath.toUri());
 
             // 2. 파일이 존재하는지 확인
