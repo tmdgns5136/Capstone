@@ -6,6 +6,13 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// 페이징 처리를 위한 공통 타입
+export interface PaginatedData<T> {
+  data: T[]; // 혹은 명세서에 따라 data: T[]
+  totalElements: number;
+  totalPages: number;
+}
+
 // 4. 담당 강의 목록 타입
 export interface Lecture {
   lectureId: string;

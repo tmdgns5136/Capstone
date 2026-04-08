@@ -9,37 +9,27 @@ export function getAccessToken(): string | null {
   return localStorage.getItem("ACCESS_TOKEN");
 }
 
-export function getRefreshToken(): string | null {
-  return localStorage.getItem("REFRESH_TOKEN");
-}
-
-export function setTokens(accessToken: string, refreshToken: string) {
+export function setAccessToken(accessToken: string) {
   localStorage.setItem("ACCESS_TOKEN", accessToken);
-  localStorage.setItem("REFRESH_TOKEN", refreshToken);
 }
 
 export function clearTokens() {
   localStorage.removeItem("ACCESS_TOKEN");
-  localStorage.removeItem("REFRESH_TOKEN");
 }
 
-// 토큰 재발급
+// 토큰 재발급 (refreshToken은 httpOnly 쿠키로 자동 전송)
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
-
   try {
     const res = await fetch(`${BASE_URL}/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
+      credentials: "include",
     });
 
     if (!res.ok) return null;
 
     const data = await res.json();
     if (data.success && data.data) {
-      setTokens(data.data.accessToken, data.data.refreshToken);
+      setAccessToken(data.data.accessToken);
       return data.data.accessToken;
     }
     return null;
@@ -70,14 +60,14 @@ export async function api<T = any>(
   }
 
   const url = endpoint.startsWith("/api/") ? endpoint : `${BASE_URL}${endpoint}`;
-  let res = await fetch(url, { ...rest, headers });
+  let res = await fetch(url, { ...rest, headers, credentials: "include" });
 
   // 401이면 토큰 재발급 후 재시도
   if (res.status === 401 && !skipAuth) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers.set("Authorization", `Bearer ${newToken}`);
-      res = await fetch(url, { ...rest, headers });
+      res = await fetch(url, { ...rest, headers, credentials: "include" });
     }
   }
 

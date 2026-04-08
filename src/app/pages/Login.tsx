@@ -25,14 +25,14 @@ export default function Login() {
 
     try {
       const res = await apiLogin(loginId, password);
-      const { role, userName, accessToken, refreshToken } = res.data;
+      const { role, userName, accessToken } = res.data;
       if (saveId) {
         localStorage.setItem("savedLoginId", loginId);
       } else {
         localStorage.removeItem("savedLoginId");
       }
 
-      login(role, userName, accessToken, refreshToken);
+      login(role, userName, accessToken);
 
       const mappedRole = role.toUpperCase().includes("STUDENT")
         ? "student"

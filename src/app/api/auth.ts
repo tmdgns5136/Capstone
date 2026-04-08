@@ -5,7 +5,6 @@ export interface LoginData {
   userName: string;
   role: string;
   accessToken: string;
-  refreshToken: string;
 }
 
 export async function login(userNum: string, password: string) {
