@@ -73,7 +73,7 @@ public class FileUtil {
         }
         String fileName = userNum + "_" + positionName + "." + ext;
 
-        Path targetPath = Paths.get(uploadPath).toAbsolutePath().normalize().resolve(fileName);
+        Path targetPath = Paths.get(uploadPath).toAbsolutePath().normalize().resolve("photo").resolve(fileName);
         File file = targetPath.toFile();
         if (!file.getParentFile().exists()) {
             file.getParentFile().mkdirs();

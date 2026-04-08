@@ -121,4 +121,12 @@ public class LectureController {
         ActionResponse actionResponse = lectureService.deleteObjectionRequest(authentication, lectureId, requestId);
         return ResponseEntity.ok(actionResponse);
     }
+
+    // session 조회
+    @GetMapping("/{lecture_id}/sessions")
+    public ResponseEntity<ApiResponse<List<SessionData>>> getSessions(@PathVariable("lecture_id")Long lectureId,
+                                                                      Authentication authentication){
+        ApiResponse<List<SessionData>> apiResponse = lectureService.getLectureSessions(authentication, lectureId);
+        return ResponseEntity.ok(apiResponse);
+    }
 }

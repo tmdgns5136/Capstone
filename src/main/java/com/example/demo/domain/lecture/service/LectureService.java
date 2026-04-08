@@ -1,5 +1,6 @@
 package com.example.demo.domain.lecture.service;
 
+import com.example.demo.domain.entity.enumerate.AttendStatus;
 import com.example.demo.domain.entity.enumerate.Status;
 import com.example.demo.domain.home.entity.user.Professor;
 import com.example.demo.domain.home.entity.user.Student;
@@ -7,6 +8,7 @@ import com.example.demo.domain.home.repository.StudentRepository;
 import com.example.demo.domain.home.service.FileService;
 import com.example.demo.domain.home.util.FileUtil;
 import com.example.demo.domain.lecture.dto.*;
+import com.example.demo.domain.lecture.entity.attendance.Attendance;
 import com.example.demo.domain.lecture.entity.attendance.Objection;
 import com.example.demo.domain.lecture.entity.attendance.Official;
 import com.example.demo.domain.lecture.entity.lecture.Enrollment;
@@ -25,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +38,7 @@ public class LectureService {
     private final OfficialRepository officialRepository;
     private final ObjectionRepository objectionRepository;
     private final LectureSessionRepository lectureSessionRepository;
+    private final AttendanceRepository attendanceRepository;
     private final FileService fileService;
     private final FileUtil fileUtil;
 
@@ -402,6 +406,39 @@ public class LectureService {
         objectionRepository.delete(objection);
         return ActionResponse.success(200, "출결 이의 신청이 취소되었습니다.",
                 "api/mylecture/" + lectureId + "/official-requests");
+
+    }
+
+    public ApiResponse<List<SessionData>> getLectureSessions(Authentication authentication, Long lectureId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        List<LectureSession> lectureSessions = lectureSessionRepository.findByLecture(lecture);
+
+        List<Attendance> myAttendances = attendanceRepository.findByLectureSession_LectureAndStudent(lecture, student);
+
+        List<SessionData> sessionDataList = lectureSessions.stream()
+                .map(session -> {
+                    AttendStatus currentStatus = myAttendances.stream()
+                            .filter((attendance -> attendance.getLectureSession().getSessionId().equals(session.getSessionId())))
+                            .map(Attendance::getAttendStatus)
+                            .findFirst().orElse(AttendStatus.TBD);
+
+
+                    return SessionData.builder()
+                            .sessionId(session.getSessionId())
+                            .sessionNum(session.getSessionNum())
+                            .sessionDate(session.getScheduled_at().toLocalDate().toString())
+                            .startTime(session.getSessionStart().toLocalTime().toString())
+                            .endTime(session.getSessionEnd().toLocalTime().toString())
+                            .status(currentStatus.toString()).build();
+                }).toList();
+
+        return ApiResponse.success(200, sessionDataList);
 
     }
 }

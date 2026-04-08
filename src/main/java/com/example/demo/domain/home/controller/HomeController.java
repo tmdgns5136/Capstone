@@ -74,8 +74,7 @@ public class HomeController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<LoginData>> refresh(@RequestBody Map<String, String> body, HttpServletResponse response){
-        String refreshToken = body.get("refreshToken");
+    public ResponseEntity<ApiResponse<LoginData>> refresh(@CookieValue("refreshToken") String refreshToken, HttpServletResponse response){
         Date accessExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 10);
 
         ApiResponse<LoginData> apiResponse = userService.reissue(refreshToken, accessExpiry, response);
