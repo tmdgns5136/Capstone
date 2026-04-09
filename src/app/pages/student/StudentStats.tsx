@@ -575,7 +575,7 @@ export default function StudentStats() {
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5" /> 수업 날짜
+              <Calendar className="w-3.5 h-3.5" /> 수업 날짜 <span className="text-red-500">*</span>
             </label>
             <select
               value={selectedAppealSessionId}
@@ -593,7 +593,7 @@ export default function StudentStats() {
           </div>
         </div>
         <div>
-          <label className="text-sm font-medium text-zinc-700 mb-1 block">제목</label>
+          <label className="text-sm font-medium text-zinc-700 mb-1 block">제목 <span className="text-red-500">*</span></label>
           <input
             value={appealTitle}
             onChange={(e) => setAppealTitle(e.target.value)}
@@ -602,7 +602,7 @@ export default function StudentStats() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-zinc-700 mb-1 block">이의 신청 사유</label>
+          <label className="text-sm font-medium text-zinc-700 mb-1 block">이의 신청 사유 <span className="text-red-500">*</span></label>
           <textarea
             value={appealReason}
             onChange={(e) => setAppealReason(e.target.value)}
@@ -611,7 +611,7 @@ export default function StudentStats() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-zinc-700 mb-1 block">증빙 서류</label>
+          <label className="text-sm font-medium text-zinc-700 mb-1 block">증빙 서류 <span className="text-red-500">*</span></label>
           <input
             id="appeal-file-upload"
             type="file"
