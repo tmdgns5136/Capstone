@@ -51,6 +51,15 @@ public class Lecture {
     @Column(name = "lecture_division", length = 5, nullable = false)
     private String lectureDivision;
 
+    @Column(name = "lecture_start", nullable = false)
+    private String lectureStart;
+
+    @Column(name = "lecture_end", nullable = false)
+    private String lectureEnd;
+
+    @Column(name = "lecture_day", nullable = false)
+    private String lectureDay;
+
     @Builder.Default
     @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<LectureSession> lectureSessions = new ArrayList<>();

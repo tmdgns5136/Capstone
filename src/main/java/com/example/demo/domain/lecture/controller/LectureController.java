@@ -129,4 +129,23 @@ public class LectureController {
         ApiResponse<List<SessionData>> apiResponse = lectureService.getLectureSessions(authentication, lectureId);
         return ResponseEntity.ok(apiResponse);
     }
+
+    // 출결 통계 조회
+    @GetMapping("/{lecture_id}/stats")
+    public ResponseEntity<ApiResponse<StatsData>> getStats(@PathVariable("lecture_id")Long lectureId,
+                                                                      Authentication authentication){
+        ApiResponse<StatsData> apiResponse = lectureService.getStats(authentication, lectureId);
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    // 시간표 조회
+    @GetMapping("/timetable")
+    public ResponseEntity<ApiResponse<List<LectureTimeTable>>> getTimeTable(Authentication authentication, @RequestParam Long year, @RequestParam String semester){
+
+            ApiResponse<List<LectureTimeTable>> apiResponse = lectureService.getLectureTimeTable(authentication, year, semester);
+            return ResponseEntity.ok(apiResponse);
+
+    }
+
+
 }

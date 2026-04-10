@@ -22,12 +22,10 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.ObjectError;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +43,7 @@ public class LectureService {
     public ApiResponse<List<LectureData>> getMyLecture(Authentication authentication, Long year, String semester){
         String userNum = authentication.getName();
         Student student = studentRepository.findByStudentNum(userNum);
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
 
         List<Enrollment> enrollments = enrollmentRepository.findByStudent(student);
 
@@ -440,5 +439,83 @@ public class LectureService {
 
         return ApiResponse.success(200, sessionDataList);
 
+    }
+
+    public ApiResponse<StatsData> getStats(Authentication authentication, Long lectureId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        List<LectureSession> lectureSessions = lectureSessionRepository.findByLecture(lecture);
+
+        List<Attendance> myAttendances = attendanceRepository.findByLectureSession_LectureAndStudent(lecture, student);
+
+        List<SessionData> sessionDataList = lectureSessions.stream()
+                .map(session -> {
+                    AttendStatus currentStatus = myAttendances.stream()
+                            .filter((attendance -> attendance.getLectureSession().getSessionId().equals(session.getSessionId())))
+                            .map(Attendance::getAttendStatus)
+                            .findFirst().orElse(AttendStatus.TBD);
+
+                    String sDate = (session.getScheduled_at() != null) ? session.getScheduled_at().toLocalDate().toString() : "날짜 미정";
+                    String sStart = (session.getSessionStart() != null) ? session.getSessionStart().toLocalTime().toString() : "00:00";
+                    String sEnd = (session.getSessionEnd() != null) ? session.getSessionEnd().toLocalTime().toString() : "00:00";
+
+
+                    return SessionData.builder()
+                            .sessionId(session.getSessionId())
+                            .sessionNum(session.getSessionNum())
+                            .sessionDate(sDate)
+                            .startTime(sStart)
+                            .endTime(sEnd)
+                            .status(currentStatus.toString()).build();
+                }).toList();
+
+        long totalSessions = myAttendances.size();
+        long attendance = myAttendances.stream().filter(a -> a.getAttendStatus() == AttendStatus.ATTEND).count();
+        long absence = myAttendances.stream().filter(a -> a.getAttendStatus() == AttendStatus.ABSENCE).count();
+        long late = myAttendances.stream().filter(a -> a.getAttendStatus() == AttendStatus.LATENESS).count();
+
+        double rate = (totalSessions > 0) ? ((double) attendance / totalSessions) * 100 : 0.0;
+
+        StatsData statsData = StatsData.builder()
+                .totalSessions(totalSessions)
+                .attendance(attendance)
+                .absence(absence)
+                .late(late)
+                .attendanceRate(rate)
+                .sessions(sessionDataList).build();
+
+        return ApiResponse.success(200, statsData);
+
+    }
+
+    public ApiResponse<List<LectureTimeTable>> getLectureTimeTable(Authentication authentication, Long year, String semester){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        List<Enrollment> enrollments = enrollmentRepository.findByStudent(student);
+
+        List<LectureTimeTable> LectureTimeTables = enrollments.stream()
+                .map(Enrollment::getLecture)
+                .filter(lecture -> lecture.getLectureYear().equals(year))
+                .filter(lecture -> lecture.getLectureSemester().equals(semester))
+                .map(lecture -> {
+
+                    return LectureTimeTable.builder()
+                            .lectureCode(lecture.getLectureCode())
+                            .lectureName(lecture.getLectureName())
+                            .day(lecture.getLectureDay())
+                            .startTime(lecture.getLectureStart())
+                            .endTime(lecture.getLectureEnd())
+                            .room(lecture.getLectureRoom()).build();
+                }).toList();
+
+        return ApiResponse.success(200, LectureTimeTables);
     }
 }
