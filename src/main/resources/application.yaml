@@ -1,3 +1,19 @@
+jwt:
+  secret: vmfhaltjskqwqpwoeirutyalskdjfhgzmxncbv1234567890
+
 spring:
   application:
     name: demo
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/attendance_db?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: root
+    password: 'lim1975harry3142'
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
