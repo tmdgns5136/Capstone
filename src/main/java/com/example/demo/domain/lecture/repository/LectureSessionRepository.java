@@ -10,6 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface LectureSessionRepository extends JpaRepository<LectureSession, Long> {
-    Optional<LectureSession> findByLectureAndScheduledAy(Lecture lecture, LocalDateTime scheduledAt);
+    Optional<LectureSession> findByLectureAndScheduledAt(Lecture lecture, LocalDate scheduledAt);
     public List<LectureSession> findByLecture(Lecture lecture);
 }

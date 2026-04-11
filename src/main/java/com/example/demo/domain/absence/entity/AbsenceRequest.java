@@ -1,6 +1,8 @@
 package com.example.demo.domain.absence.entity;
 
-import com.attendance.attendancesystem.domain.student.entity.Student;
+
+import com.example.demo.domain.home.entity.user.Student;
+import com.example.demo.domain.lecture.entity.lecture.Lecture;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;

@@ -1,9 +1,16 @@
 package com.example.demo.domain.professor.service;
 
+import com.example.demo.domain.entity.enumerate.SessionStatus;
+import com.example.demo.domain.home.entity.user.Student;
+import com.example.demo.domain.home.repository.StudentRepository;
+import com.example.demo.domain.lecture.entity.lecture.Enrollment;
+import com.example.demo.domain.lecture.entity.lecture.Lecture;
 import com.example.demo.domain.lecture.entity.lecture.LectureSchedule;
-import com.attendance.attendancesystem.domain.lecture.entity.LectureSessionStatus;
+import com.example.demo.domain.lecture.entity.lecture.LectureSession;
+import com.example.demo.domain.lecture.repository.EnrollmentRepository;
+import com.example.demo.domain.lecture.repository.LectureRepository;
 import com.example.demo.domain.lecture.repository.LectureScheduleRepository;
-import com.attendance.attendancesystem.domain.lecture.repository.LectureSessionRepository;
+import com.example.demo.domain.lecture.repository.LectureSessionRepository;
 import com.example.demo.domain.professor.dto.ProfessorDashboardResponse;
 import com.example.demo.domain.professor.dto.ProfessorLectureResponse;
 import com.example.demo.domain.professor.dto.TodayLectureResponse;
@@ -13,8 +20,6 @@ import com.example.demo.domain.attendance.entity.AttendanceStatus;
 import com.example.demo.domain.attendance.dto.AttendanceMonitoringResponse;
 import com.example.demo.domain.attendance.dto.AttendanceStudentResponse;
 import com.example.demo.domain.attendance.repository.AttendanceRecordRepository;
-import com.attendance.attendancesystem.domain.student.entity.Student;
-import com.attendance.attendancesystem.domain.student.repository.StudentRepository;
 import com.example.demo.domain.absence.dto.AbsenceItemResponse;
 import com.example.demo.domain.absence.dto.AbsenceListResponse;
 import com.example.demo.domain.absence.entity.AbsenceRequest;
@@ -38,6 +43,7 @@ import org.springframework.core.io.Resource;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -75,7 +81,7 @@ public class ProfessorService {
     }
 
     public List<ProfessorLectureResponse> getLectures(Long professorId) {
-        List<Lecture> lectures = lectureRepository.findByProfessor_Id(professorId);
+        List<Lecture> lectures = lectureRepository.findByProfessorId(professorId);
 
         if (lectures.isEmpty()) {
             throw new CustomException(404, "담당 강의 정보가 없습니다.");
@@ -84,14 +90,14 @@ public class ProfessorService {
         List<ProfessorLectureResponse> result = new ArrayList<>();
 
         for (Lecture lecture : lectures) {
-            int studentCount = enrollmentRepository.countByLecture_Id(lecture.getId());
-            String scheduleText = buildScheduleText(lecture.getId());
+            int studentCount = enrollmentRepository.countByLecture_Id(lecture.getLectureId());
+            String scheduleText = buildScheduleText(lecture.getLectureId());
 
             result.add(new ProfessorLectureResponse(
                     lecture.getLectureCode(),
-                    lecture.getName(),
+                    lecture.getLectureName(),
                     scheduleText,
-                    lecture.getRoom(),
+                    lecture.getLectureRoom(),
                     studentCount
             ));
         }
@@ -117,8 +123,8 @@ public class ProfessorService {
 
             result.add(new TodayLectureResponse(
                     schedule.getLecture().getLectureCode(),
-                    schedule.getLecture().getName(),
-                    schedule.getLecture().getRoom(),
+                    schedule.getLecture().getLectureName(),
+                    schedule.getLecture().getLectureRoom(),
                     formatTimeRange(schedule.getStartTime(), schedule.getEndTime()),
                     status
             ));
@@ -128,11 +134,11 @@ public class ProfessorService {
     }
 
     public ProfessorDashboardResponse getDashboard(Long professorId) {
-        List<Lecture> lectures = lectureRepository.findByProfessor_Id(professorId);
+        List<Lecture> lectures = lectureRepository.findByProfessorId(professorId);
 
         int totalStudents = 0;
         for (Lecture lecture : lectures) {
-            totalStudents += enrollmentRepository.countByLecture_Id(lecture.getId());
+            totalStudents += enrollmentRepository.countByLecture_Id(lecture.getLectureId());
         }
 
         int todayClasses = lectureScheduleRepository
@@ -152,34 +158,36 @@ public class ProfessorService {
     }
 
     public ActionResponse startLecture(Long professorId, String lectureCode) {
-        Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_Id(lectureCode, professorId)
+        Lecture lecture = lectureRepository.findByLectureCodeAndProfessorId(lectureCode, professorId)
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
         LocalDate today = LocalDate.now();
         LocalTime now = LocalTime.now();
 
-        List<LectureSchedule> schedules = lectureScheduleRepository.findByLecture_Id(lecture.getId());
+        List<LectureSchedule> schedules = lectureScheduleRepository.findByLecture_Id(lecture.getLectureId());
         boolean isRegularClassTime = isWithinAnySchedule(now, today.getDayOfWeek(), schedules);
 
         if (!isRegularClassTime) {
             throw new CustomException(400, "정규 수업 시간이 아닙니다. 계속 하시겠습니까?");
         }
 
-        LectureSession session = lectureSessionRepository.findByLectureAndSessionDate(lecture, today)
+        LectureSession session = lectureSessionRepository.findByLectureAndScheduledAt(lecture, today)
                 .orElseGet(() -> {
-                    LectureSession newSession = LectureSession.create(lecture, today);
+                    LectureSession newSession = LectureSession.builder().lecture(lecture).scheduledAt(today).build();
+                            //LectureSession.create(lecture, today);
                     return lectureSessionRepository.save(newSession);
                 });
 
-        if (session.getStatus() == LectureSessionStatus.IN_PROGRESS) {
+        if (session.getStatus() == SessionStatus.IN_PROGRESS) {
             throw new CustomException(400, "이미 시작된 강의입니다.");
         }
 
-        if (session.getStatus() == LectureSessionStatus.ENDED) {
+        if (session.getStatus() == SessionStatus.ENDED) {
             throw new CustomException(400, "이미 종료된 강의는 다시 시작할 수 없습니다.");
         }
 
-        session.start();
+        session.setStatus(SessionStatus.IN_PROGRESS);
+        session.setSessionStart(LocalDateTime.now());
         lectureSessionRepository.save(session);
 
         return ActionResponse.success(200,
@@ -189,21 +197,22 @@ public class ProfessorService {
     }
 
     public ActionResponse endLecture(Long professorId, String lectureCode) {
-        Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_Id(lectureCode, professorId)
+        Lecture lecture = lectureRepository.findByLectureCodeAndProfessorId(lectureCode, professorId)
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
-        LectureSession session = lectureSessionRepository.findByLectureAndSessionDate(lecture, LocalDate.now())
+        LectureSession session = lectureSessionRepository.findByLectureAndScheduledAt(lecture, LocalDate.now())
                 .orElseThrow(() -> new CustomException(400, "시작되지 않은 강의는 종료할 수 없습니다."));
 
-        if (session.getStatus() == LectureSessionStatus.ENDED) {
+        if (session.getStatus() == SessionStatus.ENDED) {
             throw new CustomException(400, "이미 종료된 강의입니다.");
         }
 
-        if (session.getStatus() == LectureSessionStatus.NOT_STARTED) {
+        if (session.getStatus() == SessionStatus.NOT_STARTED) {
             throw new CustomException(400, "시작되지 않은 강의는 종료할 수 없습니다.");
         }
 
-        session.end();
+        session.setStatus(SessionStatus.ENDED);
+        session.setSessionEnd(LocalDateTime.now());
         lectureSessionRepository.save(session);
 
         return ActionResponse.success(200,
@@ -266,11 +275,14 @@ public class ProfessorService {
     }
 
     public ActionResponse updateAttendance(Long professorId, UpdateAttendanceRequest request) {
-        Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_Id(request.getLectureId(), professorId)
+        Lecture lecture = lectureRepository.findByLectureCodeAndProfessorId(request.getLectureId(), professorId)
                 .orElseThrow(() -> new CustomException(404, "출결을 수정할 학생 또는 강의 정보를 찾을 수 없습니다."));
 
-        Student student = studentRepository.findByStudentNumber(request.getStudentId())
-                .orElseThrow(() -> new CustomException(404, "출결을 수정할 학생 또는 강의 정보를 찾을 수 없습니다."));
+        Student student = studentRepository.findByStudentNum(request.getStudentId());
+        if(student == null){
+            throw new CustomException(404, "출결을 수정할 학생 또는 강의 정보를 찾을 수 없습니다.");
+        }
+
 
         AttendanceStatus newStatus;
         try {
@@ -306,10 +318,10 @@ public class ProfessorService {
     }
 
     public AttendanceMonitoringResponse getAttendanceMonitoring(Long professorId, String lectureCode, String semester) {
-        Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_Id(lectureCode, professorId)
+        Lecture lecture = lectureRepository.findByLectureCodeAndProfessorId(lectureCode, professorId)
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
-        List<Enrollment> enrollments = enrollmentRepository.findByLecture_Id(lecture.getId());
+        List<Enrollment> enrollments = enrollmentRepository.findByLecture_Id(lecture.getLectureId());
         List<AttendanceRecord> records = attendanceRecordRepository.findByLectureAndSemester(lecture, semester);
 
         int totalAttendance = 0;
@@ -352,8 +364,8 @@ public class ProfessorService {
             double rate = total == 0 ? 0.0 : Math.round((present * 1000.0 / total)) / 10.0;
 
             studentResponses.add(new AttendanceStudentResponse(
-                    student.getStudentNumber(),
-                    student.getName(),
+                    student.getStudentNum(),
+                    student.getStudentName(),
                     present,
                     late,
                     absent,
@@ -383,9 +395,9 @@ public class ProfessorService {
         for (AbsenceRequest absenceRequest : absencePage.getContent()) {
             items.add(new AbsenceItemResponse(
                     absenceRequest.getId(),
-                    absenceRequest.getStudent().getStudentNumber(),
-                    absenceRequest.getStudent().getName(),
-                    absenceRequest.getLecture().getName(),
+                    absenceRequest.getStudent().getStudentNum(),
+                    absenceRequest.getStudent().getStudentName(),
+                    absenceRequest.getLecture().getLectureName(),
                     absenceRequest.getAbsenceDate().toString(),
                     absenceRequest.getReason(),
                     absenceRequest.getRequestDate().toString(),
@@ -441,9 +453,9 @@ public class ProfessorService {
         for (Appeal appeal : appealPage.getContent()) {
             items.add(new AppealItemResponse(
                     appeal.getId(),
-                    appeal.getStudent().getStudentNumber(),
-                    appeal.getStudent().getName(),
-                    appeal.getLecture().getName(),
+                    appeal.getStudent().getStudentNum(),
+                    appeal.getStudent().getStudentName(),
+                    appeal.getLecture().getLectureName(),
                     appeal.getAppealDate().toString(),
                     appeal.getReason(),
                     appeal.getRequestDate().toString(),

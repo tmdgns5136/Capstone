@@ -70,4 +70,5 @@ public class Student {
     @Builder.Default
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
     private List<Official> officials = new ArrayList<>();
+
 }
