@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:src/main/java/com/example/demo/domain/entity/enumerate/RoleType.java
 package com.example.demo.domain.entity.enumerate;
+========
+package com.attendance.attendancesystem.domain.professor;
+>>>>>>>> origin/Jeongtaek:src/main/java/com/attendance/attendancesystem/domain/professor/RoleType.java
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
