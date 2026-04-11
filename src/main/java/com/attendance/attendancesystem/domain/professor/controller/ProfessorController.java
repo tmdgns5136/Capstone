@@ -37,17 +37,17 @@ public class ProfessorController {
 
     @GetMapping("/lectures")
     public ApiResponse<List<ProfessorLectureResponse>> getLectures() {
-        return ApiResponse.success(professorService.getLectures(getCurrentProfessorId()));
+        return ApiResponse.success(200, professorService.getLectures(getCurrentProfessorId()));
     }
 
     @GetMapping("/lectures/today")
     public ApiResponse<List<TodayLectureResponse>> getTodayLectures() {
-        return ApiResponse.success(professorService.getTodayLectures(getCurrentProfessorId()));
+        return ApiResponse.success(200, professorService.getTodayLectures(getCurrentProfessorId()));
     }
 
     @GetMapping("/dashboard")
     public ApiResponse<ProfessorDashboardResponse> getDashboard() {
-        return ApiResponse.success(professorService.getDashboard(getCurrentProfessorId()));
+        return ApiResponse.success(200, professorService.getDashboard(getCurrentProfessorId()));
     }
 
     @PostMapping("/lectures/{lectureId}/start")
@@ -70,9 +70,7 @@ public class ProfessorController {
             @PathVariable("lectureId") String lectureId,
             @RequestParam("semester") String semester
     ) {
-        return ApiResponse.success(
-                professorService.getAttendanceMonitoring(getCurrentProfessorId(), lectureId, semester)
-        );
+        return ApiResponse.success(200, professorService.getAttendanceMonitoring(getCurrentProfessorId(), lectureId, semester));
     }
 
     @GetMapping("/absences")
@@ -80,7 +78,7 @@ public class ProfessorController {
             @RequestParam("page") int page,
             @RequestParam("size") int size
     ) {
-        return ApiResponse.success(professorService.getAbsences(page, size));
+        return ApiResponse.success(200, professorService.getAbsences(page, size));
     }
 
     @PatchMapping("/absences/{absenceId}")
@@ -106,7 +104,7 @@ public class ProfessorController {
             @RequestParam("page") int page,
             @RequestParam("size") int size
     ) {
-        return ApiResponse.success(professorService.getAppeals(page, size));
+        return ApiResponse.success(200, professorService.getAppeals(page, size));
     }
 
     @PatchMapping("/appeals/{appealId}")

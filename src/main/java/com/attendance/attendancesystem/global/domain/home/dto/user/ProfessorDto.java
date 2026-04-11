@@ -1,6 +1,6 @@
 package com.example.demo.domain.home.dto.user;
 
-import com.example.demo.domain.entity.enumerate.RoleType;
+import com.attendance.attendancesystem.global.domain.entity.enumerate.RoleType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -1,6 +1,6 @@
 package com.example.demo.domain.home.service;
 
-import com.example.demo.global.exception.CustomException;
+import com.attendance.attendancesystem.global.exception.CustomException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;

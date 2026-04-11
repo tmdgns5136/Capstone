@@ -1,7 +1,7 @@
 package com.example.demo.domain.home.entity.user;
 
 
-import com.example.demo.domain.entity.enumerate.RoleType;
+import com.attendance.attendancesystem.global.domain.entity.enumerate.RoleType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

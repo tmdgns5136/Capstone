@@ -2,8 +2,8 @@ package com.example.demo.domain.lecture.controller;
 
 import com.example.demo.domain.lecture.dto.*;
 import com.example.demo.domain.lecture.service.LectureService;
-import com.example.demo.global.response.ActionResponse;
-import com.example.demo.global.response.ApiResponse;
+import com.attendance.attendancesystem.global.response.ActionResponse;
+import com.attendance.attendancesystem.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

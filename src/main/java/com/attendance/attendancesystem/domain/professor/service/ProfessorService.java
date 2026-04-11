@@ -188,6 +188,7 @@ public class ProfessorService {
         lectureSessionRepository.save(session);
 
         return ActionResponse.success(
+                200,
                 "출석 체크가 시작되었습니다.",
                 "/api/professors/lectures/" + lectureCode + "/attendance"
         );
@@ -212,6 +213,7 @@ public class ProfessorService {
         lectureSessionRepository.save(session);
 
         return ActionResponse.success(
+                200,
                 "출석 체크가 종료되었습니다.",
                 "/api/professors/lectures/" + lectureCode + "/attendance"
         );
@@ -305,6 +307,7 @@ public class ProfessorService {
         attendanceRecordRepository.save(record);
 
         return ActionResponse.success(
+                200,
                 "출결 상태가 변경되었습니다.",
                 "/api/professors/lectures/" + request.getLectureId() + "/attendance?semester=2026-1"
         );
@@ -428,6 +431,7 @@ public class ProfessorService {
         absenceRequestRepository.save(absenceRequest);
 
         return ActionResponse.success(
+                200,
                 "공결 신청이 처리되었습니다.",
                 "/api/professors/absences"
         );
@@ -484,6 +488,7 @@ public class ProfessorService {
         appealRepository.save(appeal);
 
         return ActionResponse.success(
+                200,
                 "이의 신청이 처리되었습니다.",
                 "/api/professors/appeals"
         );

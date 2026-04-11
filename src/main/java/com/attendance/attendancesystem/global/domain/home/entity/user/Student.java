@@ -4,7 +4,7 @@ import com.example.demo.domain.lecture.entity.attendance.Attendance;
 import com.example.demo.domain.lecture.entity.attendance.Objection;
 import com.example.demo.domain.lecture.entity.attendance.Official;
 import com.example.demo.domain.entity.board.QuestionBoard;
-import com.example.demo.domain.entity.enumerate.RoleType;
+import com.attendance.attendancesystem.global.domain.entity.enumerate.RoleType;
 import com.example.demo.domain.lecture.entity.lecture.Enrollment;
 import com.example.demo.domain.home.entity.etc.Image;
 import jakarta.persistence.*;
