@@ -1,0 +1,20 @@
+package com.example.demo.domain.lecture.dto;
+
+import com.example.demo.domain.entity.enumerate.Status;
+import lombok.Builder;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+public class ObjectionDto {
+    private Long objectionId;
+    private String objectionTitle;
+    private String objectionReason;
+    private String evidencePath;
+    private Status status;
+    private String rejectedReason;
+    private Long sessionId;
+    private LocalDateTime objectionCreated;
+}

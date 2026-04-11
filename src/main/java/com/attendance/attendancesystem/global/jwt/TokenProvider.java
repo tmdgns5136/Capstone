@@ -20,38 +20,35 @@ import java.util.Date;
 public class TokenProvider {
     private final SecretKey key;
 
-    public TokenProvider(@Value("${jwt.secret}")String secret){
+    public TokenProvider(@Value("${jwt.secret}") String secret) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    // AccessToken
-    public Token createToken(String id, String role, Date expiry){
+    public Token createToken(String id, String role, Date expiry) {
         return new Token(id, role, expiry, key);
     }
 
-    // RefreshToken
-    public Token createToken(String id, Date expiry){
+    public Token createToken(String id, Date expiry) {
         return new Token(id, expiry, key);
     }
 
-    public Token convertToken(String token){
+    public Token convertToken(String token) {
         return new Token(token, key);
     }
 
-    public Authentication getAuthentication(Token token){
-        if(token.validate()){
+    public Authentication getAuthentication(Token token) {
+        if (token.validate()) {
             Claims claims = token.getTokenClaims();
 
-            // 권한 정보 추출
             Collection<? extends GrantedAuthority> authorities =
                     Arrays.stream(new String[]{claims.get("role").toString()})
-                            .map(SimpleGrantedAuthority::new).toList();
+                            .map(SimpleGrantedAuthority::new)
+                            .toList();
 
             User principal = new User(claims.getSubject(), "", authorities);
 
             return new UsernamePasswordAuthenticationToken(principal, token, authorities);
-        }
-        else{
+        } else {
             throw new RuntimeException("Token validation failed");
         }
     }

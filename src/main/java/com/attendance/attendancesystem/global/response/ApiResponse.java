@@ -1,40 +1,51 @@
 package com.attendance.attendancesystem.global.response;
 
-public class ApiResponse<T> {
+import lombok.Builder;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
 
-    private final int status;
+@RequiredArgsConstructor
+@Data
+@Builder
+public class ApiResponse<T> {
+    private final Integer status;
     private final boolean success;
     private final T data;
     private final String message;
+    private final String redirectUrl;
 
-    private ApiResponse(int status, boolean success, T data, String message) {
-        this.status = status;
-        this.success = success;
-        this.data = data;
-        this.message = message;
+    public static <T> ApiResponse<T> success(Integer status, T data) {
+        return ApiResponse.<T>builder()
+                .status(status)
+                .success(true)
+                .data(data)
+                .build();
     }
 
-    public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(200, true, data, null);
+    public static <T> ApiResponse<T> success(Integer status, T data, String message) {
+        return ApiResponse.<T>builder()
+                .status(status)
+                .success(true)
+                .data(data)
+                .message(message)
+                .build();
     }
 
-    public static <T> ApiResponse<T> fail(int status, String message) {
-        return new ApiResponse<>(status, false, null, message);
+    public static <T> ApiResponse<T> success(Integer status, T data, String message, String redirectUrl) {
+        return ApiResponse.<T>builder()
+                .status(status)
+                .success(true)
+                .data(data)
+                .message(message)
+                .redirectUrl(redirectUrl)
+                .build();
     }
 
-    public int getStatus() {
-        return status;
-    }
-
-    public boolean isSuccess() {
-        return success;
-    }
-
-    public T getData() {
-        return data;
-    }
-
-    public String getMessage() {
-        return message;
+    public static <T> ApiResponse<T> fail(Integer status, String message) {
+        return ApiResponse.<T>builder()
+                .status(status)
+                .success(false)
+                .message(message)
+                .build();
     }
 }

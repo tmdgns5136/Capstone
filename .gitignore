@@ -5,6 +5,8 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+uploads/
+
 ### STS ###
 .apt_generated
 .classpath
@@ -35,3 +37,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# 예시: 환경 변수 사용 방식
+spring.mail.username=${MAIL_USERNAME}
+spring.mail.password=${MAIL_PASSWORD}

@@ -23,7 +23,7 @@ public enum RoleType {
             Arrays.stream(RoleType.values())
                     .collect(Collectors.toMap(RoleType::getCode, Function.identity()));
 
-    public static RoleType of(String code){
+    public static RoleType of(String code) {
         return roleMap.getOrDefault(code, GUEST);
     }
 }

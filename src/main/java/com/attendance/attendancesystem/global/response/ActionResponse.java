@@ -1,36 +1,57 @@
 package com.attendance.attendancesystem.global.response;
 
+import lombok.Builder;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+
+@Data
+@RequiredArgsConstructor
+@Builder
 public class ActionResponse {
 
-    private final int status;
+    private final Integer status;
     private final boolean success;
     private final String message;
     private final String redirectUrl;
 
-    public ActionResponse(int status, boolean success, String message, String redirectUrl) {
-        this.status = status;
-        this.success = success;
-        this.message = message;
-        this.redirectUrl = redirectUrl;
+    public static ActionResponse success(Integer status) {
+        return ActionResponse.builder()
+                .status(status)
+                .success(true)
+                .build();
     }
 
-    public static ActionResponse success(String message, String redirectUrl) {
-        return new ActionResponse(200, true, message, redirectUrl);
+    public static ActionResponse success(Integer status, String message, String redirectUrl) {
+        return ActionResponse.builder()
+                .status(status)
+                .success(true)
+                .message(message)
+                .redirectUrl(redirectUrl)
+                .build();
     }
 
-    public int getStatus() {
-        return status;
+    public static ActionResponse success(Integer status, String message) {
+        return ActionResponse.builder()
+                .status(status)
+                .success(true)
+                .message(message)
+                .build();
     }
 
-    public boolean isSuccess() {
-        return success;
+    public static ActionResponse fail(Integer status, String message) {
+        return ActionResponse.builder()
+                .status(status)
+                .success(false) // 🔥 수정
+                .message(message)
+                .build();
     }
 
-    public String getMessage() {
-        return message;
-    }
-
-    public String getRedirectUrl() {
-        return redirectUrl;
+    public static ActionResponse fail(Integer status, String message, String redirectUrl) {
+        return ActionResponse.builder()
+                .status(status)
+                .success(false) // 🔥 수정
+                .message(message)
+                .redirectUrl(redirectUrl)
+                .build();
     }
 }

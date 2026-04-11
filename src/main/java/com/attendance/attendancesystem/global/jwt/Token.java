@@ -17,20 +17,17 @@ public class Token {
 
     private static final String AUTHORITIES_KEY = "role";
 
-    // RefreshToken
-    public Token(String id, Date expiry, SecretKey key){
+    public Token(String id, Date expiry, SecretKey key) {
         this.key = key;
         this.token = createToken(id, expiry);
     }
 
-    // AccessToken
-    public Token(String id, String role, Date expiry, SecretKey key){
+    public Token(String id, String role, Date expiry, SecretKey key) {
         this.key = key;
         this.token = createToken(id, role, expiry);
     }
 
-
-    private String createToken(String id, Date expiry){
+    private String createToken(String id, Date expiry) {
         return Jwts.builder()
                 .subject(id)
                 .claim("userNum", id)
@@ -39,30 +36,30 @@ public class Token {
                 .compact();
     }
 
-    private String createToken(String id, String role, Date expiry){
+    private String createToken(String id, String role, Date expiry) {
         return Jwts.builder()
-                .subject(id) // 토큰 제목(등록된 클레임)
-                .claim("userNum", id) // 비공개 클레임
-                .claim(AUTHORITIES_KEY, role) // 비공개 클레임
+                .subject(id)
+                .claim("userNum", id)
+                .claim(AUTHORITIES_KEY, role)
                 .signWith(key)
-                .expiration(expiry) // 만료 시간(등록된 클레임)
+                .expiration(expiry)
                 .compact();
     }
 
-    public boolean validate(){
+    public boolean validate() {
         return this.getTokenClaims() != null;
     }
 
-    public Claims getTokenClaims(){
-        try{
+    public Claims getTokenClaims() {
+        try {
             return Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-        }catch (SecurityException e){
+        } catch (SecurityException e) {
             log.info("Invalid JWT signature.");
-        }catch (MalformedJwtException e){
+        } catch (MalformedJwtException e) {
             log.info("Invalid JWT token.");
         } catch (ExpiredJwtException e) {
             log.info("Expired JWT token.");
@@ -72,19 +69,16 @@ public class Token {
             log.info("JWT token compact of handler are invalid.");
         }
         return null;
-
-
     }
 
-    // 만료되고도 읽어볼때
-    public Claims getExpiredTokenClaims(){
-        try{
+    public Claims getExpiredTokenClaims() {
+        try {
             Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-        }catch (ExpiredJwtException e){
+        } catch (ExpiredJwtException e) {
             return e.getClaims();
         }
         return null;
