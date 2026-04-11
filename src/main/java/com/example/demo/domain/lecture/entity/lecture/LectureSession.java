@@ -31,7 +31,7 @@ public class LectureSession {
     private Long sessionNum;
 
     @Column(name = "SCHEDULED_AT", nullable = false)
-    private LocalDateTime scheduled_at;
+    private LocalDateTime scheduledAt;
 
     @Column(name = "SESSION_START", nullable = false)
     private LocalDateTime sessionStart;

@@ -1,7 +1,7 @@
 package com.example.demo.domain.lecture.entity.attendance;
 
 import com.example.demo.domain.entity.enumerate.Status;
-import com.example.demo.domain.home.entity.user.Professor;
+import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.lecture.entity.lecture.Lecture;
 import com.example.demo.domain.lecture.entity.lecture.LectureSession;

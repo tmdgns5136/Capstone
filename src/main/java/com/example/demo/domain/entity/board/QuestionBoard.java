@@ -2,7 +2,7 @@ package com.example.demo.domain.entity.board;
 
 
 import com.example.demo.domain.lecture.entity.lecture.Lecture;
-import com.example.demo.domain.home.entity.user.Professor;
+import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.home.entity.user.Student;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

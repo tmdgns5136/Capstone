@@ -2,7 +2,7 @@ package com.example.demo.domain.lecture.service;
 
 import com.example.demo.domain.entity.enumerate.AttendStatus;
 import com.example.demo.domain.entity.enumerate.Status;
-import com.example.demo.domain.home.entity.user.Professor;
+import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.home.repository.StudentRepository;
 import com.example.demo.domain.home.service.FileService;

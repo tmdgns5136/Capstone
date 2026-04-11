@@ -1,8 +1,4 @@
-<<<<<<<< HEAD:src/main/java/com/example/demo/global/jwt/JwtTokenFilter.java
 package com.example.demo.global.jwt;
-========
-package com.attendance.attendancesystem.global.jwt;
->>>>>>>> origin/Jeongtaek:src/main/java/com/attendance/attendancesystem/global/jwt/JwtTokenFilter.java
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
