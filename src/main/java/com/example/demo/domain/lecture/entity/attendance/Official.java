@@ -42,6 +42,9 @@ public class Official {
     @Column(name = "OFFICIAL_STATUS", length = 20, nullable = false)
     private Status status = Status.PENDING;
 
+    @Column(name = "FILE_NAME")
+    private String fileName;
+
     @Lob
     @Column(name = "REJECTED_REASON", columnDefinition = "TEXT")
     private String rejectedReason;

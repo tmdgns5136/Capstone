@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface LectureScheduleRepository extends JpaRepository<LectureSchedule, Long> {
 
-    List<LectureSchedule> findByLecture_Professor_IdAndDayOfWeekOrderByStartTimeAsc(Long professorId, DayOfWeek dayOfWeek);
+    List<LectureSchedule> findByLecture_Professor_ProfessorIdAndDayOfWeekOrderByStartTimeAsc(Long professorId, DayOfWeek dayOfWeek);
 
-    List<LectureSchedule> findByLecture_Id(Long lectureId);
+    List<LectureSchedule> findByLecture_LectureId(Long lectureId);
 }

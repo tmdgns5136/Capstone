@@ -6,10 +6,10 @@ import com.example.demo.domain.professor.dto.TodayLectureResponse;
 import com.example.demo.domain.professor.service.ProfessorService;
 import com.example.demo.domain.attendance.dto.UpdateAttendanceRequest;
 import com.example.demo.domain.attendance.dto.AttendanceMonitoringResponse;
-import com.example.demo.domain.absence.dto.AbsenceListResponse;
-import com.example.demo.domain.absence.dto.ProcessAbsenceRequest;
-import com.example.demo.domain.appeal.dto.AppealListResponse;
-import com.example.demo.domain.appeal.dto.ProcessAppealRequest;
+import com.example.demo.domain.lecture.dto.dto.OfficialListResponse;
+import com.example.demo.domain.lecture.dto.dto.ProcessOfficialRequest;
+import com.example.demo.domain.lecture.dto.dto.ObjectionListResponse;
+import com.example.demo.domain.lecture.dto.dto.ProcessObjectionRequest;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
 import org.springframework.web.bind.annotation.*;
@@ -76,7 +76,7 @@ public class ProfessorController {
     }
 
     @GetMapping("/absences")
-    public ApiResponse<AbsenceListResponse> getAbsences(
+    public ApiResponse<OfficialListResponse> getAbsences(
             @RequestParam("page") int page,
             @RequestParam("size") int size
     ) {
@@ -86,7 +86,7 @@ public class ProfessorController {
     @PatchMapping("/absences/{absenceId}")
     public ActionResponse processAbsence(
             @PathVariable("absenceId") Long absenceId,
-            @RequestBody ProcessAbsenceRequest request
+            @RequestBody ProcessOfficialRequest request
     ) {
         return professorService.processAbsence(absenceId, request);
     }
@@ -102,7 +102,7 @@ public class ProfessorController {
     }
 
     @GetMapping("/appeals")
-    public ApiResponse<AppealListResponse> getAppeals(
+    public ApiResponse<ObjectionListResponse> getAppeals(
             @RequestParam("page") int page,
             @RequestParam("size") int size
     ) {
@@ -112,7 +112,7 @@ public class ProfessorController {
     @PatchMapping("/appeals/{appealId}")
     public ActionResponse processAppeal(
             @PathVariable("appealId") Long appealId,
-            @RequestBody ProcessAppealRequest request
+            @RequestBody ProcessObjectionRequest request
     ) {
         return professorService.processAppeal(appealId, request);
     }

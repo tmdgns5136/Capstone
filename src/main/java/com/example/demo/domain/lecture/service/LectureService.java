@@ -232,7 +232,7 @@ public class LectureService {
         if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
 
         Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
-        
+
         Official official = officialRepository.findById(requestId).orElseThrow(() -> new CustomException(404, "해당 공결신청 내역을 찾을 수 없습니다."));
 
         if (!official.getStudent().getStudentNum().equals(userNum)) {
@@ -431,7 +431,7 @@ public class LectureService {
                     return SessionData.builder()
                             .sessionId(session.getSessionId())
                             .sessionNum(session.getSessionNum())
-                            .sessionDate(session.getScheduled_at().toLocalDate().toString())
+                            .sessionDate(session.getScheduledAt().toString())
                             .startTime(session.getSessionStart().toLocalTime().toString())
                             .endTime(session.getSessionEnd().toLocalTime().toString())
                             .status(currentStatus.toString()).build();
@@ -460,7 +460,7 @@ public class LectureService {
                             .map(Attendance::getAttendStatus)
                             .findFirst().orElse(AttendStatus.TBD);
 
-                    String sDate = (session.getScheduled_at() != null) ? session.getScheduled_at().toLocalDate().toString() : "날짜 미정";
+                    String sDate = (session.getScheduledAt() != null) ? session.getScheduledAt().toString() : "날짜 미정";
                     String sStart = (session.getSessionStart() != null) ? session.getSessionStart().toLocalTime().toString() : "00:00";
                     String sEnd = (session.getSessionEnd() != null) ? session.getSessionEnd().toLocalTime().toString() : "00:00";
 

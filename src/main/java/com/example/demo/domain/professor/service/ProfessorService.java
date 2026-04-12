@@ -1,16 +1,17 @@
 package com.example.demo.domain.professor.service;
 
 import com.example.demo.domain.entity.enumerate.SessionStatus;
+import com.example.demo.domain.entity.enumerate.Status;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.home.repository.StudentRepository;
+import com.example.demo.domain.lecture.dto.dto.*;
+import com.example.demo.domain.lecture.entity.attendance.Objection;
+import com.example.demo.domain.lecture.entity.attendance.Official;
 import com.example.demo.domain.lecture.entity.lecture.Enrollment;
 import com.example.demo.domain.lecture.entity.lecture.Lecture;
 import com.example.demo.domain.lecture.entity.lecture.LectureSchedule;
 import com.example.demo.domain.lecture.entity.lecture.LectureSession;
-import com.example.demo.domain.lecture.repository.EnrollmentRepository;
-import com.example.demo.domain.lecture.repository.LectureRepository;
-import com.example.demo.domain.lecture.repository.LectureScheduleRepository;
-import com.example.demo.domain.lecture.repository.LectureSessionRepository;
+import com.example.demo.domain.lecture.repository.*;
 import com.example.demo.domain.professor.dto.ProfessorDashboardResponse;
 import com.example.demo.domain.professor.dto.ProfessorLectureResponse;
 import com.example.demo.domain.professor.dto.TodayLectureResponse;
@@ -20,20 +21,9 @@ import com.example.demo.domain.attendance.entity.AttendanceStatus;
 import com.example.demo.domain.attendance.dto.AttendanceMonitoringResponse;
 import com.example.demo.domain.attendance.dto.AttendanceStudentResponse;
 import com.example.demo.domain.attendance.repository.AttendanceRecordRepository;
-import com.example.demo.domain.absence.dto.AbsenceItemResponse;
-import com.example.demo.domain.absence.dto.AbsenceListResponse;
-import com.example.demo.domain.absence.entity.AbsenceRequest;
-import com.example.demo.domain.absence.repository.AbsenceRequestRepository;
-import com.example.demo.domain.absence.dto.ProcessAbsenceRequest;
-import com.example.demo.domain.absence.entity.AbsenceRequestStatus;
-import com.example.demo.domain.appeal.dto.AppealItemResponse;
-import com.example.demo.domain.appeal.dto.AppealListResponse;
-import com.example.demo.domain.appeal.entity.Appeal;
-import com.example.demo.domain.appeal.repository.AppealRepository;
-import com.example.demo.domain.appeal.dto.ProcessAppealRequest;
-import com.example.demo.domain.appeal.entity.AppealStatus;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class ProfessorService {
 
     private final LectureRepository lectureRepository;
@@ -57,31 +48,12 @@ public class ProfessorService {
     private final LectureSessionRepository lectureSessionRepository;
     private final AttendanceRecordRepository attendanceRecordRepository;
     private final StudentRepository studentRepository;
-    private final AbsenceRequestRepository absenceRequestRepository;
-    private final AppealRepository appealRepository;
+    private final OfficialRepository officialRepository;
+    private final ObjectionRepository objectionRepository;
 
-    public ProfessorService(
-            LectureRepository lectureRepository,
-            LectureScheduleRepository lectureScheduleRepository,
-            EnrollmentRepository enrollmentRepository,
-            LectureSessionRepository lectureSessionRepository,
-            AttendanceRecordRepository attendanceRecordRepository,
-            StudentRepository studentRepository,
-            AbsenceRequestRepository absenceRequestRepository,
-            AppealRepository appealRepository
-    ) {
-        this.lectureRepository = lectureRepository;
-        this.lectureScheduleRepository = lectureScheduleRepository;
-        this.enrollmentRepository = enrollmentRepository;
-        this.lectureSessionRepository = lectureSessionRepository;
-        this.attendanceRecordRepository = attendanceRecordRepository;
-        this.studentRepository = studentRepository;
-        this.absenceRequestRepository = absenceRequestRepository;
-        this.appealRepository = appealRepository;
-    }
 
     public List<ProfessorLectureResponse> getLectures(Long professorId) {
-        List<Lecture> lectures = lectureRepository.findByProfessorId(professorId);
+        List<Lecture> lectures = lectureRepository.findByProfessor_ProfessorId(professorId);
 
         if (lectures.isEmpty()) {
             throw new CustomException(404, "담당 강의 정보가 없습니다.");
@@ -90,7 +62,7 @@ public class ProfessorService {
         List<ProfessorLectureResponse> result = new ArrayList<>();
 
         for (Lecture lecture : lectures) {
-            int studentCount = enrollmentRepository.countByLecture_Id(lecture.getLectureId());
+            int studentCount = enrollmentRepository.countByLecture_LectureId(lecture.getLectureId());
             String scheduleText = buildScheduleText(lecture.getLectureId());
 
             result.add(new ProfessorLectureResponse(
@@ -110,7 +82,7 @@ public class ProfessorService {
         LocalTime now = LocalTime.now();
 
         List<LectureSchedule> schedules =
-                lectureScheduleRepository.findByLecture_Professor_IdAndDayOfWeekOrderByStartTimeAsc(professorId, today);
+                lectureScheduleRepository.findByLecture_Professor_ProfessorIdAndDayOfWeekOrderByStartTimeAsc(professorId, today);
 
         if (schedules.isEmpty()) {
             throw new CustomException(404, "오늘 예정된 강의가 없습니다.");
@@ -134,15 +106,15 @@ public class ProfessorService {
     }
 
     public ProfessorDashboardResponse getDashboard(Long professorId) {
-        List<Lecture> lectures = lectureRepository.findByProfessorId(professorId);
+        List<Lecture> lectures = lectureRepository.findByProfessor_ProfessorId(professorId);
 
         int totalStudents = 0;
         for (Lecture lecture : lectures) {
-            totalStudents += enrollmentRepository.countByLecture_Id(lecture.getLectureId());
+            totalStudents += enrollmentRepository.countByLecture_LectureId(lecture.getLectureId());
         }
 
         int todayClasses = lectureScheduleRepository
-                .findByLecture_Professor_IdAndDayOfWeekOrderByStartTimeAsc(professorId, LocalDate.now().getDayOfWeek())
+                .findByLecture_Professor_ProfessorIdAndDayOfWeekOrderByStartTimeAsc(professorId, LocalDate.now().getDayOfWeek())
                 .size();
 
         // 아직 Attendance / AbsenceRequest 테이블이 없으므로 임시값
@@ -158,13 +130,13 @@ public class ProfessorService {
     }
 
     public ActionResponse startLecture(Long professorId, String lectureCode) {
-        Lecture lecture = lectureRepository.findByLectureCodeAndProfessorId(lectureCode, professorId)
+        Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_ProfessorId(lectureCode, professorId)
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
         LocalDate today = LocalDate.now();
         LocalTime now = LocalTime.now();
 
-        List<LectureSchedule> schedules = lectureScheduleRepository.findByLecture_Id(lecture.getLectureId());
+        List<LectureSchedule> schedules = lectureScheduleRepository.findByLecture_LectureId(lecture.getLectureId());
         boolean isRegularClassTime = isWithinAnySchedule(now, today.getDayOfWeek(), schedules);
 
         if (!isRegularClassTime) {
@@ -197,7 +169,7 @@ public class ProfessorService {
     }
 
     public ActionResponse endLecture(Long professorId, String lectureCode) {
-        Lecture lecture = lectureRepository.findByLectureCodeAndProfessorId(lectureCode, professorId)
+        Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_ProfessorId(lectureCode, professorId)
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
         LectureSession session = lectureSessionRepository.findByLectureAndScheduledAt(lecture, LocalDate.now())
@@ -222,7 +194,7 @@ public class ProfessorService {
     }
 
     private String buildScheduleText(Long lectureId) {
-        List<LectureSchedule> schedules = lectureScheduleRepository.findByLecture_Id(lectureId);
+        List<LectureSchedule> schedules = lectureScheduleRepository.findByLecture_LectureId(lectureId);
 
         if (schedules.isEmpty()) {
             return "";
@@ -275,7 +247,7 @@ public class ProfessorService {
     }
 
     public ActionResponse updateAttendance(Long professorId, UpdateAttendanceRequest request) {
-        Lecture lecture = lectureRepository.findByLectureCodeAndProfessorId(request.getLectureId(), professorId)
+        Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_ProfessorId(request.getLectureId(), professorId)
                 .orElseThrow(() -> new CustomException(404, "출결을 수정할 학생 또는 강의 정보를 찾을 수 없습니다."));
 
         Student student = studentRepository.findByStudentNum(request.getStudentId());
@@ -318,10 +290,10 @@ public class ProfessorService {
     }
 
     public AttendanceMonitoringResponse getAttendanceMonitoring(Long professorId, String lectureCode, String semester) {
-        Lecture lecture = lectureRepository.findByLectureCodeAndProfessorId(lectureCode, professorId)
+        Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_ProfessorId(lectureCode, professorId)
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
-        List<Enrollment> enrollments = enrollmentRepository.findByLecture_Id(lecture.getLectureId());
+        List<Enrollment> enrollments = enrollmentRepository.findByLecture_LectureId(lecture.getLectureId());
         List<AttendanceRecord> records = attendanceRecordRepository.findByLectureAndSemester(lecture, semester);
 
         int totalAttendance = 0;
@@ -382,57 +354,56 @@ public class ProfessorService {
         );
     }
 
-    public AbsenceListResponse getAbsences(int page, int size) {
+    public OfficialListResponse getAbsences(int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<AbsenceRequest> absencePage = absenceRequestRepository.findAll(pageable);
+        Page<Official> officialPage = officialRepository.findAll(pageable);
 
-        if (absencePage.isEmpty()) {
+        if (officialPage.isEmpty()) {
             throw new CustomException(404, "공결 신청 내역이 없습니다.");
         }
 
-        List<AbsenceItemResponse> items = new ArrayList<>();
+        List<OfficialItemResponse> items = new ArrayList<>();
 
-        for (AbsenceRequest absenceRequest : absencePage.getContent()) {
-            items.add(new AbsenceItemResponse(
-                    absenceRequest.getId(),
-                    absenceRequest.getStudent().getStudentNum(),
-                    absenceRequest.getStudent().getStudentName(),
-                    absenceRequest.getLecture().getLectureName(),
-                    absenceRequest.getAbsenceDate().toString(),
-                    absenceRequest.getReason(),
-                    absenceRequest.getRequestDate().toString(),
-                    absenceRequest.getStatus().name(),
-                    absenceRequest.isHasDocument(),
-                    absenceRequest.getFileName()
-            ));
+        for (Official official : officialPage.getContent()) {
+            items.add( OfficialItemResponse.builder()
+                    .officialId(official.getOfficialId())
+                    .studentId(official.getStudent().getStudentNum())
+                    .studentName(official.getStudent().getStudentName())
+                    .course(official.getLecture().getLectureName())
+                    .sessionId(official.getLectureSession() != null ? official.getLectureSession().getSessionId() : null)
+                    .reason(official.getOfficialReason())
+                    .date(official.getOfficialCreated().toLocalDate().toString())
+                    .status(official.getStatus().getCode())
+                    .fileName(official.getFileName()).build());
+
         }
 
-        return new AbsenceListResponse(
-                items,
-                absencePage.getTotalElements(),
-                absencePage.getTotalPages()
-        );
+        return OfficialListResponse.builder()
+                .data(items).totalElements(officialPage.getTotalElements())
+                .totalPages(officialPage.getTotalPages()).build();
+
     }
 
-    public ActionResponse processAbsence(Long absenceId, ProcessAbsenceRequest request) {
-        AbsenceRequest absenceRequest = absenceRequestRepository.findById(absenceId)
+    public ActionResponse processAbsence(Long officialId, ProcessOfficialRequest request) {
+        Official official = officialRepository.findById(officialId)
                 .orElseThrow(() -> new CustomException(404, "공결 신청 정보를 찾을 수 없습니다."));
 
-        AbsenceRequestStatus newStatus;
+        Status newStatus;
         try {
-            newStatus = AbsenceRequestStatus.valueOf(request.getStatus());
+            newStatus = Status.valueOf(request.getStatus());
         } catch (IllegalArgumentException e) {
             throw new CustomException(400, "유효하지 않은 공결 신청 상태입니다.");
         }
 
-        if (newStatus == AbsenceRequestStatus.REJECTED) {
+        if (newStatus == Status.REJECTED) {
             if (request.getRejectReason() == null || request.getRejectReason().trim().isEmpty()) {
                 throw new CustomException(400, "학생에게 안내될 반려 사유를 반드시 입력해주세요.");
             }
         }
 
-        absenceRequest.updateStatus(newStatus, request.getRejectReason());
-        absenceRequestRepository.save(absenceRequest);
+        official.setStatus(newStatus);
+        official.setOfficialReason(request.getRejectReason());
+        officialRepository.save(official);
 
         return ActionResponse.success(200,
                 "공결 신청이 처리되었습니다.",
@@ -440,55 +411,53 @@ public class ProfessorService {
         );
     }
 
-    public AppealListResponse getAppeals(int page, int size) {
+    public ObjectionListResponse getAppeals(int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Appeal> appealPage = appealRepository.findAll(pageable);
+        Page<Objection> objectionPage = objectionRepository.findAll(pageable);
 
-        if (appealPage.isEmpty()) {
+        if (objectionPage.isEmpty()) {
             throw new CustomException(404, "이의 신청 내역이 없습니다.");
         }
 
-        List<AppealItemResponse> items = new ArrayList<>();
+        List<ObjectionItemResponse> items = new ArrayList<>();
 
-        for (Appeal appeal : appealPage.getContent()) {
-            items.add(new AppealItemResponse(
-                    appeal.getId(),
-                    appeal.getStudent().getStudentNum(),
-                    appeal.getStudent().getStudentName(),
-                    appeal.getLecture().getLectureName(),
-                    appeal.getAppealDate().toString(),
-                    appeal.getReason(),
-                    appeal.getRequestDate().toString(),
-                    appeal.getStatus().name()
-            ));
+        for (Objection objection : objectionPage.getContent()) {
+            items.add(ObjectionItemResponse.builder()
+                    .objectionId(objection.getObjectionId())
+                    .studentId(objection.getStudent().getStudentNum())
+                    .studentName(objection.getStudent().getStudentName())
+                    .course(objection.getLecture().getLectureName())
+                    .sessionId(objection.getLectureSession().getSessionId())
+                    .reason(objection.getObjectionReason())
+                    .date(objection.getObjectionCreated().toLocalDate().toString())
+                    .status(objection.getStatus().getCode()).build());
         }
 
-        return new AppealListResponse(
-                items,
-                appealPage.getTotalElements(),
-                appealPage.getTotalPages()
-        );
+        return ObjectionListResponse.builder()
+                .data(items).totalElements(objectionPage.getTotalElements())
+                .totalPages(objectionPage.getTotalPages()).build();
     }
 
-    public ActionResponse processAppeal(Long appealId, ProcessAppealRequest request) {
-        Appeal appeal = appealRepository.findById(appealId)
+    public ActionResponse processAppeal(Long objectionId, ProcessObjectionRequest request) {
+        Objection objection = objectionRepository.findById(objectionId)
                 .orElseThrow(() -> new CustomException(404, "이의 신청 정보를 찾을 수 없습니다."));
 
-        AppealStatus newStatus;
+        Status newStatus;
         try {
-            newStatus = AppealStatus.valueOf(request.getStatus());
+            newStatus = Status.valueOf(request.getStatus());
         } catch (IllegalArgumentException e) {
             throw new CustomException(400, "유효하지 않은 이의 신청 상태입니다.");
         }
 
-        if (newStatus == AppealStatus.REJECTED) {
+        if (newStatus == Status.REJECTED) {
             if (request.getRejectReason() == null || request.getRejectReason().trim().isEmpty()) {
                 throw new CustomException(400, "반려 사유를 입력해주세요.");
             }
         }
 
-        appeal.updateStatus(newStatus, request.getRejectReason());
-        appealRepository.save(appeal);
+        objection.setStatus(newStatus);
+        objection.setRejectedReason(request.getRejectReason());
+        objectionRepository.save(objection);
 
         return ActionResponse.success(200,
                 "이의 신청이 처리되었습니다.",
@@ -496,17 +465,12 @@ public class ProfessorService {
         );
     }
 
-    public Resource downloadAbsenceDocument(Long absenceId) {
-        AbsenceRequest absenceRequest = absenceRequestRepository.findById(absenceId)
+    public Resource downloadAbsenceDocument(Long officialId) {
+        Official official = officialRepository.findById(officialId)
                 .orElseThrow(() -> new CustomException(404, "첨부된 증빙서류가 존재하지 않습니다."));
 
-        if (!absenceRequest.isHasDocument() ||
-                absenceRequest.getFilePath() == null ||
-                absenceRequest.getFilePath().trim().isEmpty()) {
-            throw new CustomException(404, "첨부된 증빙서류가 존재하지 않습니다.");
-        }
 
-        Resource resource = new ClassPathResource(absenceRequest.getFilePath());
+        Resource resource = new ClassPathResource(official.getEvidencePath());
 
         if (!resource.exists()) {
             throw new CustomException(404, "첨부된 증빙서류가 존재하지 않습니다.");
