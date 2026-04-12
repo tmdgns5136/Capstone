@@ -24,6 +24,35 @@ export interface SessionData {
   endTime: string;
 }
 
+// 1-13 학기별 출결 통계
+export interface StatsSessionData {
+  sessionId: number;
+  sessionNum: number;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  status: "ATTEND" | "ABSENCE" | "LATENESS" | "TBD";
+}
+
+export interface StatsData {
+  totalSessions: number;
+  attendance: number;
+  absence: number;
+  late: number;
+  attendanceRate: number;
+  sessions: StatsSessionData[];
+}
+
+// 1-14 강의 시간표
+export interface LectureTimeTable {
+  lectureCode: string;
+  lectureName: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  room: string;
+}
+
 // 1.10 & 1.11 공통 응답
 export interface AbsenceData {
   requestId: number;
@@ -60,6 +89,24 @@ export interface ActionResponse {
 export async function getMyLectures(year: number, semester: string) {
   return api<ApiResponse<MyLectureData[]>>(
     `/api/mylecture?year=${year}&semester=${semester}`,
+    { method: "GET" },
+  );
+}
+
+// ── 1-13 학기별 출결 통계 ──
+
+export async function getLectureStats(lectureId: string) {
+  return api<ApiResponse<StatsData>>(
+    `/api/mylecture/${lectureId}/stats`,
+    { method: "GET" },
+  );
+}
+
+// ── 1-14 강의 시간표 ──
+
+export async function getLectureTimeTable(year: number, semester: string) {
+  return api<ApiResponse<LectureTimeTable[]>>(
+    `/api/mylecture/timetable?year=${year}&semester=${semester}`,
     { method: "GET" },
   );
 }

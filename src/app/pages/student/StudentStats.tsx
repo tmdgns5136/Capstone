@@ -14,12 +14,14 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   getMyLectures,
   getLectureSessions,
+  getLectureStats,
   getObjectionRequests,
   getObjectionRequestDetail,
   applyObjectionAbsence,
   deleteObjectionRequest,
   MyLectureData,
   SessionData,
+  StatsData,
   AbsenceRequestData,
   AbsenceDetailData,
 } from "../../api/studentLecture";
@@ -33,23 +35,28 @@ function statusLabel(status: string) {
   }
 }
 
-const coursesSummary = [
-  { name: "알고리즘", professor: "임정택 교수님", rate: 95 },
-  { name: "인터페이스 디자인", professor: "김철수 교수님", rate: 90 },
-  { name: "데이터 시각화", professor: "엠마 왓슨 교수님", rate: 85 },
-  { name: "데이터 베이스", professor: "마이클 첸 교수님", rate: 100 },
-  { name: "창의적 사고", professor: "박지성 교수님", rate: 88 },
-  { name: "네트워크 보안", professor: "이영희 교수님", rate: 92 },
-  { name: "캡스톤 디자인", professor: "임정택 교수님", rate: 78 },
-];
+interface CourseSummary {
+  lectureId: string;
+  name: string;
+  professor: string;
+  rate: number;
+}
 
-const detailedRecords = [
-  { date: "2026.05.19 (월)", course: "알고리즘", status: "출석" as const, note: "정상 인증" },
-  { date: "2026.05.19 (월)", course: "인터페이스 디자인", status: "출석" as const, note: "정상 인증" },
-  { date: "2026.05.16 (금)", course: "창의적 사고", status: "결석" as const, note: "-" },
-  { date: "2026.05.14 (수)", course: "데이터 베이스", status: "출석" as const, note: "정상 인증" },
-  { date: "2026.05.12 (월)", course: "데이터 시각화", status: "출석" as const, note: "정상 인증" },
-];
+interface DetailedRecord {
+  date: string;
+  course: string;
+  status: "출석" | "지각" | "결석";
+  note: string;
+}
+
+function mapStatus(s: string): "출석" | "지각" | "결석" {
+  switch (s) {
+    case "ATTEND": return "출석";
+    case "LATENESS": return "지각";
+    case "ABSENCE": return "결석";
+    default: return "결석";
+  }
+}
 
 export default function StudentStats() {
   const navigate = useNavigate();
@@ -63,6 +70,11 @@ export default function StudentStats() {
   const [appealTitle, setAppealTitle] = useState("");
   const [appealFile, setAppealFile] = useState<File | null>(null);
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
+
+  // 출결 요약 (API)
+  const [coursesSummary, setCoursesSummary] = useState<CourseSummary[]>([]);
+  const [detailedRecords, setDetailedRecords] = useState<DetailedRecord[]>([]);
+  const [loadingSummary, setLoadingSummary] = useState(true);
 
   // 강의 목록 (이의 신청에 사용할 lectureId 매핑)
   const [lectures, setLectures] = useState<MyLectureData[]>([]);
@@ -90,11 +102,64 @@ export default function StudentStats() {
     sessionStorage.setItem("statsScrollPage", String(p));
   }, []);
 
-  // 강의 목록 로드
+  // 강의 목록 + 출결 통계 로드
   useEffect(() => {
+    setLoadingSummary(true);
     getMyLectures(2026, "1")
-      .then((res) => setLectures(res.data))
-      .catch(() => setLectures([]));
+      .then(async (res) => {
+        const lectureList = res.data;
+        setLectures(lectureList);
+
+        // 각 강의별 통계 조회
+        const statsResults = await Promise.allSettled(
+          lectureList.map((l) => getLectureStats(l.lectureId))
+        );
+
+        const summaries: CourseSummary[] = [];
+        const records: DetailedRecord[] = [];
+
+        statsResults.forEach((result, idx) => {
+          const lecture = lectureList[idx];
+          if (result.status === "fulfilled") {
+            const s = result.value.data;
+            summaries.push({
+              lectureId: lecture.lectureId,
+              name: lecture.lectureName,
+              professor: lecture.professorName,
+              rate: Math.round(s.attendanceRate),
+            });
+            // 최근 세션들을 상세 기록에 추가 (TBD 제외)
+            s.sessions
+              .filter((sess) => sess.status !== "TBD")
+              .forEach((sess) => {
+                records.push({
+                  date: sess.sessionDate,
+                  course: lecture.lectureName,
+                  status: mapStatus(sess.status),
+                  note: sess.status === "ATTEND" ? "정상 인증" : "-",
+                });
+              });
+          } else {
+            summaries.push({
+              lectureId: lecture.lectureId,
+              name: lecture.lectureName,
+              professor: lecture.professorName,
+              rate: 0,
+            });
+          }
+        });
+
+        setCoursesSummary(summaries);
+        // 날짜 내림차순 정렬
+        records.sort((a, b) => b.date.localeCompare(a.date));
+        setDetailedRecords(records);
+      })
+      .catch(() => {
+        setLectures([]);
+        setCoursesSummary([]);
+        setDetailedRecords([]);
+      })
+      .finally(() => setLoadingSummary(false));
   }, []);
 
   // 선택한 강의의 이의 신청 내역 로드
@@ -201,9 +266,12 @@ export default function StudentStats() {
     }
   };
 
+  const PAGE_SIZE = 6;
   const filteredRecords = filter === "전체"
     ? detailedRecords
     : detailedRecords.filter((r) => r.status === filter);
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  const pagedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-8">
@@ -221,26 +289,34 @@ export default function StudentStats() {
       {/* 학기별 출결 요약 */}
       <section>
         <h2 className="text-lg font-bold text-zinc-900 mb-4">학기별 출결 요약</h2>
-        <ScrollableCardList initialPage={scrollPage} onPageChange={handleScrollPageChange}>
-          {coursesSummary.map((course, index) => (
-            <div
-              key={course.name}
-              onClick={() => navigate(`/student/stats/${index + 1}`)}
-              className="bg-white rounded-xl border border-zinc-200 p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group min-w-[80%] sm:min-w-[calc(50%-8px)] lg:min-w-[calc(25%-12px)] flex-shrink-0"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-semibold text-zinc-900">{course.name}</h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-zinc-900">{course.rate}%</span>
-                  <ArrowRight className="w-4 h-4 text-zinc-300 group-hover:text-primary transition-colors" />
+        {loadingSummary ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+          </div>
+        ) : coursesSummary.length > 0 ? (
+          <ScrollableCardList initialPage={scrollPage} onPageChange={handleScrollPageChange}>
+            {coursesSummary.map((course) => (
+              <div
+                key={course.lectureId}
+                onClick={() => navigate(`/student/stats/${course.lectureId}`)}
+                className="bg-white rounded-xl border border-zinc-200 p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group min-w-[80%] sm:min-w-[calc(50%-8px)] lg:min-w-[calc(25%-12px)] flex-shrink-0"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-sm font-semibold text-zinc-900">{course.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-zinc-900">{course.rate}%</span>
+                    <ArrowRight className="w-4 h-4 text-zinc-300 group-hover:text-primary transition-colors" />
+                  </div>
                 </div>
+                <p className="text-xs text-zinc-400 mb-3">{course.professor}</p>
+                <ProgressBar value={course.rate} className="mb-1" />
+                <p className="text-xs text-zinc-400 uppercase tracking-wider mt-1">ATTENDANCE RATE</p>
               </div>
-              <p className="text-xs text-zinc-400 mb-3">{course.professor}</p>
-              <ProgressBar value={course.rate} className="mb-1" />
-              <p className="text-xs text-zinc-400 uppercase tracking-wider mt-1">ATTENDANCE RATE</p>
-            </div>
-          ))}
-        </ScrollableCardList>
+            ))}
+          </ScrollableCardList>
+        ) : (
+          <div className="text-center py-8 text-sm text-zinc-400">수강 중인 강의가 없습니다.</div>
+        )}
       </section>
 
       {/* 상세 출결 내역 + 이의 신청 내역 (좌우 배치) */}
@@ -250,12 +326,12 @@ export default function StudentStats() {
         <div className="lg:col-span-7 bg-white rounded-xl border border-zinc-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-4">
             <h2 className="text-lg font-bold text-zinc-900">상세 출결 내역</h2>
-            <FilterTabs options={["전체", "출석", "결석"] as const} value={filter} onChange={setFilter} />
+            <FilterTabs options={["전체", "출석", "결석"] as const} value={filter} onChange={(v) => { setFilter(v); setPage(1); }} />
           </div>
 
           {/* Mobile Cards */}
           <div className="lg:hidden p-4 space-y-3">
-            {filteredRecords.map((record, i) => (
+            {pagedRecords.map((record, i) => (
               <div key={i} className="bg-zinc-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-zinc-900">{record.course}</span>
@@ -276,6 +352,7 @@ export default function StudentStats() {
                 </div>
               </div>
             ))}
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="py-4" />
           </div>
 
           {/* Desktop Table */}
@@ -291,7 +368,7 @@ export default function StudentStats() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {filteredRecords.map((record, i) => (
+                {pagedRecords.map((record, i) => (
                   <tr key={i} className="hover:bg-zinc-50/50 transition-colors">
                     <td className="px-5 py-4 text-sm text-zinc-600 whitespace-nowrap">{record.date}</td>
                     <td className="px-5 py-4 text-sm font-medium text-zinc-900">{record.course}</td>
@@ -318,7 +395,7 @@ export default function StudentStats() {
               </tbody>
             </table>
 
-            <Pagination currentPage={page} totalPages={3} onPageChange={setPage} className="py-6 border-t border-zinc-100" />
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="py-6 border-t border-zinc-100" />
           </div>
         </div>
 
