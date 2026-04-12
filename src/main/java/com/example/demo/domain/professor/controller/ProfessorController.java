@@ -3,6 +3,8 @@ package com.example.demo.domain.professor.controller;
 import com.example.demo.domain.professor.dto.ProfessorDashboardResponse;
 import com.example.demo.domain.professor.dto.ProfessorLectureResponse;
 import com.example.demo.domain.professor.dto.TodayLectureResponse;
+import com.example.demo.domain.professor.entity.Professor;
+import com.example.demo.domain.professor.repository.ProfessorRepository;
 import com.example.demo.domain.professor.service.ProfessorService;
 import com.example.demo.domain.attendance.dto.UpdateAttendanceRequest;
 import com.example.demo.domain.attendance.dto.AttendanceMonitoringResponse;
@@ -12,6 +14,8 @@ import com.example.demo.domain.lecture.dto.dto.ObjectionListResponse;
 import com.example.demo.domain.lecture.dto.dto.ProcessObjectionRequest;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -22,56 +26,64 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/professors")
+@RequiredArgsConstructor
 public class ProfessorController {
-
+    private final ProfessorRepository professorRepository;
     private final ProfessorService professorService;
 
-    public ProfessorController(ProfessorService professorService) {
-        this.professorService = professorService;
-    }
 
-    // 로그인 붙기 전까지 임시 고정값
-    private Long getCurrentProfessorId() {
-        return 1L;
-    }
 
     @GetMapping("/lectures")
-    public ApiResponse<List<ProfessorLectureResponse>> getLectures() {
-        return ApiResponse.success(200, professorService.getLectures(getCurrentProfessorId()));
+    public ApiResponse<List<ProfessorLectureResponse>> getLectures(Authentication authentication) {
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+        return ApiResponse.success(200, professorService.getLectures(professor.getProfessorId()));
     }
 
     @GetMapping("/lectures/today")
-    public ApiResponse<List<TodayLectureResponse>> getTodayLectures() {
-        return ApiResponse.success(200, professorService.getTodayLectures(getCurrentProfessorId()));
+    public ApiResponse<List<TodayLectureResponse>> getTodayLectures(Authentication authentication) {
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+        return ApiResponse.success(200, professorService.getTodayLectures(professor.getProfessorId()));
     }
 
     @GetMapping("/dashboard")
-    public ApiResponse<ProfessorDashboardResponse> getDashboard() {
-        return ApiResponse.success(200, professorService.getDashboard(getCurrentProfessorId()));
+    public ApiResponse<ProfessorDashboardResponse> getDashboard(Authentication authentication) {
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+        return ApiResponse.success(200, professorService.getDashboard(professor.getProfessorId()));
     }
 
     @PostMapping("/lectures/{lectureId}/start")
-    public ActionResponse startLecture(@PathVariable("lectureId") String lectureId) {
-        return professorService.startLecture(getCurrentProfessorId(), lectureId);
+    public ActionResponse startLecture(@PathVariable("lectureId") String lectureId, Authentication authentication) {
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+        return professorService.startLecture(professor.getProfessorId(), lectureId);
     }
 
     @PostMapping("/lectures/{lectureId}/end")
-    public ActionResponse endLecture(@PathVariable("lectureId") String lectureId) {
-        return professorService.endLecture(getCurrentProfessorId(), lectureId);
+    public ActionResponse endLecture(@PathVariable("lectureId") String lectureId, Authentication authentication){
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+        return professorService.endLecture(professor.getProfessorId(), lectureId);
     }
 
     @PatchMapping("/attendance")
-    public ActionResponse updateAttendance(@RequestBody UpdateAttendanceRequest request) {
-        return professorService.updateAttendance(getCurrentProfessorId(), request);
+    public ActionResponse updateAttendance(@RequestBody UpdateAttendanceRequest request, Authentication authentication) {
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+        return professorService.updateAttendance(professor.getProfessorId(), request);
     }
 
     @GetMapping("/lectures/{lectureId}/attendance")
     public ApiResponse<AttendanceMonitoringResponse> getAttendanceMonitoring(
             @PathVariable("lectureId") String lectureId,
-            @RequestParam("semester") String semester
+            @RequestParam("semester") String semester, Authentication authentication
     ) {
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
         return ApiResponse.success(200,
-                professorService.getAttendanceMonitoring(getCurrentProfessorId(), lectureId, semester)
+                professorService.getAttendanceMonitoring(professor.getProfessorId(), lectureId, semester)
         );
     }
 
