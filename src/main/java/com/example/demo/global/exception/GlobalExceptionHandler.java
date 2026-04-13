@@ -15,7 +15,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ActionResponse> handleValidation(MethodArgumentNotValidException ex){
         String message = ex.getBindingResult().getAllErrors().getFirst().getDefaultMessage();
 
-        ActionResponse actionResponse = ActionResponse.success(
+        ActionResponse actionResponse = ActionResponse.fail(
                 400, message);
         return ResponseEntity.status(actionResponse.getStatus()).body(actionResponse);
     }
