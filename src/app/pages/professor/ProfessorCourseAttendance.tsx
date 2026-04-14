@@ -26,13 +26,13 @@ export function ProfessorCourseAttendance({ lectureId }: { lectureId: string }) 
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
   const [baseStudents, setBaseStudents] = useState<any[]>([]); // 원본 데이터 (되돌리기용)
-  const [selectedDate, setSelectedDate] = useState("2026-04-01"); // 실제 선택된 날짜
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [selectedWeek, setSelectedWeek] = useState(5);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pendingChanges, setPendingChanges] = useState<Record<string, AttendanceStatus>>({});
 
-  // --- 데이터 페칭 (9번 명세 활용) ---
+  // --- 데이터 페칭 (9번 명세 활용) --
   const fetchAttendance = useCallback(async () => {
     setLoading(true);
     try {
@@ -121,6 +121,51 @@ export function ProfessorCourseAttendance({ lectureId }: { lectureId: string }) 
 
   return (
     <div className={loading ? "opacity-50 pointer-events-none" : ""}>
+      
+      <div className="p-6 border-b border-zinc-100 bg-white">
+      <p className="text-xs text-zinc-400 mb-3 font-semibold uppercase tracking-wider">주차 선택</p>
+      <div className="flex flex-wrap gap-2 mb-6">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((week) => (
+          <button
+            key={week}
+            onClick={() => setSelectedWeek(week)}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+              selectedWeek === week 
+                ? "bg-zinc-900 text-white shadow-md" 
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+            }`}
+          >
+            {week}주차
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs text-zinc-400 mb-3 font-semibold uppercase tracking-wider">{selectedWeek}주차 수업 선택</p>
+      <div className="flex gap-2">
+        {/* 임시로 날짜 버튼 2개 배치 (나중엔 데이터에 따라 늘어나게 가능) */}
+        <button
+          onClick={() => setSelectedDate("2026-04-09")}
+          className={`px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
+            selectedDate === "2026-04-09"
+              ? "bg-zinc-900 text-white border-zinc-900 shadow-lg"
+              : "bg-white text-zinc-400 border-zinc-100 hover:border-zinc-200"
+          }`}
+        >
+          4월 9일 (수)
+        </button>
+        <button
+          onClick={() => setSelectedDate("2026-04-10")}
+          className={`px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
+            selectedDate === "2026-04-10"
+              ? "bg-zinc-900 text-white border-zinc-900 shadow-lg"
+              : "bg-white text-zinc-400 border-zinc-100 hover:border-zinc-200"
+          }`}
+        >
+          4월 10일 (목)
+        </button>
+      </div>
+    </div>
+
 
       {/* Stats 카드 섹션 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6">

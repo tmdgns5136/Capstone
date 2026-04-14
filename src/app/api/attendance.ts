@@ -1,7 +1,7 @@
 import { api } from "./client";
 import { ApiResponse } from "./lecture";
 
-export type AttendanceStatus = "ATTENDANCE" | "LATE" | "ABSENT" | "EXCUSED";
+export type AttendanceStatus = "ATTENDANCE" | "LATE" | "ABSENT" | "EXCUSED" | "TBD";
 
 export interface UpdateAttendancePayload {
   studentId: string;
