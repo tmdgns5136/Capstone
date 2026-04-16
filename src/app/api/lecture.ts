@@ -2,6 +2,7 @@ import { api } from "./client";
 
 export interface ApiResponse<T> {
   success: boolean;
+  status: number;
   data: T;
   message?: string;
 }
@@ -21,6 +22,16 @@ export interface Lecture {
   room: string;
   students: number;
   status?: string;
+}
+
+export interface LectureSession {
+  sessionId: number;     
+  scheduledAt: string;   
+  sessionStart?: string;  
+  sessionEnd?: string;   
+  sessionNum: number;    
+  sessionStatus: "WAIT" | "IN_PROGRESS" | "DONE"; 
+  lectureId: number;      
 }
 
 // 5. 오늘 강의 일정 타입

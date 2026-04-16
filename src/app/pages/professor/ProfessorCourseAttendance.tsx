@@ -1,54 +1,54 @@
 import { useState, useEffect, useCallback } from "react";
-import { Save, RotateCcw, Check, AlarmClock, X, Search, RefreshCw } from "lucide-react";
+import { Search, RotateCcw, Save, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { StatusBadge } from "../../components/StatusBadge";
-import { Pagination } from "../../components/Pagination";
-// API 함수 가져오기
-import { getAttendanceMonitoring, updateAttendance, AttendanceStatus } from "../../api/attendance";
+import { 
+  getAttendanceMonitoring, 
+  updateAttendance, 
+  AttendanceStatus 
+} from "../../api/attendance";
 
-// 1. 상태값 매핑 (UI용 <-> API용)
-const API_STATUS_MAP: Record<string, AttendanceStatus> = {
-  "출석": "ATTENDANCE",
-  "지각": "LATE",
-  "결석": "ABSENT",
-  "공결": "EXCUSED"
+interface ProfessorCourseAttendanceProps {
+  lectureId: string; // 신우님 결정: string 통일
+}
+
+const STATUS_MAP: Record<AttendanceStatus, { label: string; color: string }> = {
+  PRESENT: { label: "출석", color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
+  LATE: { label: "지각", color: "text-amber-600 bg-amber-50 border-amber-100" },
+  ABSENT: { label: "결석", color: "text-rose-600 bg-rose-50 border-rose-100" },
+  EXCUSED: { label: "공결", color: "text-sky-600 bg-sky-50 border-sky-100" },
+  TBD: { label: "미정", color: "text-zinc-400 bg-zinc-50 border-zinc-100" },
 };
 
-const UI_STATUS_MAP: Record<AttendanceStatus, string> = {
-  ATTENDANCE: "출석",
-  LATE: "지각",
-  ABSENT: "결석",
-  EXCUSED: "공결"
-};
-
-export function ProfessorCourseAttendance({ lectureId }: { lectureId: string }) {
-  // --- 상태 관리 ---
-  const [loading, setLoading] = useState(false);
-  const [students, setStudents] = useState<any[]>([]);
-  const [baseStudents, setBaseStudents] = useState<any[]>([]); // 원본 데이터 (되돌리기용)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
-  const [selectedWeek, setSelectedWeek] = useState(5);
+export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendanceProps) {
+  const [selectedWeek, setSelectedWeek] = useState(1);
+  const [selectedDate, setSelectedDate] = useState("2026-03-04"); // 테스트용 기본 날짜
   const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [pendingChanges, setPendingChanges] = useState<Record<string, AttendanceStatus>>({});
+  const [students, setStudents] = useState<any[]>([]);
+  const [stats, setStats] = useState({ attendance: 0, late: 0, absent: 0 });
+  const [loading, setLoading] = useState(false);
 
-  // --- 데이터 페칭 (9번 명세 활용) --
+  // 1. 데이터 로드 함수
   const fetchAttendance = useCallback(async () => {
+    if (!lectureId || lectureId === "undefined") return;
+    
     setLoading(true);
     try {
-      // 주차/세션 선택 시 해당 날짜로 호출
-      const response = await getAttendanceMonitoring(lectureId, { date: selectedDate });
+      const response = await getAttendanceMonitoring(lectureId, { 
+        date: selectedDate,
+        semester: "2026-1"
+      });
+      
       if (response.success) {
-        const data = response.data.students.map(s => ({
-          ...s,
-          uiStatus: UI_STATUS_MAP[s.status as AttendanceStatus] || "출석"
-        }));
-        setStudents(data);
-        setBaseStudents(JSON.parse(JSON.stringify(data))); // 딥 카피
-        setPendingChanges({}); // 날짜 바뀌면 수정 내역 초기화
+        setStudents(response.data.students || []);
+        setStats({
+          attendance: response.data.attendance || 0,
+          late: response.data.late || 0,
+          absent: response.data.absent || 0,
+        });
       }
     } catch (error) {
-      toast.error("출결 정보를 불러오지 못했습니다.");
+      console.error("데이터 로드 실패:", error);
+      toast.error("출결 정보를 가져오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -58,197 +58,143 @@ export function ProfessorCourseAttendance({ lectureId }: { lectureId: string }) 
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // --- 통계 계산 ---
-  const presentCount = students.filter((s) => s.status === "ATTENDANCE").length;
-  const lateCount = students.filter((s) => s.status === "LATE").length;
-  const absentCount = students.filter((s) => s.status === "ABSENT").length;
-
-  // --- 핸들러 ---
-  const handleStatusChange = (studentId: string, apiStatus: AttendanceStatus) => {
-    setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, status: apiStatus } : s));
-    
-    // 원본과 다르면 pendingChanges에 추가
-    const original = baseStudents.find(b => b.studentId === studentId);
-    if (original.status !== apiStatus) {
-      setPendingChanges(prev => ({ ...prev, [studentId]: apiStatus }));
-    } else {
-      setPendingChanges(prev => {
-        const next = { ...prev };
-        delete next[studentId];
-        return next;
-      });
-    }
-  };
-
-  // 저장 로직 (8번 명세 활용 - 여러 번 호출)
-  const handleSave = async () => {
-    const changeIds = Object.keys(pendingChanges);
-    if (changeIds.length === 0) return;
-
-    setLoading(true);
+  // 2. 상태 수동 변경 함수
+  const handleStatusChange = async (studentId: string, newStatus: AttendanceStatus) => {
     try {
-      // 변경된 모든 학생에 대해 PATCH 요청을 보냅니다.
-      await Promise.all(
-        changeIds.map(studentId => 
-          updateAttendance({
-            studentId,
-            lectureId,
-            status: pendingChanges[studentId]
-          })
-        )
-      );
-      toast.success("변경사항이 모두 저장되었습니다.");
-      await fetchAttendance(); // 서버 데이터와 동기화
+      const response = await updateAttendance({
+        studentId,
+        lectureId,
+        status: newStatus,
+        date: selectedDate,
+      });
+
+      if (response.success) {
+        toast.success(`${newStatus} 상태로 변경되었습니다.`);
+        setStudents(prev => 
+          prev.map(s => s.studentId === studentId ? { ...s, status: newStatus } : s)
+        );
+      }
     } catch (error) {
-      toast.error("저장 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
+      toast.error("변경 사항을 저장하지 못했습니다.");
     }
   };
 
-  const handleDiscard = () => {
-    setStudents(JSON.parse(JSON.stringify(baseStudents)));
-    setPendingChanges({});
-  };
-
-  // --- 페이지네이션 ---
-  const PAGE_SIZE = 8;
-  const filteredStudents = students.filter(s => 
-    s.name.includes(searchQuery) || s.studentId.includes(searchQuery)
+  const filteredStudents = students.filter(
+    (s) => s.name?.includes(searchQuery) || s.studentId?.includes(searchQuery)
   );
-  const pagedStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const totalPages = Math.ceil(filteredStudents.length / PAGE_SIZE);
 
   return (
-    <div className={loading ? "opacity-50 pointer-events-none" : ""}>
-      
-      <div className="p-6 border-b border-zinc-100 bg-white">
-      <p className="text-xs text-zinc-400 mb-3 font-semibold uppercase tracking-wider">주차 선택</p>
-      <div className="flex flex-wrap gap-2 mb-6">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((week) => (
-          <button
-            key={week}
-            onClick={() => setSelectedWeek(week)}
-            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-              selectedWeek === week 
-                ? "bg-zinc-900 text-white shadow-md" 
-                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-            }`}
-          >
-            {week}주차
+    <div className="space-y-8">
+      {/* 주차 선택 UI */}
+      <div className="space-y-4">
+        <label className="text-sm font-semibold text-zinc-900">주차 선택</label>
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 15 }, (_, i) => i + 1).map((week) => (
+            <button
+              key={week}
+              onClick={() => setSelectedWeek(week)}
+              className={`px-4 py-2 rounded-full text-xs font-medium border transition-all ${
+                selectedWeek === week 
+                  ? "bg-zinc-900 text-white border-zinc-900" 
+                  : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+              }`}
+            >
+              {week}주차
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 수업 날짜 선택 UI */}
+      <div className="space-y-4">
+        <label className="text-sm font-semibold text-zinc-900">{selectedWeek}주차 수업 선택</label>
+        <div className="flex gap-2">
+          <button className="px-5 py-2.5 bg-zinc-900 text-white rounded-full text-sm font-medium shadow-sm">
+            {selectedDate} (수)
           </button>
+        </div>
+      </div>
+
+      {/* 통계 요약 카드 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "총원", value: students.length },
+          { label: "출석", value: stats.attendance },
+          { label: "지각", value: stats.late },
+          { label: "결석", value: stats.absent },
+        ].map((item, idx) => (
+          <div key={idx} className="bg-white p-5 rounded-2xl border border-zinc-100 shadow-sm">
+            <p className="text-xs font-medium text-zinc-400 mb-1">{item.label}</p>
+            <p className="text-2xl font-bold text-zinc-900">{item.value}</p>
+          </div>
         ))}
       </div>
 
-      <p className="text-xs text-zinc-400 mb-3 font-semibold uppercase tracking-wider">{selectedWeek}주차 수업 선택</p>
-      <div className="flex gap-2">
-        {/* 임시로 날짜 버튼 2개 배치 (나중엔 데이터에 따라 늘어나게 가능) */}
-        <button
-          onClick={() => setSelectedDate("2026-04-09")}
-          className={`px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
-            selectedDate === "2026-04-09"
-              ? "bg-zinc-900 text-white border-zinc-900 shadow-lg"
-              : "bg-white text-zinc-400 border-zinc-100 hover:border-zinc-200"
-          }`}
-        >
-          4월 9일 (수)
-        </button>
-        <button
-          onClick={() => setSelectedDate("2026-04-10")}
-          className={`px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
-            selectedDate === "2026-04-10"
-              ? "bg-zinc-900 text-white border-zinc-900 shadow-lg"
-              : "bg-white text-zinc-400 border-zinc-100 hover:border-zinc-200"
-          }`}
-        >
-          4월 10일 (목)
-        </button>
-      </div>
-    </div>
-
-
-      {/* Stats 카드 섹션 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6">
-        <div className="bg-zinc-50 rounded-lg p-4 border-t-2 border-zinc-300">
-          <p className="text-xs text-zinc-400">총원</p>
-          <p className="text-3xl font-bold">{students.length}</p>
-        </div>
-        <div className="bg-zinc-50 rounded-lg p-4 border-t-2 border-primary">
-          <p className="text-xs text-zinc-400">출석</p>
-          <p className="text-3xl font-bold text-primary-dark">{presentCount}</p>
-        </div>
-        <div className="bg-zinc-50 rounded-lg p-4 border-t-2 border-amber-400">
-          <p className="text-xs text-zinc-400">지각</p>
-          <p className="text-3xl font-bold text-amber-600">{lateCount}</p>
-        </div>
-        <div className="bg-zinc-50 rounded-lg p-4 border-t-2 border-rose-400">
-          <p className="text-xs text-zinc-400">결석</p>
-          <p className="text-3xl font-bold text-rose-600">{absentCount}</p>
-        </div>
-      </div>
-
-      {/* 저장 바 (pendingChanges.length 기준으로 표시) */}
-      <div className={`flex items-center justify-between px-6 py-3 border-y transition-colors ${Object.keys(pendingChanges).length > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-zinc-100"}`}>
-        <span className="text-sm font-medium">
-          {Object.keys(pendingChanges).length > 0 
-            ? <span className="text-amber-700">{Object.keys(pendingChanges).length}개 항목 수정됨 — [저장]을 눌러 반영하세요</span>
-            : <span className="text-zinc-400">수정 사항 없음</span>}
-        </span>
-        <div className="flex gap-2">
-          <button onClick={handleDiscard} disabled={Object.keys(pendingChanges).length === 0} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-500 disabled:opacity-30">
-            <RotateCcw className="w-3.5 h-3.5" /> 되돌리기
-          </button>
-          <button onClick={handleSave} disabled={Object.keys(pendingChanges).length === 0} className="bg-primary text-white px-4 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30">
-            <Save className="w-3.5 h-3.5" /> 저장
+      {/* 학생 목록 섹션 */}
+      <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-zinc-50 flex items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input 
+              placeholder="학번 또는 이름 검색"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-zinc-50 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-zinc-900/5"
+            />
+          </div>
+          <button onClick={fetchAttendance} className="p-2 text-zinc-400 hover:bg-zinc-50 rounded-lg">
+            <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-      </div>
 
-      {/* 테이블 섹션 */}
-      <div className="px-6 pb-6 overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500 uppercase">
-              <th className="px-4 py-3">학번</th>
-              <th className="px-4 py-3">성명</th>
-              <th className="px-4 py-3 text-center">출결 상태</th>
-              <th className="px-4 py-3 text-center">수동 수정</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-50">
-            {pagedStudents.map((student) => {
-              const isModified = !!pendingChanges[student.studentId];
-              return (
-                <tr key={student.studentId} className={isModified ? "bg-amber-50/50" : ""}>
-                  <td className="px-4 py-3 text-sm">{student.studentId}</td>
-                  <td className="px-4 py-3 text-sm font-medium">{student.name}</td>
-                  <td className="px-4 py-3 text-center">
-                    <StatusBadge status={UI_STATUS_MAP[student.status as AttendanceStatus]} />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex justify-center gap-1.5">
-                      <button onClick={() => handleStatusChange(student.studentId, "ATTENDANCE")} 
-                        className={`w-8 h-8 rounded-full flex items-center justify-center ${student.status === "ATTENDANCE" ? "bg-primary text-white" : "bg-zinc-100 text-zinc-400"}`}>
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleStatusChange(student.studentId, "LATE")} 
-                        className={`w-8 h-8 rounded-full flex items-center justify-center ${student.status === "LATE" ? "bg-amber-400 text-white" : "bg-zinc-100 text-zinc-400"}`}>
-                        <AlarmClock className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleStatusChange(student.studentId, "ABSENT")} 
-                        className={`w-8 h-8 rounded-full flex items-center justify-center ${student.status === "ABSENT" ? "bg-rose-500 text-white" : "bg-zinc-100 text-zinc-400"}`}>
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-zinc-50/50">
+                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase">학번</th>
+                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase">이름</th>
+                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase">상태</th>
+                <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase">수동 변경</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-50">
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="py-20 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-300" /></td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ) : filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-20 text-center text-zinc-400 text-sm">등록된 학생이 없습니다.</td>
+                </tr>
+              ) : (
+                filteredStudents.map((s) => (
+                  <tr key={s.studentId} className="hover:bg-zinc-50/30 transition-colors">
+                    <td className="px-6 py-4 text-sm text-zinc-500">{s.studentId}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-zinc-900">{s.name}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${STATUS_MAP[s.status as AttendanceStatus]?.color || STATUS_MAP.TBD.color}`}>
+                        {STATUS_MAP[s.status as AttendanceStatus]?.label || "미정"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={s.status}
+                        onChange={(e) => handleStatusChange(s.studentId, e.target.value as AttendanceStatus)}
+                        className="text-xs border border-zinc-200 rounded-lg p-1.5 focus:outline-none focus:ring-2 focus:ring-zinc-900/5"
+                      >
+                        <option value="PRESENT">출석</option>
+                        <option value="LATE">지각</option>
+                        <option value="ABSENT">결석</option>
+                        <option value="EXCUSED">공결</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }

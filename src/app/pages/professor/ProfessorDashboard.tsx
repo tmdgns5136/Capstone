@@ -7,12 +7,15 @@ import ProfessorAppealManagement from "./ProfessorAppealManagement";
 import ProfessorMonitoring from "./ProfessorMonitoring";
 import ProfessorCourses from "./ProfessorCourses";
 import ProfessorProfile from "./ProfessorProfile";
+// [추가] 상세 페이지 컴포넌트를 가져옵니다.
+import { ProfessorCourseDetail } from "./ProfessorCourseDetail"; 
 import NotificationsPage from "../shared/NotificationsPage";
 import TopNav from "../../components/layout/TopNav";
 import Footer from "../../components/layout/Footer";
 import { ClassSimulatorProvider } from "../../hooks/useClassSimulator";
 import { useAuth } from "../../hooks/useAuth";
 import { useDragControls } from "motion/react";
+
 
 const navItems = [
   { name: "홈", href: "/professor" },
@@ -44,7 +47,13 @@ export default function ProfessorDashboard() {
               <Route path="appeal-management" element={<ProfessorAppealManagement />} />
               <Route path="absence-management" element={<ProfessorAbsenceManagement />} />
               <Route path="monitoring" element={<ProfessorMonitoring />} />
+              
+              {/* 1. 강의 목록 페이지 */}
               <Route path="courses" element={<ProfessorCourses />} />
+              
+              {/* 2. [핵심 추가] 강의 상세 페이지 (:lectureId 자리에 1, 2 같은 숫자가 들어옵니다) */}
+              <Route path="courses/:lectureId" element={<ProfessorCourseDetail />} />
+              
               <Route path="profile" element={<ProfessorProfile />} />
               <Route path="notifications" element={<NotificationsPage role="professor" />} />
             </Routes>

@@ -52,7 +52,7 @@ export default function ProfessorHome() {
 
     // 3. 공결 신청 처리
     if (results[2].status === 'fulfilled' && results[2].value.success) {
-      setPendingRequests(results[2].value.data.data.filter(r => r.status === "WAIT"));
+      setPendingRequests(results[2].value.data.data.filter(r => r.status === "PENDING"));
     }
   } catch (error) {
     console.error("데이터 로드 중 예상치 못한 오류:", error);
@@ -224,7 +224,7 @@ export default function ProfessorHome() {
           {pendingRequests.length > 0 ? (
             pendingRequests.map((request) => (
               <div 
-                key={request.absenceId}
+                key={request.officialId}
                 onClick={() => navigate("/professor/absence-management")}
                 className="flex items-start justify-between p-4 bg-amber-50/50 rounded-2xl border border-amber-100 hover:bg-amber-100/50 transition-all cursor-pointer"
               >

@@ -1,40 +1,38 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "motion/react";
-import { Edit, Search, Save, RefreshCw } from "lucide-react";
+import { Edit, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
-// 우리가 만든 API 함수들 가져오기
+// API 함수들 (여기서 인자들도 string으로 되어 있어야 합니다)
 import { getAttendanceMonitoring, updateAttendance, AttendanceStatus } from "../../api/attendance";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
-
-// 1. 상태값 매핑 정의 (백엔드 <-> 프론트엔드)
 const STATUS_MAP: Record<AttendanceStatus, { label: string; color: string }> = {
-  ATTENDANCE: { label: "출석", color: "bg-primary/10 text-primary-dark" },
+  PRESENT: { label: "출석", color: "bg-primary/10 text-primary-dark" },
   LATE: { label: "지각", color: "bg-amber-50 text-amber-700" },
   ABSENT: { label: "결석", color: "bg-rose-50 text-rose-700" },
   EXCUSED: { label: "공결", color: "bg-sky-50 text-sky-700" },
+  TBD: { label: "미정", color: "bg-zinc-50 text-zinc-500" },
 };
 
 export default function ProfessorAttendanceEdit() {
   const { courses, loading: coursesLoading } = useProfessorCourses();
   
-  // 상태 관리
+  // 1. 상태 관리: 타입을 다시 string으로 변경
   const [selectedLectureId, setSelectedLectureId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 2. 데이터 불러오기 함수 (9번 명세 활용)
+  // 2. 데이터 불러오기 함수
   const fetchAttendanceData = useCallback(async () => {
-    if (!selectedLectureId) return;
+    if (!selectedLectureId) return; // 빈 문자열 체크
     setLoading(true);
     try {
-      // 날짜 파라미터를 담아 해당 날짜의 리스트를 가져옵니다.
+      // selectedLectureId가 string으로 전달됩니다.
       const response = await getAttendanceMonitoring(selectedLectureId, { date: selectedDate });
       if (response.success) {
-        setStudents(response.data.students);
+        setStudents(response.data.students || []);
       }
     } catch (error) {
       toast.error("출결 정보를 불러오지 못했습니다.");
@@ -43,10 +41,11 @@ export default function ProfessorAttendanceEdit() {
     }
   }, [selectedLectureId, selectedDate]);
 
-  // 초기 강의 설정 및 변경 시 데이터 로드
+  // 3. 초기 강의 설정
   useEffect(() => {
     if (courses.length > 0 && !selectedLectureId) {
-      setSelectedLectureId(courses[0].lectureId);
+      // API에서 온 ID를 그대로 string으로 저장
+      setSelectedLectureId(String(courses[0].lectureId));
     }
   }, [courses, selectedLectureId]);
 
@@ -54,18 +53,19 @@ export default function ProfessorAttendanceEdit() {
     fetchAttendanceData();
   }, [fetchAttendanceData]);
 
-  // 3. 수동 출결 변경 처리 (8번 명세 활용)
+  // 4. 수동 출결 변경 처리
   const handleStatusChange = async (studentId: string, newStatus: AttendanceStatus) => {
+    if (!selectedLectureId) return;
     try {
       const response = await updateAttendance({
         studentId,
-        lectureId: selectedLectureId,
+        lectureId: selectedLectureId, // string 타입 전달
         status: newStatus,
+        date: selectedDate,
       });
 
       if (response.success) {
         toast.success(response.message || "출결 상태가 변경되었습니다.");
-        // 목록 새로고침 없이 로컬 상태만 업데이트해서 반응속도 높이기
         setStudents(prev => 
           prev.map(s => s.studentId === studentId ? { ...s, status: newStatus } : s)
         );
@@ -76,15 +76,15 @@ export default function ProfessorAttendanceEdit() {
   };
 
   const getStatusBadge = (status: AttendanceStatus) => {
-    const config = STATUS_MAP[status] || STATUS_MAP.ABSENT;
+    const config = STATUS_MAP[status] || STATUS_MAP.TBD;
     return `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color}`;
   };
 
   const filteredStudents = students.filter(
-    (s) => s.name.includes(searchQuery) || s.studentId.includes(searchQuery)
+    (s) => s.name?.includes(searchQuery) || s.studentId?.includes(searchQuery)
   );
 
-  if (coursesLoading) return <div className="p-10 text-center">강의 목록 로딩 중...</div>;
+  if (coursesLoading) return <div className="p-10 text-center text-zinc-400">강의 목록 로딩 중...</div>;
 
   return (
     <div className="max-w-7xl mx-auto pb-10 space-y-6">
@@ -110,11 +110,12 @@ export default function ProfessorAttendanceEdit() {
             <label className="text-xs font-medium text-zinc-700">강의 선택</label>
             <select
               value={selectedLectureId}
+              // [수정] Number()를 빼고 그대로 글자로 저장합니다.
               onChange={(e) => setSelectedLectureId(e.target.value)}
               className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               {courses.map((course) => (
-                <option key={course.lectureId} value={course.lectureId}>
+                <option key={course.lectureId} value={String(course.lectureId)}>
                   {course.name}
                 </option>
               ))}
@@ -195,7 +196,7 @@ export default function ProfessorAttendanceEdit() {
                         onChange={(e) => handleStatusChange(student.studentId, e.target.value as AttendanceStatus)}
                         className="rounded-lg border border-zinc-200 bg-white p-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
                       >
-                        <option value="ATTENDANCE">출석</option>
+                        <option value="PRESENT">출석</option>
                         <option value="LATE">지각</option>
                         <option value="ABSENT">결석</option>
                         <option value="EXCUSED">공결</option>

@@ -1,54 +1,22 @@
-import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useState } from "react";
+import { useNavigate } from "react-router";
 import { ChevronDown, ArrowRight, Loader2 } from "lucide-react";
-import { ProfessorCourseDetail } from "./ProfessorCourseDetail";
-import { useProfessorCourses, Course } from "../../hooks/useProfessorCourses";
+import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 
 export default function ProfessorCourses() {
-  const location = useLocation();
   const navigate = useNavigate();
   const [semester, setSemester] = useState("2026학년도 1학기");
-  
   const { courses, loading, error } = useProfessorCourses();
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const fromHome = !!(location.state as { lectureId?: string } | null)?.lectureId;
 
-  useEffect(() => {
-    const lectureId = (location.state as { lectureId?: string } | null)?.lectureId;
-   
-    if (lectureId && courses.length > 0) {
-      const found = courses.find((c) => c.lectureId === lectureId);
-      if (found) setSelectedCourse(found);
-    }
-  }, [location.state, courses]);
+  if (loading) return (
+    <div className="flex h-64 items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-zinc-300" />
+    </div>
+  );
 
-  const handleBack = () => {
-    if (fromHome) {
-      navigate("/professor");
-    } else {
-      setSelectedCourse(null);
-    }
-  };
+  if (error) return <div className="p-10 text-center text-rose-500">{error}</div>;
 
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-zinc-300" />
-      </div>
-    );
-  }
-  if (error) {
-    return <div className="p-10 text-center text-rose-500">{error}</div>;
-  }
-
-  if (selectedCourse) {
-    return (
-      <ProfessorCourseDetail
-        course={selectedCourse}
-        onBack={handleBack}
-      />
-    );
-  }
+  console.log("강의 데이터 확인:", courses);
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -75,23 +43,19 @@ export default function ProfessorCourses() {
         {courses.map((course) => (
           <div key={course.lectureId} className="bg-white rounded-xl border border-zinc-200 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:shadow-sm transition-shadow">
             <div>
-              {course.status && (
-                <span className="inline-block px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 text-zinc-600 mb-2">
-                  {course.status === "IN_PROGRESS" ? "수업 진행 중" : course.status}
-                </span>
-              )}
               <h3 className="text-lg font-bold text-zinc-900">{course.name}</h3>
+              <p className="text-xs text-zinc-400 mt-1">{course.lectureId}</p>
             </div>
             <button
-              onClick={() => setSelectedCourse(course)}
-              className="flex items-center justify-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-primary-hover transition-colors shrink-0 w-full sm:w-auto"
+              // [핵심] 주소창에 lectureId를 사용합니다.
+              onClick={() => navigate(`/professor/courses/${course.lectureId}`)}
+              className="flex items-center justify-center gap-2 bg-zinc-900 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-zinc-800 transition-colors shrink-0 w-full sm:w-auto"
             >
               강의실 입장 <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         ))}
       </div>
-
     </div>
   );
 }
