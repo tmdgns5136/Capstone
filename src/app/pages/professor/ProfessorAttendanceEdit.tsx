@@ -1,263 +1,213 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "motion/react";
-import { Edit, Search, Save } from "lucide-react";
+import { Edit, Search, Save, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
+// 우리가 만든 API 함수들 가져오기
+import { getAttendanceMonitoring, updateAttendance, AttendanceStatus } from "../../api/attendance";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
+const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
-const studentsData = [
-  { id: 1, name: "김철수", studentId: "20240101", date: "2026-03-10", status: "출석", attendanceRate: 95 },
-  { id: 2, name: "이영희", studentId: "20240102", date: "2026-03-10", status: "지각", attendanceRate: 87 },
-  { id: 3, name: "박민수", studentId: "20240103", date: "2026-03-10", status: "결석", attendanceRate: 45 },
-  { id: 4, name: "정수진", studentId: "20240104", date: "2026-03-10", status: "출석", attendanceRate: 98 },
-];
+// 1. 상태값 매핑 정의 (백엔드 <-> 프론트엔드)
+const STATUS_MAP: Record<AttendanceStatus, { label: string; color: string }> = {
+  ATTENDANCE: { label: "출석", color: "bg-primary/10 text-primary-dark" },
+  LATE: { label: "지각", color: "bg-amber-50 text-amber-700" },
+  ABSENT: { label: "결석", color: "bg-rose-50 text-rose-700" },
+  EXCUSED: { label: "공결", color: "bg-sky-50 text-sky-700" },
+};
 
 export default function ProfessorAttendanceEdit() {
-  const { courses, loading } = useProfessorCourses();
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedDate, setSelectedDate] = useState("2026-03-10");
+  const { courses, loading: coursesLoading } = useProfessorCourses();
+
+  // 상태 관리
+  const [selectedLectureId, setSelectedLectureId] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // 2. 데이터 불러오기 함수 (9번 명세 활용)
+  const fetchAttendanceData = useCallback(async () => {
+    if (!selectedLectureId) return;
+    setLoading(true);
+    try {
+      // 날짜 파라미터를 담아 해당 날짜의 리스트를 가져옵니다.
+      const response = await getAttendanceMonitoring(selectedLectureId, { date: selectedDate });
+      if (response.success) {
+        setStudents(response.data.students);
+      }
+    } catch (error) {
+      toast.error("출결 정보를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedLectureId, selectedDate]);
+
+  // 초기 강의 설정 및 변경 시 데이터 로드
+  useEffect(() => {
+    if (courses.length > 0 && !selectedLectureId) {
+      setSelectedLectureId(courses[0].lectureId);
+    }
+  }, [courses, selectedLectureId]);
 
   useEffect(() => {
-    if (courses.length > 0 && !selectedCourse) {
-      setSelectedCourse(courses[0].name);
+    fetchAttendanceData();
+  }, [fetchAttendanceData]);
+
+  // 3. 수동 출결 변경 처리 (8번 명세 활용)
+  const handleStatusChange = async (studentId: string, newStatus: AttendanceStatus) => {
+    try {
+      const response = await updateAttendance({
+        studentId,
+        lectureId: selectedLectureId,
+        status: newStatus,
+      });
+
+      if (response.success) {
+        toast.success(response.message || "출결 상태가 변경되었습니다.");
+        // 목록 새로고침 없이 로컬 상태만 업데이트해서 반응속도 높이기
+        setStudents(prev =>
+          prev.map(s => s.studentId === studentId ? { ...s, status: newStatus } : s)
+        );
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "변경에 실패했습니다.");
     }
-  }, [courses, selectedCourse]);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [students, setStudents] = useState(studentsData);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  const updateAttendance = (studentId: number, newStatus: string) => {
-    setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, status: newStatus } : s))
-    );
-    setHasChanges(true);
   };
 
-  if (loading) return (
-    <div className="max-w-7xl mx-auto pb-10 space-y-6">
-      <div className="space-y-2">
-        <div className="h-8 w-48 bg-zinc-100 rounded-xl animate-pulse" />
-        <div className="h-4 w-72 bg-zinc-100 rounded-lg animate-pulse" />
-      </div>
-      <div className="bg-white rounded-xl border border-zinc-200  h-96 animate-pulse" />
-    </div>
-  );
-
-  const saveChanges = () => {
-    // TODO: Save to server
-    toast.success("출결 정보가 저장되었습니다");
-    setHasChanges(false);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "출석":
-        return "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark";
-      case "지각":
-        return "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700";
-      case "결석":
-        return "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-700";
-      case "공결":
-        return "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-sky-50 text-sky-700";
-      default:
-        return "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-50 text-zinc-700";
-    }
+  const getStatusBadge = (status: AttendanceStatus) => {
+    const config = STATUS_MAP[status] || STATUS_MAP.ABSENT;
+    return `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color}`;
   };
 
   const filteredStudents = students.filter(
-    (s) =>
-      s.name.includes(searchQuery) ||
-      s.studentId.includes(searchQuery)
+    (s) => s.name.includes(searchQuery) || s.studentId.includes(searchQuery)
   );
+
+  if (coursesLoading) return <div className="p-10 text-center">강의 목록 로딩 중...</div>;
 
   return (
     <div className="max-w-7xl mx-auto pb-10 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">수동 출결 변경</h1>
-        <p className="text-sm text-zinc-400 mt-1">강의 종료 후 출결 상태를 수정할 수 있습니다</p>
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">수동 출결 변경</h1>
+          <p className="text-sm text-zinc-400 mt-1">특정 날짜의 출결 상태를 즉시 수정할 수 있습니다</p>
+        </div>
+        <button
+          onClick={fetchAttendanceData}
+          className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400"
+          title="새로고침"
+        >
+          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-zinc-200  overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-100">
-          <h2 className="text-sm font-semibold text-zinc-900">검색 필터</h2>
-        </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-700">강의 선택</label>
-              <select
-                value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary appearance-none"
-              >
-                {courses.map((course) => (
-                  <option key={course.lectureId} value={course.name}>
-                    {course.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
+        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-700">강의 선택</label>
+            <select
+              value={selectedLectureId}
+              onChange={(e) => setSelectedLectureId(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              {courses.map((course) => (
+                <option key={course.lectureId} value={course.lectureId}>
+                  {course.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-700">날짜</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-700">날짜 선택</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-700">학생 검색</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
               <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                placeholder="이름 또는 학번"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white p-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-700">학생 검색</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
-                <input
-                  placeholder="이름 또는 학번"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white p-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                />
-              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Info Notice */}
-      <div className="bg-primary/10 rounded-xl border border-primary/30 p-5">
-        <h2 className="text-sm font-semibold text-primary-dark mb-3">출결 수정 안내</h2>
-        <div className="space-y-1.5 text-sm text-primary-dark">
-          <p className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-primary rounded-full" /> 출결 수정은 강의 종료 후에만 가능합니다.</p>
-          <p className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-primary rounded-full" /> 체류율은 강의 중 얼굴 인식으로 측정된 실제 출석 시간 비율입니다.</p>
-          <p className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-primary rounded-full" /> 일반적으로 80% 이상은 출석, 60~80%는 지각, 60% 미만은 결석으로 자동 처리됩니다.</p>
-          <p className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-primary rounded-full" /> 변경사항은 반드시 <strong>저장</strong> 버튼을 눌러야 적용됩니다.</p>
-        </div>
-      </div>
-
       {/* Attendance Table */}
-      <div className="bg-white rounded-xl border border-zinc-200  overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center">
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-zinc-100">
           <h2 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-            <Edit className="w-4 h-4 text-zinc-400" strokeWidth={1.5} /> 출결 현황
+            <Edit className="w-4 h-4 text-zinc-400" /> {selectedDate} 출결 현황
           </h2>
-          {hasChanges && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={spring}
-              onClick={saveChanges}
-              className="bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover flex items-center gap-2 transition-colors"
-            >
-              <Save className="w-4 h-4" strokeWidth={1.5} /> 변경사항 저장
-            </motion.button>
-          )}
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-left min-w-[700px]">
-            <thead>
-              <tr className="border-b border-zinc-100">
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3">학번</th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3">이름</th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3">날짜</th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 min-w-[200px]">체류율</th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 text-center">상태</th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3">수정</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.map((student) => (
-                <tr key={student.id} className="border-b border-zinc-100 last:border-b-0">
-                  <td className="px-6 py-4 text-sm text-zinc-800">{student.studentId}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-800 font-semibold">{student.name}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-800">{student.date}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            student.attendanceRate >= 80 ? "bg-primary" :
-                            student.attendanceRate >= 60 ? "bg-amber-500" : "bg-rose-500"
-                          }`}
-                          style={{ width: `${student.attendanceRate}%` }}
-                        />
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="py-20 text-center text-zinc-400">데이터를 불러오는 중...</div>
+          ) : (
+            <table className="w-full text-left min-w-[700px]">
+              <thead>
+                <tr className="bg-zinc-50/50 border-b border-zinc-100">
+                  <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase">학번</th>
+                  <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase">이름</th>
+                  <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase">누적 출석률</th>
+                  <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase text-center">현재 상태</th>
+                  <th className="px-6 py-3 text-xs font-medium text-zinc-500 uppercase">수동 변경</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {filteredStudents.map((student) => (
+                  <tr key={student.studentId} className="hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-6 py-4 text-sm text-zinc-600">{student.studentId}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-zinc-900">{student.name}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full"
+                            style={{ width: `${student.rate}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-zinc-500">{student.rate}%</span>
                       </div>
-                      <span className="text-sm font-semibold text-zinc-700 min-w-[40px]">{student.attendanceRate}%</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={getStatusBadge(student.status)}>
-                      {student.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <select
-                      value={student.status}
-                      onChange={(e) => updateAttendance(student.id, e.target.value)}
-                      className="rounded-xl border border-zinc-200 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary cursor-pointer"
-                    >
-                      <option value="출석">출석</option>
-                      <option value="지각">지각</option>
-                      <option value="결석">결석</option>
-                      <option value="공결">공결</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-              {filteredStudents.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center text-sm text-zinc-400">
-                    검색 결과가 없습니다
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Card View */}
-        <div className="sm:hidden p-4 space-y-3">
-          {filteredStudents.map((student) => (
-            <div key={student.id} className="rounded-xl border border-zinc-200 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-900">{student.name}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">{student.studentId} · {student.date}</p>
-                </div>
-                <span className={getStatusBadge(student.status)}>{student.status}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${
-                      student.attendanceRate >= 80 ? "bg-primary" :
-                      student.attendanceRate >= 60 ? "bg-amber-500" : "bg-rose-500"
-                    }`}
-                    style={{ width: `${student.attendanceRate}%` }}
-                  />
-                </div>
-                <span className="text-xs font-semibold text-zinc-700">{student.attendanceRate}%</span>
-              </div>
-              <select
-                value={student.status}
-                onChange={(e) => updateAttendance(student.id, e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary cursor-pointer"
-              >
-                <option value="출석">출석</option>
-                <option value="지각">지각</option>
-                <option value="결석">결석</option>
-                <option value="공결">공결</option>
-              </select>
-            </div>
-          ))}
-          {filteredStudents.length === 0 && (
-            <p className="py-12 text-center text-sm text-zinc-400">검색 결과가 없습니다</p>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={getStatusBadge(student.status)}>
+                        {STATUS_MAP[student.status as AttendanceStatus]?.label || "미정"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={student.status}
+                        onChange={(e) => handleStatusChange(student.studentId, e.target.value as AttendanceStatus)}
+                        className="rounded-lg border border-zinc-200 bg-white p-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+                      >
+                        <option value="ATTENDANCE">출석</option>
+                        <option value="LATE">지각</option>
+                        <option value="ABSENT">결석</option>
+                        <option value="EXCUSED">공결</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {!loading && filteredStudents.length === 0 && (
+            <div className="py-20 text-center text-zinc-400 text-sm">표시할 학생 데이터가 없습니다.</div>
           )}
         </div>
       </div>

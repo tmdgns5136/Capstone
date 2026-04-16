@@ -80,7 +80,7 @@ export function ProfessorCourseDetail({ course, onBack }: ProfessorCourseDetailP
           )}
         </div>
 
-        {activeTab === "attendance" && <ProfessorCourseAttendance />}
+        {activeTab === "attendance" && <ProfessorCourseAttendance lectureId={course.lectureId} />}
         {activeTab === "notices" && <ProfessorCourseNotices />}
         {activeTab === "qa" && <ProfessorCourseQA />}
       </div>

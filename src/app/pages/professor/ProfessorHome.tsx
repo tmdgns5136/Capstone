@@ -1,60 +1,80 @@
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Play, Square, Wifi, Clock, MapPin, Users, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
+import { Play, Square, Wifi, Clock, MapPin, Users, CheckCircle, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { useClassSimulator } from "../../hooks/useClassSimulator";
-import { getTodayLectures, getDashboardStats, startLecture, endLecture, TodayLecture, DashboardStats  } from "../../api/lecture";
-
+import {
+  getTodayLectures,
+  getDashboardStats,
+  startLecture,
+  endLecture,
+  TodayLecture,
+  DashboardStats
+} from "../../api/lecture";
+import { getAbsenceRequests, AbsenceRequest } from "../../api/absence";
+import { toast } from "sonner";
 
 export default function ProfessorHome() {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
-  
+
   const [todayLectures, setTodayLectures] = useState<TodayLecture[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<AbsenceRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const {isActive, attendanceData, elapsedTime, selectedCourse: simCourse, startSimulation, stopSimulation } = useClassSimulator();
+  const { isActive, attendanceData, elapsedTime, selectedCourse: simCourse, startSimulation, stopSimulation } = useClassSimulator();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // 임시 공결 대기 데이터
+  // 1. 대시보드 통합 데이터 호출 (API 5, 6, 10번 연동)
+  const fetchDashboardData = useCallback(async () => {
+  setLoading(true);
+  try {
+    const results = await Promise.allSettled([
+      getTodayLectures(),
+      getDashboardStats(),
+      getAbsenceRequests(1, 5)
+    ]);
 
-  const tempPendingRequests = [
-    { name: "임정택", course: "데이터베이스", date: "2026-03-24", reason: "예비군 훈련" },
-    { name: "강신우", course: "알고리즘", date: "2026-03-25", reason: "병원 진료" },
-  ];
+    // 1. 오늘의 강의 처리
+    if (results[0].status === 'fulfilled' && results[0].value.success) {
+      setTodayLectures(results[0].value.data);
+    }
+
+    // 2. 대시보드 통계 처리
+    if (results[1].status === 'fulfilled' && results[1].value.success) {
+      setStats(results[1].value.data);
+    }
+
+    // 3. 공결 신청 처리
+    if (results[2].status === 'fulfilled' && results[2].value.success) {
+      setPendingRequests(results[2].value.data.data.filter(r => r.status === "WAIT"));
+    }
+  } catch (error) {
+    console.error("데이터 로드 중 예상치 못한 오류:", error);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        const [lecturesResponse, statsResponse] = await Promise.all([getTodayLectures(), getDashboardStats()]);
-
-        if (lecturesResponse.success) {
-          setTodayLectures(lecturesResponse.data);
-        } 
-        if (statsResponse.success) {
-          setStats(statsResponse.data);
-        } 
-      }catch (error) {
-        console.error("대시보드 데이터 로드 실패:", error);
-      }finally {
-        setLoading(false);
-      }
-    }
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
+  // 2. 강의 제어 핸들러 (API 7, 7-1번 연동)
   const handleStartLecture = async (lectureId: string) => {
     try {
       const response = await startLecture(lectureId);
       if (response.success) {
         startSimulation();
+        toast.success("강의실이 활성화되었습니다. 출결 측정을 시작합니다.");
+        fetchDashboardData();
       }
     } catch (error) {
-      console.error("강의 시작 실패:", error);
+      toast.error("강의 시작에 실패했습니다.");
     }
   };
 
@@ -63,24 +83,18 @@ export default function ProfessorHome() {
       const response = await endLecture(lectureId);
       if (response.success) {
         stopSimulation();
+        toast.success("강의가 종료되었습니다. 출결 데이터가 서버에 반영됩니다.");
+        fetchDashboardData();
       }
     } catch (error) {
-      console.error("강의 종료 실패:", error);
+      toast.error("강의 종료 처리에 실패했습니다.");
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-  };
+  // 시간표 기반 활성 강의 찾기
+  const activeCourse = todayLectures.find(l => l.status === "IN_PROGRESS") || todayLectures[0];
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
-  };
-
-  // 시간표 자동 감지된 강의 또는 선택된 강의
-  const activeCourse = todayLectures.find(lecture => lecture.status === "IN_PROGRESS") || todayLectures[0];
-
-  if (loading) return <div className="p-10 text-center text-zinc-500">데이터를 불러오는 중...</div>;
+  if (loading) return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>;
 
   return (
     <div className="space-y-6">
@@ -88,156 +102,108 @@ export default function ProfessorHome() {
       <div className="flex justify-end gap-6 sm:gap-8">
         <div className="text-right">
           <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">LOCAL TIME</p>
-          <p className="text-xl sm:text-2xl font-bold text-zinc-900">{formatTime(currentTime)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-zinc-900">
+            {currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}
+          </p>
         </div>
         <div className="text-right">
           <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">TODAY</p>
-          <p className="text-xl sm:text-2xl font-bold text-zinc-900">{formatDate(currentTime)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-zinc-900">
+            {currentTime.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+          </p>
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid: API 6번 실제 데이터 적용 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-zinc-400">총 수강생</span>
-            <Users className="w-4 h-4 text-rose-400" />
-          </div>
-          <span className="text-3xl font-bold text-zinc-900">{stats?.totalStudents}<span className="text-base font-medium text-zinc-400 ml-1">명</span></span>
-        </div>
-        <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-zinc-400">평균 출석률</span>
-            <CheckCircle className="w-4 h-4 text-primary" />
-          </div>
-          <span className="text-3xl font-bold text-zinc-900">{stats?.avgAttendance}%</span>
-          <div className="w-full bg-zinc-100 rounded-full h-1.5 mt-2">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${stats?.avgAttendance}%` }} />
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-zinc-200 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-zinc-400">공결 대기</span>
-            <AlertCircle className="w-4 h-4 text-amber-400" />
-          </div>
-          <span className="text-3xl font-bold text-zinc-900">{stats?.pendingAbsences}<span className="text-base font-medium text-zinc-400 ml-1">건</span></span>
-        </div>
-        <div className="bg-zinc-900 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-zinc-400">오늘 강의</span>
-            <Clock className="w-4 h-4 text-primary" />
-          </div>
-          <span className="text-3xl font-bold text-white">{stats?.todayClasses}<span className="text-base font-medium text-zinc-400 ml-1">개</span></span>
-        </div>
+        <StatCard label="총 수강생" value={stats?.totalStudents} unit="명" icon={<Users className="text-rose-400" />} />
+        <StatCard label="평균 출석률" value={stats?.avgAttendance} unit="%" icon={<CheckCircle className="text-primary" />} isProgress />
+        <StatCard label="공결 대기" value={stats?.pendingAbsences} unit="건" icon={<AlertCircle className="text-amber-400" />} />
+        <StatCard label="오늘 강의" value={stats?.todayClasses} unit="개" icon={<Clock className="text-primary" />} dark />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Current Class Control */}
-        <div className={`rounded-2xl p-5 sm:p-8 ${isActive ? "bg-zinc-900" : "bg-zinc-50"}`}>
-          <div className="flex items-start justify-between mb-6">
-            <div>
+        <div className={`rounded-2xl p-5 sm:p-8 transition-all ${isActive ? "bg-zinc-900 border-zinc-800" : "bg-zinc-50 border border-zinc-200"}`}>
+          <div className="flex items-start justify-between mb-8">
+            <div className={isActive ? "text-white" : "text-zinc-900"}>
               {isActive && (
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute h-full w-full rounded-full bg-primary opacity-75" />
+                    <span className="relative rounded-full h-2 w-2 bg-primary" />
                   </span>
-                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">LIVE</span>
+                  <span className="text-[10px] font-bold text-primary tracking-widest uppercase">LIVE TRACKING</span>
                 </div>
               )}
-              <h1 className={`text-2xl sm:text-3xl font-bold ${isActive ? "text-white" : "text-zinc-900"}`}>
-                {isActive ? simCourse?.name : activeCourse?.name || "수업 없음"}
+              <h1 className="text-2xl sm:text-3xl font-bold">
+                {isActive ? simCourse?.name : activeCourse?.name || "예정된 수업 없음"}
               </h1>
-              {activeCourse ? (
-                <p className={`text-sm mt-2 flex items-center gap-2 ${isActive ? "text-zinc-400" : "text-zinc-400"}`}>
+              {activeCourse && (
+                <p className="text-sm mt-2 flex items-center gap-2 text-zinc-400">
                   <MapPin className="w-3.5 h-3.5" />
                   {activeCourse.location} | {activeCourse.time}
                 </p>
-              ) : (
-                <p className="text-sm mt-2 text-zinc-400">현재 시간표에 해당하는 강의가 없습니다</p>
               )}
             </div>
             <Wifi className={`w-8 h-8 ${isActive ? "text-primary" : "text-zinc-300"}`} />
           </div>
 
           {isActive ? (
-            <>
-              {/* 실시간 출석 현황 */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <div className="bg-zinc-800 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-primary">{attendanceData.present}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">출석</p>
-                </div>
-                <div className="bg-zinc-800 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-rose-400">{attendanceData.away}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">자리비움</p>
-                </div>
-                <div className="bg-zinc-800 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-zinc-500">{attendanceData.absent}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">미출석</p>
-                </div>
-              </div>
-              {/* 경과 시간 */}
-              <div className="flex items-center justify-between mb-6 px-1">
-                <span className="text-xs text-zinc-500">경과 시간</span>
-                <span className="text-lg font-bold text-white font-mono">
-                  {String(Math.floor(elapsedTime / 3600)).padStart(2, "0")}:{String(Math.floor((elapsedTime % 3600) / 60)).padStart(2, "0")}:{String(elapsedTime % 60).padStart(2, "0")}
-                </span>
+            <div className="space-y-6">
+              <div className="grid grid-cols-3 gap-3">
+                <AttendanceStat label="출석" value={attendanceData.present} color="text-primary" />
+                <AttendanceStat label="이탈" value={attendanceData.away} color="text-rose-400" />
+                <AttendanceStat label="미출석" value={attendanceData.absent} color="text-zinc-500" />
               </div>
               <button
-                onClick={stopSimulation}
-                className="w-full flex items-center justify-center gap-2 bg-rose-600 text-white font-semibold py-4 rounded-xl hover:bg-rose-700 transition-colors text-sm"
+                onClick={() => handleEndLecture(activeCourse?.lectureId || "")}
+                className="w-full flex items-center justify-center gap-2 bg-rose-600 text-white font-bold py-4 rounded-xl hover:bg-rose-700 transition-colors"
               >
-                <Square className="w-5 h-5 fill-current" /> 강의 종료
+                <Square className="w-4 h-4 fill-current" /> 수업 종료 및 저장
               </button>
-            </>
+            </div>
           ) : (
-            <>
-              {/* Progress placeholder */}
-              <div className="mb-6">
-                <div className="flex justify-between text-xs text-zinc-400 mb-2">
-                  <span>수업 진행률</span>
-                </div>
-                <div className="w-full bg-zinc-200 rounded-full h-2">
-                  <div className="h-full rounded-full bg-primary" style={{ width: "0%" }} />
-                </div>
+            <div className="space-y-6">
+              <div className="h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+                <div className="h-full bg-primary/20 w-0" />
               </div>
               <button
-                onClick={startSimulation}
-                className="w-full flex items-center justify-center gap-2 bg-primary text-white font-semibold py-4 rounded-xl hover:bg-primary-hover transition-colors text-sm"
+                onClick={() => handleStartLecture(activeCourse?.lectureId || "")}
+                disabled={!activeCourse}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-white font-bold py-4 rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50"
               >
-                <Play className="w-5 h-5" /> 강의 시작
+                <Play className="w-4 h-4 fill-current" /> 수업 시작하기
               </button>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Today's Schedule */}
-        <div>
-          <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2 mb-4">
-            <Clock className="w-5 h-5 text-zinc-400" /> 오늘의 강의 일정
-          </h2>
-          <div className="border-t-2 border-primary mb-4" />
-          <div className="space-y-4">
-            {todayLectures.map((course) => (
-              <div key={course.lectureId} className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
+        {/* Today's Schedule List */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-zinc-400" /> 오늘 일정
+            </h2>
+            <button onClick={() => navigate("/professor/courses")} className="text-xs text-zinc-400 hover:text-primary transition-colors">전체 보기</button>
+          </div>
+          <div className="space-y-3">
+            {todayLectures.map((lecture) => (
+              <div key={lecture.lectureId} className="bg-white border border-zinc-200 p-4 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all">
                 <div>
-                  <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-medium mb-2 ${course.status === "진행 중"
-                      ? "bg-primary/20 text-primary-dark"
-                      : "bg-zinc-100 text-zinc-500"
-                    }`}>
-                    {course.status}
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                    lecture.status === "IN_PROGRESS" ? "bg-primary text-white" : "bg-zinc-100 text-zinc-400"
+                  }`}>
+                    {lecture.status === "IN_PROGRESS" ? "진행 중" : "대기"}
                   </span>
-                  <h3 className="text-base font-bold text-zinc-900">{course.name}</h3>
-                  <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> {course.location} | {course.time}
-                  </p>
+                  <h3 className="font-bold text-zinc-900 mt-1">{lecture.name}</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">{lecture.time} · {lecture.location}</p>
                 </div>
                 <button
-                  onClick={() => navigate("/professor/courses", { state: { courseId: course.lectureId } })}
-                  className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-primary-hover transition-colors shrink-0"
+                  onClick={() => navigate("/professor/courses", { state: { lectureId: lecture.lectureId } })}
+                  className="p-2.5 rounded-full bg-zinc-50 text-zinc-400 group-hover:bg-primary group-hover:text-white transition-all"
                 >
-                  강의실 입장 <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             ))}
@@ -245,28 +211,70 @@ export default function ProfessorHome() {
         </div>
       </div>
 
-      {/* Pending Absence Requests */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-100 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-amber-500" />
-          <h2 className="text-base font-semibold text-zinc-900">공결 대기</h2>
+      {/* 실시간 공결 대기 리스트 (API 10번 실제 데이터 연동) */}
+      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-500" /> 공결 신청 대기
+          </h2>
+          <button onClick={() => navigate("/professor/absence-management")} className="text-xs text-zinc-400 hover:text-primary transition-colors">전체 관리</button>
         </div>
         <div className="p-4 space-y-3">
-          {tempPendingRequests.map((request, index) => (
-            <div key={index} className="flex items-start justify-between p-4 bg-amber-50 rounded-lg border border-amber-100 hover:bg-amber-100/50 transition-colors cursor-pointer">
-              <div>
-                <p className="font-semibold text-zinc-900">{request.name}</p>
-                <div className="flex items-center gap-2 mt-1 text-xs text-zinc-500">
-                  <span className="bg-white px-2 py-0.5 rounded border border-zinc-200">{request.course}</span>
-                  <span>{request.date}</span>
+          {pendingRequests.length > 0 ? (
+            pendingRequests.map((request) => (
+              <div
+                key={request.absenceId}
+                onClick={() => navigate("/professor/absence-management")}
+                className="flex items-start justify-between p-4 bg-amber-50/50 rounded-2xl border border-amber-100 hover:bg-amber-100/50 transition-all cursor-pointer"
+              >
+                <div className="space-y-1">
+                  <p className="font-bold text-zinc-900">{request.studentName} <span className="text-xs font-normal text-zinc-400">({request.studentId})</span></p>
+                  <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                    <span className="bg-white px-2 py-0.5 rounded border border-zinc-200 font-medium">{request.course}</span>
+                    <span>결석일: {request.date}</span>
+                  </div>
+                  <p className="text-xs text-zinc-600 line-clamp-1">사유: {request.reason}</p>
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">사유: {request.reason}</p>
+                <ArrowRight className="w-4 h-4 text-amber-400 mt-1" />
               </div>
-              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-1" />
+            ))
+          ) : (
+            <div className="py-12 text-center text-xs text-zinc-400 font-medium italic">
+              현재 대기 중인 공결 신청이 없습니다.
             </div>
-          ))}
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// --- 보조 컴포넌트 ---
+function StatCard({ label, value, unit, icon, isProgress, dark }: any) {
+  return (
+    <div className={`${dark ? "bg-zinc-900 text-white" : "bg-white border-zinc-200"} rounded-2xl border p-5 shadow-sm`}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">{label}</span>
+        {icon}
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-2xl font-bold">{value || 0}</span>
+        <span className="text-xs font-medium text-zinc-400">{unit}</span>
+      </div>
+      {isProgress && (
+        <div className="w-full bg-zinc-100 rounded-full h-1 mt-3">
+          <div className="bg-primary h-full rounded-full transition-all duration-700" style={{ width: `${value}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AttendanceStat({ label, value, color }: any) {
+  return (
+    <div className="bg-zinc-800/50 rounded-xl p-3 text-center border border-zinc-800">
+      <p className={`text-xl font-bold ${color}`}>{value}</p>
+      <p className="text-[10px] text-zinc-500 font-medium mt-0.5">{label}</p>
     </div>
   );
 }

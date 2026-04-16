@@ -1,157 +1,149 @@
-import { useState, useEffect } from "react";
-import { Users, Download, BarChart3, FileSpreadsheet, ChevronDown, Search } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Users, BarChart3, ChevronDown, Search, Loader2, FileSpreadsheet, Download } from "lucide-react";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import { getAttendanceMonitoring, AttendanceMonitoringData } from "../../api/attendance";
 
-interface StudentRecord {
-  studentId: string;
-  name: string;
-  present: number;
-  late: number;
-  absent: number;
-  total: number;
-  rate: number;
-}
-
-const MOCK_STUDENTS: StudentRecord[] = [
-  { studentId: "202110898", name: "강신우", present: 24, late: 2, absent: 4, total: 30, rate: 83.3 },
-  { studentId: "202110326", name: "이승훈", present: 28, late: 1, absent: 1, total: 30, rate: 96.7 },
-  { studentId: "202110595", name: "임정택", present: 20, late: 3, absent: 7, total: 30, rate: 76.7 },
-  { studentId: "202310262", name: "이요한", present: 30, late: 0, absent: 0, total: 30, rate: 100 },
-  { studentId: "202310265", name: "김동아", present: 27, late: 2, absent: 1, total: 30, rate: 93.3 },
-  { studentId: "202410262", name: "박준혁", present: 25, late: 1, absent: 4, total: 30, rate: 86.7 },
-  { studentId: "202410595", name: "최시원", present: 29, late: 0, absent: 1, total: 30, rate: 96.7 },
-  { studentId: "202410600", name: "한지민", present: 22, late: 4, absent: 4, total: 30, rate: 80.0 },
-  { studentId: "202410658", name: "오승현", present: 18, late: 2, absent: 10, total: 30, rate: 63.3 },
-  { studentId: "202410875", name: "윤채원", present: 26, late: 3, absent: 1, total: 30, rate: 96.7 },
-  { studentId: "202410955", name: "정민준", present: 15, late: 1, absent: 14, total: 30, rate: 53.3 },
-];
-
-const PREV_SEMESTER_COURSES = [
-  { id: 101, name: "자료구조", students: 48, schedule: "월 10:00-11:30", room: "공학관 201" },
-  { id: 102, name: "소프트웨어공학", students: 35, schedule: "수 13:00-14:30", room: "IT관 301" },
-  { id: 103, name: "웹프로그래밍", students: 52, schedule: "금 09:00-10:30", room: "공학관 405" },
-];
-
-const SEMESTERS = ["2026학년도 1학기", "2025학년도 2학기"] as const;
+const SEMESTERS = ["2026-1", "2025-2"] as const;
 
 export default function ProfessorMonitoring() {
-  const { courses: currentCourses, loading } = useProfessorCourses();
+  const { courses, loading: coursesLoading } = useProfessorCourses();
+
+  // 상태 관리
   const [semester, setSemester] = useState<string>(SEMESTERS[0]);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
-  const [includeStats, setIncludeStats] = useState(true);
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [monitoringData, setMonitoringData] = useState<AttendanceMonitoringData | null>(null);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [includeStats, setIncludeStats] = useState(true);
 
-  const courses = semester === SEMESTERS[0] ? currentCourses : PREV_SEMESTER_COURSES;
+  // 현재 선택된 강의 객체 찾기
+  const selectedCourse = courses.find(c => c.lectureId === selectedCourseId);
 
-  useEffect(() => {
-    if (courses.length > 0) {
-      setSelectedCourseId(courses[0].id);
-      setSearchQuery("");
+  // 1. 데이터 호출 함수
+  const fetchMonitoringData = useCallback(async () => {
+    if (!selectedCourseId) return;
+    setDataLoading(true);
+    try {
+      const response = await getAttendanceMonitoring(selectedCourseId, { semester });
+      if (response.success) {
+        setMonitoringData(response.data);
+      }
+    } catch (error) {
+      toast.error("출결 통계를 불러오는 데 실패했습니다.");
+    } finally {
+      setDataLoading(false);
     }
-  }, [semester, courses.length]);
+  }, [selectedCourseId, semester]);
 
-  if (loading) return (
-    <div className="max-w-7xl mx-auto pb-10 space-y-6">
-      <div className="h-8 w-48 bg-zinc-100 rounded-xl animate-pulse" />
-      <div className="bg-white rounded-xl border border-zinc-200 h-96 animate-pulse" />
-    </div>
-  );
+  // 강의 목록 로드 시 첫 번째 강의 자동 선택
+  useEffect(() => {
+    if (courses.length > 0 && !selectedCourseId) {
+      setSelectedCourseId(courses[0].lectureId);
+    }
+  }, [courses, selectedCourseId]);
 
-  const selectedCourse = courses.find((c) => c.id === selectedCourseId);
-  const allStudents = MOCK_STUDENTS;
-  const totalCount = allStudents.length;
-  const avgRate = Math.round(allStudents.reduce((acc, s) => acc + s.rate, 0) / totalCount);
-  const totalSessions = allStudents[0]?.total ?? 0;
-  const filteredStudents = searchQuery.trim()
-    ? allStudents.filter((s) => s.name.includes(searchQuery.trim()) || s.studentId.includes(searchQuery.trim()))
-    : allStudents;
+  // 강의나 학기가 바뀔 때마다 데이터 다시 불러오기
+  useEffect(() => {
+    fetchMonitoringData();
+  }, [fetchMonitoringData]);
 
+  // 2. 엑셀 내보내기 함수 (실제 데이터 반영)
   const exportToExcel = () => {
-    if (!selectedCourse) { toast.error("강의를 선택해주세요"); return; }
+    if (!monitoringData || !selectedCourse) {
+      toast.error("데이터가 준비되지 않았습니다.");
+      return;
+    }
+
     const wb = XLSX.utils.book_new();
-    const wsData = students.map((s) => ({
+
+    // 상세 데이터 시트
+    const wsData = monitoringData.students.map((s) => ({
       학번: s.studentId,
       이름: s.name,
-      출석: s.present,
-      지각: s.late,
-      결석: s.absent,
-      총수업: s.total,
+      출석: `${s.present}회`,
+      지각: `${s.late}회`,
+      결석: `${s.absent}회`,
+      총수업: `${s.total}회`,
       출석률: `${s.rate}%`,
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wsData), "출결데이터");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wsData), "출결상세");
+
+    // 요약 통계 시트 (옵션 체크 시)
     if (includeStats) {
       const statsData = [
-        { 항목: "총 수강생", 값: totalCount },
-        { 항목: "총 수업 횟수", 값: totalSessions },
-        { 항목: "평균 출석률", 값: `${avgRate}%` },
+        { 항목: "강의명", 값: selectedCourse.name },
+        { 항목: "조회 학기", 값: semester },
+        { 항목: "평균 출석률", 값: `${monitoringData.attendance}%` },
+        { 항목: "총 지각 건수", 값: `${monitoringData.late}건` },
+        { 항목: "총 결석 건수", 값: `${monitoringData.absent}건` },
       ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(statsData), "통계");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(statsData), "통계요약");
     }
+
     const today = new Date().toISOString().split("T")[0];
     XLSX.writeFile(wb, `${selectedCourse.name}_학기출결_${today}.xlsx`);
     toast.success("엑셀 파일이 다운로드되었습니다.");
   };
 
+  const filteredStudents = monitoringData?.students.filter((s) =>
+    s.name.includes(searchQuery) || s.studentId.includes(searchQuery)
+  ) || [];
+
+  if (coursesLoading) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>;
+
   return (
     <div className="max-w-7xl mx-auto pb-10 space-y-6">
-
-      {/* Header */}
+      {/* Header & Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">출결 조회</h1>
-          <p className="text-sm text-zinc-400 mt-1">강의를 선택하면 학기 전체 출결 현황을 확인할 수 있습니다.</p>
+          <p className="text-sm text-zinc-400 mt-1">강의별 학기 전체 출결 현황입니다.</p>
         </div>
+
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" strokeWidth={1.5} />
-            <select
-              value={semester}
-              onChange={(e) => setSemester(e.target.value)}
-              className="rounded-xl border border-zinc-200 bg-white p-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary appearance-none cursor-pointer"
-            >
-              {SEMESTERS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div className="relative">
-            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" strokeWidth={1.5} />
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" strokeWidth={1.5} />
-            <select
-              value={selectedCourseId ?? ""}
-              onChange={(e) => setSelectedCourseId(Number(e.target.value))}
-              className="rounded-xl border border-zinc-200 bg-white p-3 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary appearance-none cursor-pointer w-full sm:w-52"
-            >
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>{course.name}</option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={semester}
+            onChange={(e) => setSemester(e.target.value)}
+            className="rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            {SEMESTERS.map((s) => <option key={s} value={s}>{s}학기</option>)}
+          </select>
+
+          <select
+            value={selectedCourseId}
+            onChange={(e) => setSelectedCourseId(e.target.value)}
+            className="rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-w-[180px]"
+          >
+            {courses.map((course) => (
+              <option key={course.lectureId} value={course.lectureId}>{course.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* 요약 통계 */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: "총 수강생", value: `${totalCount}명`, color: "border-zinc-300" },
-          { label: "총 수업 횟수", value: `${totalSessions}회`, color: "border-primary" },
-          { label: "평균 출석률", value: `${avgRate}%`, color: avgRate >= 80 ? "border-primary" : avgRate >= 65 ? "border-amber-400" : "border-rose-400" },
-        ].map((stat) => (
-          <div key={stat.label} className={`bg-white rounded-xl border border-zinc-200 border-t-2 ${stat.color} p-5`}>
-            <p className="text-xs text-zinc-400">{stat.label}</p>
-            <p className="text-3xl font-bold text-zinc-900 mt-1">{stat.value}</p>
-          </div>
-        ))}
+      {/* 요약 카드 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border border-zinc-200 border-t-2 border-primary p-5 shadow-sm">
+          <p className="text-xs text-zinc-400 font-medium uppercase">Attendance Rate</p>
+          <p className="text-3xl font-bold text-zinc-900 mt-1">{monitoringData?.attendance || 0}%</p>
+        </div>
+        <div className="bg-white rounded-xl border border-zinc-200 border-t-2 border-amber-400 p-5 shadow-sm">
+          <p className="text-xs text-zinc-400 font-medium uppercase">Total Late</p>
+          <p className="text-3xl font-bold text-amber-600 mt-1">{monitoringData?.late || 0}건</p>
+        </div>
+        <div className="bg-white rounded-xl border border-zinc-200 border-t-2 border-rose-400 p-5 shadow-sm">
+          <p className="text-xs text-zinc-400 font-medium uppercase">Total Absent</p>
+          <p className="text-3xl font-bold text-rose-600 mt-1">{monitoringData?.absent || 0}건</p>
+        </div>
       </div>
 
-      {/* 학생별 출결 테이블 */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* 테이블 */}
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center">
           <h2 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
-            학생별 학기 출결 현황
+            <BarChart3 className="w-4 h-4 text-zinc-400" /> 학기 출결 현황
           </h2>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -159,62 +151,58 @@ export default function ProfessorMonitoring() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="이름 또는 학번 검색"
-              className="w-full sm:w-56 pl-9 pr-3 py-2 rounded-lg border border-zinc-200 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
         </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px]">
-            <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-zinc-500">학번</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-zinc-500">이름</th>
-                <th className="text-center px-6 py-3 text-xs font-medium text-zinc-500">출석</th>
-                <th className="text-center px-6 py-3 text-xs font-medium text-zinc-500">지각</th>
-                <th className="text-center px-6 py-3 text-xs font-medium text-zinc-500">결석</th>
-                <th className="text-center px-6 py-3 text-xs font-medium text-zinc-500">출석률</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-50">
-              {filteredStudents.map((s) => (
-                <tr key={s.studentId} className="hover:bg-zinc-50/50">
-                  <td className="px-6 py-3.5 text-sm text-zinc-500">{s.studentId}</td>
-                  <td className="px-6 py-3.5 text-sm font-semibold text-zinc-900">{s.name}</td>
-                  <td className="px-6 py-3.5 text-center">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">{s.present}회</span>
-                  </td>
-                  <td className="px-6 py-3.5 text-center">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">{s.late}회</span>
-                  </td>
-                  <td className="px-6 py-3.5 text-center">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-700">{s.absent}회</span>
-                  </td>
-                  <td className="px-6 py-3.5 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${s.rate >= 80 ? "bg-primary" : s.rate >= 65 ? "bg-amber-400" : "bg-rose-500"}`}
-                          style={{ width: `${s.rate}%` }}
-                        />
-                      </div>
-                      <span className={`text-sm font-semibold ${s.rate >= 80 ? "text-zinc-900" : s.rate >= 65 ? "text-amber-600" : "text-rose-600"}`}>
-                        {s.rate}%
-                      </span>
-                    </div>
-                  </td>
+          {dataLoading ? (
+            <div className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-zinc-300" /></div>
+          ) : (
+            <table className="w-full text-left min-w-[600px]">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-100 text-xs font-medium text-zinc-500 uppercase">
+                  <th className="px-6 py-3 font-semibold">학번</th>
+                  <th className="px-6 py-3 font-semibold">이름</th>
+                  <th className="px-6 py-3 text-center font-semibold">출석</th>
+                  <th className="px-6 py-3 text-center font-semibold">지각</th>
+                  <th className="px-6 py-3 text-center font-semibold">결석</th>
+                  <th className="px-6 py-3 text-center font-semibold">출석률</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {filteredStudents.map((s) => (
+                  <tr key={s.studentId} className="hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-6 py-4 text-sm text-zinc-500">{s.studentId}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-zinc-900">{s.name}</td>
+                    <td className="px-4 py-3 text-center text-sm">{s.present}회</td>
+                    <td className="px-4 py-3 text-center text-sm">{s.late}회</td>
+                    <td className="px-4 py-3 text-center text-sm text-rose-500 font-medium">{s.absent}회</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="w-24 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${s.rate >= 80 ? 'bg-primary' : s.rate >= 60 ? 'bg-amber-400' : 'bg-rose-500'}`}
+                            style={{ width: `${s.rate}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-zinc-800">{s.rate}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* 내보내기 */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      {/* 내보내기 UI */}
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-zinc-100">
           <h2 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
-            데이터 내보내기
+            <FileSpreadsheet className="w-4 h-4 text-zinc-400" /> 데이터 내보내기
           </h2>
         </div>
         <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -237,12 +225,11 @@ export default function ProfessorMonitoring() {
             onClick={exportToExcel}
             className="flex items-center gap-2 bg-zinc-900 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-zinc-800 transition-colors shrink-0"
           >
-            <Download className="w-4 h-4" strokeWidth={1.5} />
+            <Download className="w-4 h-4" />
             {selectedCourse?.name || "강의명"}_학기출결.xlsx
           </button>
         </div>
       </div>
-
     </div>
   );
 }
