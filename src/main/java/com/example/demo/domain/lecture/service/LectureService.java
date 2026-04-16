@@ -474,7 +474,7 @@ public class LectureService {
                             .status(currentStatus.toString()).build();
                 }).toList();
 
-        long totalSessions = myAttendances.size();
+        long totalSessions = myAttendances.stream().filter(a->a.getAttendStatus()!=AttendStatus.TBD).count();
         long attendance = myAttendances.stream().filter(a -> a.getAttendStatus() == AttendStatus.ATTEND).count();
         long absence = myAttendances.stream().filter(a -> a.getAttendStatus() == AttendStatus.ABSENCE).count();
         long late = myAttendances.stream().filter(a -> a.getAttendStatus() == AttendStatus.LATENESS).count();
