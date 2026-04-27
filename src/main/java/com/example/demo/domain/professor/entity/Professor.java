@@ -1,8 +1,5 @@
-<<<<<<<< HEAD:src/main/java/com/example/demo/domain/home/entity/user/Professor.java
-package com.example.demo.domain.home.entity.user;
-========
 package com.example.demo.domain.professor.entity;
->>>>>>>> origin/Backend:src/main/java/com/example/demo/domain/professor/entity/Professor.java
+
 
 import com.example.demo.domain.lecture.entity.attendance.Objection;
 import com.example.demo.domain.lecture.entity.attendance.Official;
