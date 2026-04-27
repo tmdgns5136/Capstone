@@ -1,7 +1,7 @@
 package com.example.demo.domain.lecture.entity.attendance;
 
 import com.example.demo.domain.entity.enumerate.Status;
-import com.example.demo.domain.home.entity.user.Professor;
+import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.lecture.entity.lecture.Lecture;
 import com.example.demo.domain.lecture.entity.lecture.LectureSession;
@@ -14,7 +14,6 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Data
@@ -42,6 +41,9 @@ public class Official {
     @Enumerated(EnumType.STRING)
     @Column(name = "OFFICIAL_STATUS", length = 20, nullable = false)
     private Status status = Status.PENDING;
+
+    @Column(name = "FILE_NAME")
+    private String fileName;
 
     @Lob
     @Column(name = "REJECTED_REASON", columnDefinition = "TEXT")

@@ -2,7 +2,7 @@ package com.example.demo.domain.lecture.entity.lecture;
 
 import com.example.demo.domain.entity.board.NoticeBoard;
 import com.example.demo.domain.entity.board.QuestionBoard;
-import com.example.demo.domain.home.entity.user.Professor;
+import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.lecture.entity.attendance.Objection;
 import com.example.demo.domain.lecture.entity.attendance.Official;
 import jakarta.persistence.*;
