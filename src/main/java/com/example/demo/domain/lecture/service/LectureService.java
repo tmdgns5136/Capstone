@@ -408,6 +408,8 @@ public class LectureService {
 
     }
 
+
+
     public ApiResponse<List<SessionData>> getLectureSessions(Authentication authentication, Long lectureId){
         String userNum = authentication.getName();
         Student student = studentRepository.findByStudentNum(userNum);
