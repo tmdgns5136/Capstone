@@ -1,23 +1,23 @@
 package com.example.demo.domain.home.entity.user;
 
-import com.example.demo.domain.lecture.entity.attendance.Attendance;
-import com.example.demo.domain.lecture.entity.attendance.Objection;
-import com.example.demo.domain.lecture.entity.attendance.Official;
-import com.example.demo.domain.entity.board.QuestionBoard;
-import com.example.demo.domain.entity.enumerate.RoleType;
-import com.example.demo.domain.lecture.entity.lecture.Enrollment;
+import com.example.demo.domain.lecture.attendance.entity.Attendance;
+import com.example.demo.domain.lecture.attendance.entity.Objection;
+import com.example.demo.domain.lecture.attendance.entity.Official;
+import com.example.demo.domain.enumerate.RoleType;
+import com.example.demo.domain.lecture.board.entity.NoticeBoard;
+import com.example.demo.domain.lecture.board.entity.QuestionBoard;
+import com.example.demo.domain.lecture.entity.Enrollment;
 import com.example.demo.domain.home.entity.etc.Image;
+import com.example.demo.domain.notification.entity.Notification;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -70,5 +70,13 @@ public class Student {
     @Builder.Default
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
     private List<Official> officials = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
+    private List<QuestionBoard> questionBoards = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
+    private List<Notification> notifications = new ArrayList<>();
 
 }

@@ -1,8 +1,8 @@
 package com.example.demo.domain.home.service;
 
 import com.example.demo.domain.home.dto.user.ImgDto;
-import com.example.demo.domain.entity.enumerate.ImagePosition;
-import com.example.demo.domain.entity.enumerate.Status;
+import com.example.demo.domain.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.home.entity.etc.Image;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.home.repository.ImageRepository;
@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

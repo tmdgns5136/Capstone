@@ -12,6 +12,8 @@ import com.example.demo.domain.professor.repository.ProfessorRepository;
 import com.example.demo.domain.home.repository.StudentRepository;
 import com.example.demo.domain.home.service.EmailService;
 import com.example.demo.domain.home.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/home")
+@Tag(name = "HomeController", description = "This is an Home controller")
 public class HomeController {
     private final StudentRepository studentRepository;
     private final ProfessorRepository professorRepository;
@@ -43,6 +46,7 @@ public class HomeController {
     @Value("${jwt.secret}")
     private String secretKey;
 
+    @Operation(summary = "학생 회원 가입")
     @PostMapping("/signup/student")
     public ResponseEntity<ActionResponse> signupStudent(@Valid @RequestPart JoinRequest joinRequest,
                                                         @RequestPart("leftImage") MultipartFile leftImage,
@@ -53,12 +57,14 @@ public class HomeController {
        return ResponseEntity.ok(actionResponse);
     }
 
+    @Operation(summary = "교수 회원 가입")
     @PostMapping("/signup/professor")
     public ResponseEntity<ActionResponse> signupProfessor(@Valid @RequestBody JoinRequest joinRequest){
         ActionResponse actionResponse = userService.createProfessor(joinRequest);
         return ResponseEntity.ok(actionResponse);
     }
 
+    @Operation(summary = "로그인")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginData>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletResponse response){
         // 만료시간 1시간
@@ -70,6 +76,7 @@ public class HomeController {
         return ResponseEntity.status(apiResponse.getStatus()).body(apiResponse);
     }
 
+    @Operation(summary = "토큰 재발급")
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<LoginData>> refresh(@CookieValue("refreshToken") String refreshToken, HttpServletResponse response){
         Date accessExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 10);
@@ -79,6 +86,7 @@ public class HomeController {
 
     }
 
+    @Operation(summary = "로그아웃")
     @PostMapping("/logout")
     public ResponseEntity<ActionResponse> logout(Authentication authentication){
         String userNum = authentication.getName();
@@ -88,6 +96,7 @@ public class HomeController {
         return ResponseEntity.ok(actionResponse);
     }
 
+    @Operation(summary = "이메일 인증 번호 전송")
     @PostMapping("/email-send")
     public ResponseEntity<ActionResponse> sendEmail(@RequestBody Map<String, String> request){
         String email = request.get("email");
@@ -118,6 +127,7 @@ public class HomeController {
 
     }
 
+    @Operation(summary = "이메일 인증번호 확인")
     @PostMapping("/email-check")
     public ResponseEntity<ActionResponse> verify(@RequestBody Map<String, String> request){
         String email = request.get("email");
@@ -143,6 +153,7 @@ public class HomeController {
     }
 
     // 비밀번호 찾기
+    @Operation(summary = "비밀번호 찾기")
     @PostMapping("/password-email-send")
     public ResponseEntity<ActionResponse> sendPasswordEmail(@RequestBody Map<String, String> request){
         String email = request.get("email");
@@ -171,6 +182,7 @@ public class HomeController {
 
     }
 
+    @Operation(summary = "비밀번호 변경")
     @PatchMapping("/password-change")
     public ResponseEntity<ActionResponse> passwordChange(@Valid @RequestBody EditRequest editRequest){
         userService.findPassword(editRequest);
@@ -182,6 +194,7 @@ public class HomeController {
         return ResponseEntity.ok(actionResponse);
     }
 
+    @Operation(summary = "현재 비밀번호와 일치하는 지 확인")
     @PostMapping("/password-check")
     public ResponseEntity<ActionResponse> passwordChecking(@RequestBody PasswordCheck passwordCheck, Authentication authentication){
         if(userService.passwordCheck(passwordCheck, authentication)){

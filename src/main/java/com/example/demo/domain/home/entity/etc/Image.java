@@ -1,13 +1,11 @@
 package com.example.demo.domain.home.entity.etc;
 
-import com.example.demo.domain.entity.enumerate.ImagePosition;
-import com.example.demo.domain.entity.enumerate.Status;
+import com.example.demo.domain.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.home.entity.user.Student;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -15,7 +13,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -63,5 +62,6 @@ public class Image {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "STUDENT_ID")
+    @JsonIgnore
     private Student student;
 }

@@ -1,12 +1,14 @@
 package com.example.demo.domain.professor.entity;
 
 
-import com.example.demo.domain.lecture.entity.attendance.Objection;
-import com.example.demo.domain.lecture.entity.attendance.Official;
-import com.example.demo.domain.entity.board.NoticeBoard;
-import com.example.demo.domain.entity.board.QuestionBoard;
-import com.example.demo.domain.entity.enumerate.RoleType;
-import com.example.demo.domain.lecture.entity.lecture.Lecture;
+import com.example.demo.domain.lecture.attendance.entity.Objection;
+import com.example.demo.domain.lecture.attendance.entity.Official;
+import com.example.demo.domain.enumerate.RoleType;
+import com.example.demo.domain.lecture.board.entity.Answer;
+import com.example.demo.domain.lecture.board.entity.NoticeBoard;
+import com.example.demo.domain.lecture.board.entity.QuestionBoard;
+import com.example.demo.domain.lecture.entity.Lecture;
+import com.example.demo.domain.notification.entity.Notification;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -57,7 +59,7 @@ public class Professor {
 
     @Builder.Default
     @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<QuestionBoard> answeredQuestions = new ArrayList<>();
+    private List<QuestionBoard> Questions = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -67,5 +69,11 @@ public class Professor {
     @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL)
     private List<Official> officials = new ArrayList<>();
 
+    @OneToOne(mappedBy = "professor", cascade = CascadeType.ALL)
+    private Answer answer;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL)
+    private List<Notification> notifications = new ArrayList<>();
 
 }

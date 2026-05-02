@@ -1,7 +1,7 @@
 package com.example.demo.domain.mypage.service;
 
-import com.example.demo.domain.entity.enumerate.ImagePosition;
-import com.example.demo.domain.entity.enumerate.Status;
+import com.example.demo.domain.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.home.dto.user.EditRequest;
 import com.example.demo.domain.home.dto.user.ImgDto;
 import com.example.demo.domain.home.entity.etc.Image;

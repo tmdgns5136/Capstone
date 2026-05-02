@@ -1,6 +1,6 @@
 package com.example.demo.domain.lecture.repository;
 
-import com.example.demo.domain.lecture.entity.lecture.LectureSchedule;
+import com.example.demo.domain.lecture.entity.LectureSchedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.DayOfWeek;

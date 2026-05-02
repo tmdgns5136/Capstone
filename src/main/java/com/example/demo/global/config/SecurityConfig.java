@@ -20,7 +20,7 @@ public class SecurityConfig {
 
     private String secretKey;
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity){
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity)throws Exception{
         return httpSecurity.httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
@@ -28,6 +28,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/api/home/**").permitAll()
                                 .requestMatchers("/api/mypage/image/**").permitAll()
+                                .requestMatchers(
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/v3/api-docs/**",
+                                        "/v3/api-docs",
+                                        "/swagger-resources/**",
+                                        "/webjars/**"
+                                ).permitAll()
                                 .anyRequest().authenticated())
                 .addFilterBefore(new JwtTokenFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class).build();
     }

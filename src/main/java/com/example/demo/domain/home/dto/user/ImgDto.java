@@ -1,6 +1,6 @@
 package com.example.demo.domain.home.dto.user;
 
-import com.example.demo.domain.entity.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.ImagePosition;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

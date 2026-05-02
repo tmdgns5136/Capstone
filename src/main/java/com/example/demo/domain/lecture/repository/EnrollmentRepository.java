@@ -1,7 +1,7 @@
 package com.example.demo.domain.lecture.repository;
 
 import com.example.demo.domain.home.entity.user.Student;
-import com.example.demo.domain.lecture.entity.lecture.Enrollment;
+import com.example.demo.domain.lecture.entity.Enrollment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

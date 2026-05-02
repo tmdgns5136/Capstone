@@ -1,16 +1,20 @@
 package com.example.demo.domain.professor.service;
 
-import com.example.demo.domain.entity.enumerate.SessionStatus;
-import com.example.demo.domain.entity.enumerate.Status;
+import com.example.demo.domain.enumerate.SessionStatus;
+import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.home.repository.StudentRepository;
-import com.example.demo.domain.lecture.dto.dto.*;
-import com.example.demo.domain.lecture.entity.attendance.Objection;
-import com.example.demo.domain.lecture.entity.attendance.Official;
-import com.example.demo.domain.lecture.entity.lecture.Enrollment;
-import com.example.demo.domain.lecture.entity.lecture.Lecture;
-import com.example.demo.domain.lecture.entity.lecture.LectureSchedule;
-import com.example.demo.domain.lecture.entity.lecture.LectureSession;
+import com.example.demo.domain.lecture.attendance.dto.dto.*;
+import com.example.demo.domain.lecture.attendance.entity.Objection;
+import com.example.demo.domain.lecture.attendance.entity.Official;
+import com.example.demo.domain.lecture.attendance.repository.ObjectionRepository;
+import com.example.demo.domain.lecture.attendance.repository.OfficialRepository;
+import com.example.demo.domain.lecture.board.entity.NoticeBoard;
+import com.example.demo.domain.lecture.board.entity.QuestionBoard;
+import com.example.demo.domain.lecture.entity.Enrollment;
+import com.example.demo.domain.lecture.entity.Lecture;
+import com.example.demo.domain.lecture.entity.LectureSchedule;
+import com.example.demo.domain.lecture.entity.LectureSession;
 import com.example.demo.domain.lecture.repository.*;
 import com.example.demo.domain.professor.dto.ProfessorDashboardResponse;
 import com.example.demo.domain.professor.dto.ProfessorLectureResponse;
@@ -23,10 +27,8 @@ import com.example.demo.domain.attendance.dto.AttendanceStudentResponse;
 import com.example.demo.domain.attendance.repository.AttendanceRecordRepository;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
-import com.example.demo.domain.board.repository.NoticeBoardRepository;
-import com.example.demo.domain.board.repository.QuestionBoardRepository;
-import com.example.demo.domain.entity.board.NoticeBoard;
-import com.example.demo.domain.entity.board.QuestionBoard;
+import com.example.demo.domain.lecture.board.repository.NoticeBoardRepository;
+import com.example.demo.domain.lecture.board.repository.QuestionBoardRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -194,126 +196,126 @@ public class ProfessorService {
         return response;
     }
 
-    public Map<String, Object> getQuestions(Long lectureId, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size);
-        Page<QuestionBoard> questionPage = questionBoardRepository.findByLecture_LectureId(lectureId, pageable);
-
-        if (questionPage.isEmpty()) {
-            throw new CustomException(404, "등록된 질문이 없습니다.");
-        }
-
-        List<Map<String, Object>> data = new ArrayList<>();
-
-        for (QuestionBoard question : questionPage.getContent()) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("questionId", question.getQuestionId());
-            item.put("studentNum", question.getStudent() != null ? question.getStudent().getStudentNum() : null);
-            item.put("title", question.getQuestionTitle());
-            item.put("isPrivate", question.getQuestionPrivate());
-            item.put("isAnswered", question.getQuestionAnswer() != null && !question.getQuestionAnswer().trim().isEmpty());
-            item.put("createdDate", question.getQuestionCreated() != null
-                    ? question.getQuestionCreated().toLocalDate().toString()
-                    : null);
-            data.add(item);
-        }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", 200);
-        response.put("success", true);
-        response.put("data", data);
-        response.put("totalElements", questionPage.getTotalElements());
-        response.put("totalPages", questionPage.getTotalPages());
-
-        return response;
-    }
-
-    public Map<String, Object> getQuestionDetail(Long lectureId, Long questionId) {
-        QuestionBoard question = questionBoardRepository.findById(questionId)
-                .orElseThrow(() -> new CustomException(404, "해당 질문을 찾을 수 없습니다."));
-
-        if (question.getLecture() == null || !question.getLecture().getLectureId().equals(lectureId)) {
-            throw new CustomException(404, "해당 질문을 찾을 수 없습니다.");
-        }
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("questionId", question.getQuestionId());
-        data.put("title", question.getQuestionTitle());
-        data.put("content", question.getQuestionContext());
-        data.put("isPrivate", question.getQuestionPrivate());
-        data.put("createdDate", question.getQuestionCreated() != null
-                ? question.getQuestionCreated().toLocalDate().toString()
-                : null);
-        data.put("views", 0);
-
-        if (question.getQuestionAnswer() != null && !question.getQuestionAnswer().trim().isEmpty()) {
-            Map<String, Object> answer = new HashMap<>();
-            answer.put("content", question.getQuestionAnswer());
-            answer.put("professorName",
-                    question.getProfessor() != null ? question.getProfessor().getProfessorName() : null);
-            answer.put("answeredDate", null);
-            data.put("answer", answer);
-        } else {
-            data.put("answer", null);
-        }
-
-        return data;
-    }
-
-    public ActionResponse createAnswer(Long questionId, String content) {
-        if (content == null || content.trim().isEmpty()) {
-            throw new CustomException(400, "답변 내용을 입력해주세요.");
-        }
-
-        QuestionBoard question = questionBoardRepository.findById(questionId)
-                .orElseThrow(() -> new CustomException(404, "답변할 질문 정보를 찾을 수 없습니다."));
-
-        question.setQuestionAnswer(content);
-        questionBoardRepository.save(question);
-
-        Long lectureId = question.getLecture().getLectureId();
-
-        return ActionResponse.success(
-                201,
-                "답변이 등록되었습니다.",
-                "/api/professors/lectures/" + lectureId + "/questions"
-        );
-    }
-
-    public ActionResponse updateAnswer(Long questionId, String content) {
-        if (content == null || content.trim().isEmpty()) {
-            throw new CustomException(400, "답변 내용을 입력해주세요.");
-        }
-
-        QuestionBoard question = questionBoardRepository.findById(questionId)
-                .orElseThrow(() -> new CustomException(404, "수정할 답변 정보를 찾을 수 없습니다."));
-
-        question.setQuestionAnswer(content);
-        questionBoardRepository.save(question);
-
-        Long lectureId = question.getLecture().getLectureId();
-
-        return ActionResponse.success(
-                200,
-                "답변이 수정되었습니다.",
-                "/api/professors/lectures/" + lectureId + "/questions"
-        );
-    }
-
-    public ActionResponse deleteAnswer(Long questionId) {
-        QuestionBoard question = questionBoardRepository.findById(questionId)
-                .orElseThrow(() -> new CustomException(404, "삭제할 답변 정보를 찾을 수 없습니다."));
-
-        question.setQuestionAnswer(null);
-        questionBoardRepository.save(question);
-
-        Long lectureId = question.getLecture().getLectureId();
-
-        return ActionResponse.success(
-                200,
-                "답변이 삭제되었습니다.",
-                "/api/professors/lectures/" + lectureId + "/questions"
-        );
-    }
+//    public Map<String, Object> getQuestions(Long lectureId, int page, int size) {
+//        Pageable pageable = PageRequest.of(page - 1, size);
+//        Page<QuestionBoard> questionPage = questionBoardRepository.findByLecture_LectureId(lectureId, pageable);
+//
+//        if (questionPage.isEmpty()) {
+//            throw new CustomException(404, "등록된 질문이 없습니다.");
+//        }
+//
+//        List<Map<String, Object>> data = new ArrayList<>();
+//
+//        for (QuestionBoard question : questionPage.getContent()) {
+//            Map<String, Object> item = new HashMap<>();
+//            item.put("questionId", question.getQuestionId());
+//            item.put("studentNum", question.getStudent() != null ? question.getStudent().getStudentNum() : null);
+//            item.put("title", question.getQuestionTitle());
+//            item.put("isPrivate", question.getQuestionPrivate());
+//            item.put("isAnswered", question.getAnswers() != null);
+//            item.put("createdDate", question.getQuestionCreated() != null
+//                    ? question.getQuestionCreated().toLocalDate().toString()
+//                    : null);
+//            data.add(item);
+//        }
+//
+//        Map<String, Object> response = new HashMap<>();
+//        response.put("status", 200);
+//        response.put("success", true);
+//        response.put("data", data);
+//        response.put("totalElements", questionPage.getTotalElements());
+//        response.put("totalPages", questionPage.getTotalPages());
+//
+//        return response;
+//    }
+//
+//    public Map<String, Object> getQuestionDetail(Long lectureId, Long questionId) {
+//        QuestionBoard question = questionBoardRepository.findById(questionId)
+//                .orElseThrow(() -> new CustomException(404, "해당 질문을 찾을 수 없습니다."));
+//
+//        if (question.getLecture() == null || !question.getLecture().getLectureId().equals(lectureId)) {
+//            throw new CustomException(404, "해당 질문을 찾을 수 없습니다.");
+//        }
+//
+//        Map<String, Object> data = new HashMap<>();
+//        data.put("questionId", question.getQuestionId());
+//        data.put("title", question.getQuestionTitle());
+//        data.put("content", question.getQuestionContext());
+//        data.put("isPrivate", question.getQuestionPrivate());
+//        data.put("createdDate", question.getQuestionCreated() != null
+//                ? question.getQuestionCreated().toLocalDate().toString()
+//                : null);
+//        data.put("views", 0);
+//
+//        if (question.getQuestionAnswer() != null && !question.getQuestionAnswer().trim().isEmpty()) {
+//            Map<String, Object> answer = new HashMap<>();
+//            answer.put("content", question.getQuestionAnswer());
+//            answer.put("professorName",
+//                    question.getProfessor() != null ? question.getProfessor().getProfessorName() : null);
+//            answer.put("answeredDate", null);
+//            data.put("answer", answer);
+//        } else {
+//            data.put("answer", null);
+//        }
+//
+//        return data;
+//    }
+//
+//    public ActionResponse createAnswer(Long questionId, String content) {
+//        if (content == null || content.trim().isEmpty()) {
+//            throw new CustomException(400, "답변 내용을 입력해주세요.");
+//        }
+//
+//        QuestionBoard question = questionBoardRepository.findById(questionId)
+//                .orElseThrow(() -> new CustomException(404, "답변할 질문 정보를 찾을 수 없습니다."));
+//
+//        question.setQuestionAnswer(content);
+//        questionBoardRepository.save(question);
+//
+//        Long lectureId = question.getLecture().getLectureId();
+//
+//        return ActionResponse.success(
+//                201,
+//                "답변이 등록되었습니다.",
+//                "/api/professors/lectures/" + lectureId + "/questions"
+//        );
+//    }
+//
+//    public ActionResponse updateAnswer(Long questionId, String content) {
+//        if (content == null || content.trim().isEmpty()) {
+//            throw new CustomException(400, "답변 내용을 입력해주세요.");
+//        }
+//
+//        QuestionBoard question = questionBoardRepository.findById(questionId)
+//                .orElseThrow(() -> new CustomException(404, "수정할 답변 정보를 찾을 수 없습니다."));
+//
+//        question.setQuestionAnswer(content);
+//        questionBoardRepository.save(question);
+//
+//        Long lectureId = question.getLecture().getLectureId();
+//
+//        return ActionResponse.success(
+//                200,
+//                "답변이 수정되었습니다.",
+//                "/api/professors/lectures/" + lectureId + "/questions"
+//        );
+//    }
+//
+//    public ActionResponse deleteAnswer(Long questionId) {
+//        QuestionBoard question = questionBoardRepository.findById(questionId)
+//                .orElseThrow(() -> new CustomException(404, "삭제할 답변 정보를 찾을 수 없습니다."));
+//
+//        question.setQuestionAnswer(null);
+//        questionBoardRepository.save(question);
+//
+//        Long lectureId = question.getLecture().getLectureId();
+//
+//        return ActionResponse.success(
+//                200,
+//                "답변이 삭제되었습니다.",
+//                "/api/professors/lectures/" + lectureId + "/questions"
+//        );
+//    }
 
     public ActionResponse startLecture(Long professorId, String lectureCode) {
         Lecture lecture = lectureRepository.findByLectureCodeAndProfessor_ProfessorId(lectureCode, professorId)

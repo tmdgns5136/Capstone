@@ -2,7 +2,7 @@ package com.example.demo.domain.attendance.repository;
 
 import com.example.demo.domain.attendance.entity.AttendanceRecord;
 import com.example.demo.domain.home.entity.user.Student;
-import com.example.demo.domain.lecture.entity.lecture.Lecture;
+import com.example.demo.domain.lecture.entity.Lecture;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;

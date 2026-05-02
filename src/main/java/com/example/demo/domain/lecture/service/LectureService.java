@@ -1,25 +1,44 @@
 package com.example.demo.domain.lecture.service;
 
-import com.example.demo.domain.entity.enumerate.AttendStatus;
-import com.example.demo.domain.entity.enumerate.Status;
+import com.example.demo.domain.enumerate.AttendStatus;
+import com.example.demo.domain.enumerate.Status;
+import com.example.demo.domain.lecture.attendance.dto.AbsenceData;
+import com.example.demo.domain.lecture.attendance.dto.AbsenceDetailData;
+import com.example.demo.domain.lecture.attendance.dto.AbsenceRequest;
+import com.example.demo.domain.lecture.attendance.dto.AbsenceRequestData;
+import com.example.demo.domain.lecture.attendance.dto.dto.ObjectionDto;
+import com.example.demo.domain.lecture.attendance.dto.dto.OfficialDto;
+import com.example.demo.domain.lecture.attendance.repository.AttendanceRepository;
+import com.example.demo.domain.lecture.attendance.repository.ObjectionRepository;
+import com.example.demo.domain.lecture.attendance.repository.OfficialRepository;
+import com.example.demo.domain.lecture.board.dto.*;
+import com.example.demo.domain.lecture.board.entity.Answer;
+import com.example.demo.domain.lecture.board.entity.NoticeBoard;
+import com.example.demo.domain.lecture.board.entity.QuestionBoard;
+import com.example.demo.domain.lecture.board.repository.AnswerRepository;
+import com.example.demo.domain.lecture.board.repository.NoticeBoardRepository;
+import com.example.demo.domain.lecture.board.repository.QuestionBoardRepository;
 import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.home.repository.StudentRepository;
 import com.example.demo.domain.home.service.FileService;
 import com.example.demo.domain.home.util.FileUtil;
 import com.example.demo.domain.lecture.dto.*;
-import com.example.demo.domain.lecture.entity.attendance.Attendance;
-import com.example.demo.domain.lecture.entity.attendance.Objection;
-import com.example.demo.domain.lecture.entity.attendance.Official;
-import com.example.demo.domain.lecture.entity.lecture.Enrollment;
-import com.example.demo.domain.lecture.entity.lecture.Lecture;
-import com.example.demo.domain.lecture.entity.lecture.LectureSession;
+import com.example.demo.domain.lecture.attendance.entity.Attendance;
+import com.example.demo.domain.lecture.attendance.entity.Objection;
+import com.example.demo.domain.lecture.attendance.entity.Official;
+import com.example.demo.domain.lecture.entity.Enrollment;
+import com.example.demo.domain.lecture.entity.Lecture;
+import com.example.demo.domain.lecture.entity.LectureSession;
 import com.example.demo.domain.lecture.repository.*;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,6 +58,9 @@ public class LectureService {
     private final AttendanceRepository attendanceRepository;
     private final FileService fileService;
     private final FileUtil fileUtil;
+    private final NoticeBoardRepository noticeBoardRepository;
+    private final QuestionBoardRepository questionBoardRepository;
+    private final AnswerRepository answerRepository;
 
     public ApiResponse<List<LectureData>> getMyLecture(Authentication authentication, Long year, String semester){
         String userNum = authentication.getName();
@@ -517,5 +539,155 @@ public class LectureService {
                 }).toList();
 
         return ApiResponse.success(200, LectureTimeTables);
+    }
+
+    public ApiResponse<Page<NoticeData>> getNotices(Authentication authentication, Long lectureId, Pageable pageable){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        Page<NoticeBoard> noticePage = noticeBoardRepository.findByLecture_LectureId(lectureId, pageable);
+
+
+        Page<NoticeData> noticeData = noticePage.map(notice -> NoticeData.builder()
+                .noticeId(notice.getNoticeId())
+                .title(notice.getNoticeTitle())
+                .createdDate(notice.getNoticeCreated().toString()).build());
+
+        return ApiResponse.success(200, noticeData, noticeData.getTotalElements(), noticeData.getTotalPages());
+
+
+    }
+
+    @Transactional
+    public ApiResponse<NoticeDetailData> getNoticeDetail(Authentication authentication, Long lectureId, Long noticeId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        NoticeBoard noticeBoard= noticeBoardRepository.findById(noticeId).orElseThrow(() -> new CustomException(404, "존재하지 않는 공지사항입니다."));
+
+        noticeBoard.setNoticeViews(noticeBoard.getNoticeViews()+1);
+        NoticeBoard newNoticeBoard = noticeBoardRepository.save(noticeBoard);
+        NoticeDetailData noticeDetailData = NoticeDetailData.builder()
+                .noticeId(noticeId)
+                .title(newNoticeBoard.getNoticeTitle())
+                .content(newNoticeBoard.getNoticeContext())
+                .createdDate(newNoticeBoard.getNoticeCreated().toString())
+                .views(newNoticeBoard.getNoticeViews()).build();
+
+        return ApiResponse.success(200, noticeDetailData);
+    }
+
+    @Transactional
+    public ApiResponse<QuestionRequestResponse> questionRequest(Authentication authentication, Long lectureId, QuestionRequest questionRequest){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        QuestionBoard questionBoard = QuestionBoard.builder()
+                .student(student)
+                .lecture(lecture)
+                .questionTitle(questionRequest.getTitle())
+                .questionContext(questionRequest.getContent())
+                .questionPrivate(questionRequest.isPrivate()).build();
+
+        QuestionBoard savedQuestion = questionBoardRepository.save(questionBoard);
+
+        QuestionRequestResponse questionRequestResponse = QuestionRequestResponse.builder()
+                .questionId(savedQuestion.getQuestionId())
+                .isPrivate(savedQuestion.getQuestionPrivate()).build();
+
+        return ApiResponse.success(200, questionRequestResponse, "질문이 등록되었습니다.", "api/mylecture/" + lectureId + "/questions/" + savedQuestion.getQuestionId());
+    }
+
+    public ApiResponse<Page<QuestionData>> getQuestion(Authentication authentication, Long lectureId, Pageable pageable){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        Page<QuestionBoard> questionPage = questionBoardRepository.findByLecture_LectureId(lectureId, pageable);
+
+
+        Page<QuestionData> questionData = questionPage.map(question -> QuestionData.builder()
+                .questionId(question.getQuestionId())
+                .studentNum(question.getStudent().getStudentNum())
+                .title(question.getQuestionTitle())
+                .isPrivate(question.getQuestionPrivate())
+                .isAnswered(question.getAnswer() != null)
+                .createdDate(question.getQuestionCreated().toString()).build());
+
+        return ApiResponse.success(200, questionData, questionData.getTotalElements(), questionData.getTotalPages());
+
+
+    }
+
+    public ApiResponse<QuestionDetailData> getDetailQuestion(Authentication authentication, Long lectureId, Long questionId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        QuestionBoard question = questionBoardRepository.findById(questionId).orElseThrow(() -> new CustomException(404, "해당 질문을 찾을 수 없습니다."));
+
+        if(question.getQuestionPrivate()){
+            if (!question.getStudent().getStudentId().equals(student.getStudentId())) {
+                throw new CustomException(403, "비밀글은 본인만 확인할 수 있습니다.");
+            }
+        }
+
+        question.setQuestionViews(question.getQuestionViews()+1);
+        QuestionBoard newQuestion = questionBoardRepository.save(question);
+        Answer answer = answerRepository.findByQuestion(question);
+        QuestionAnswer questionAnswer = null;
+        if (answer != null) {
+            questionAnswer = QuestionAnswer.builder()
+                    .content(answer.getContent())
+                    .professorName(answer.getProfessor().getProfessorName())
+                    .answeredDate(answer.getAnswerCreated().toString())
+                    .build();
+        }
+
+        QuestionDetailData questionDetailData = QuestionDetailData.builder()
+                .questionId(questionId)
+                .title(newQuestion.getQuestionTitle())
+                .content(newQuestion.getQuestionContext())
+                .isPrivate(newQuestion.getQuestionPrivate())
+                .views(newQuestion.getQuestionViews())
+                .createdDate(newQuestion.getQuestionCreated().toString())
+                .answer(questionAnswer).build();
+
+        return ApiResponse.success(200, questionDetailData);
+    }
+
+    public ActionResponse deleteQuestion(Authentication authentication, Long lectureId, Long questionId){
+        String userNum = authentication.getName();
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        if (student == null) throw new CustomException(404, "학생 정보를 찾을 수 없습니다.");
+
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
+        QuestionBoard question = questionBoardRepository.findById(questionId).orElseThrow(() -> new CustomException(404, "해당 질문을 찾을 수 없습니다."));
+
+        if (!question.getStudent().getStudentId().equals(student.getStudentId())) {
+            throw new CustomException(403, "본인의 질문만 삭제할 수 있습니다.");
+        }
+
+        questionBoardRepository.delete(question);
+
+        return ActionResponse.success(200, "질문이 삭제되었습니다.");
     }
 }
