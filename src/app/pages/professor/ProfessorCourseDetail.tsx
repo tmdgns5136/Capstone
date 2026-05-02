@@ -8,6 +8,7 @@ import { ProfessorCourseAttendance } from "./ProfessorCourseAttendance";
 import { ProfessorCourseNotices } from "./ProfessorCourseNotices";
 import { ProfessorCourseQA } from "./ProfessorCourseQA";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
+import { api } from "../../api/client";
 
 type TabKey = "attendance" | "notices" | "qa";
 
@@ -24,7 +25,49 @@ export function ProfessorCourseDetail() {
   
   const [activeTab, setActiveTab] = useState<TabKey>("attendance");
   const [showNoticeModal, setShowNoticeModal] = useState(false);
+
+  // [추가] 공지사항 작성을 위한 상태값
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeContent, setNoticeContent] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // 목록 새로고침용
+
+  // [추가] 실제 백엔드 DB에 저장하는 함수 (백엔드 @RequestParam 방식 대응)
+  const handleSaveNotice = async () => {
+    if (!noticeTitle.trim() || !noticeContent.trim()) {
+      toast.error("제목과 내용을 모두 입력해주세요.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // 백엔드 컨트롤러가 @RequestParam을 쓰므로 URL 파라미터 방식으로 생성
+      const params = new URLSearchParams();
+      params.append("title", noticeTitle);
+      params.append("content", noticeContent);
+
+      const response = await api<any>(
+        `/api/professors/lectures/${lectureId}/notices?${params.toString()}`, 
+        { method: 'POST' } // 두 번째 인자로 POST 메서드를 명시해줍니다.
+      );
+
+      if (response.success) {
+        toast.success("공지사항이 성공적으로 등록되었습니다.");
+        setShowNoticeModal(false);
+        setNoticeTitle(""); // 입력창 초기화
+        setNoticeContent(""); // 입력창 초기화
+        setRefreshTrigger(prev => prev + 1); // [중요] 목록 컴포넌트에게 새로고침 신호 보냄
+      }
+    } catch (error) {
+      console.error("공지 저장 실패:", error);
+      toast.error("서버 저장에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const currentTime = new Date();
+  
 
   // 2. 전체 강의 목록을 가져옵니다.
   const { courses, loading } = useProfessorCourses();
@@ -148,10 +191,8 @@ export function ProfessorCourseDetail() {
               취소
             </button>
             <button 
-              onClick={() => { 
-                setShowNoticeModal(false); 
-                toast.success("공지사항이 등록되었습니다"); 
-              }} 
+              onClick={handleSaveNotice} // [변경] 실제 저장 함수 연결
+              disabled={isSubmitting}
               className="bg-zinc-900 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-zinc-800 flex items-center gap-2"
             >
               등록하기 <ArrowRight className="w-4 h-4" />
@@ -163,6 +204,8 @@ export function ProfessorCourseDetail() {
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-2 block">제목</label>
             <input 
+              value={noticeTitle}
+              onChange={(e) => setNoticeTitle(e.target.value)}
               placeholder="공지사항 제목" 
               className="w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10" 
             />
@@ -170,6 +213,8 @@ export function ProfessorCourseDetail() {
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-2 block">내용</label>
             <textarea 
+              value={noticeContent}
+              onChange={(e) => setNoticeContent(e.target.value)}
               placeholder="내용을 입력하세요"
               className="w-full p-3 text-sm border border-zinc-200 rounded-lg h-32 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900/10" 
             />

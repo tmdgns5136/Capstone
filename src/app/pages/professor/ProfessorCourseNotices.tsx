@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { Eye, MessageSquare, Megaphone } from "lucide-react";
+import { Eye, MessageSquare, Megaphone, Loader2, ArrowRight, Edit3 } from "lucide-react";
 import { Pagination } from "../../components/Pagination";
 import { api } from "../../api/client"; // 기존에 사용하던 api 클라이언트
+import { FormModal } from "../../components/FormModal";
+import { toast } from "sonner";
 
 // 백엔드 데이터 구조에 맞춘 타입 정의
 interface Notice {
@@ -19,6 +21,10 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
 
   // 공지사항 데이터 불러오기
   const fetchNotices = async () => {
@@ -49,6 +55,40 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
   }
 }, [page, lectureId]);
 
+  useEffect(() => {
+  if (selectedNotice) {
+    setEditTitle(selectedNotice.title);    // 기존 제목 세팅
+    setEditContent(selectedNotice.content); // 기존 내용 세팅
+  }
+}, [selectedNotice]); // selectedNotice가 바뀔 때마다 이 코드가 실행됩니다.
+
+  const handleUpdate = async () => {
+    if (!selectedNotice) return;
+    
+    try {
+      setIsUpdating(true);
+      const params = new URLSearchParams();
+      params.append("title", editTitle);
+      params.append("content", editContent);
+
+      // 백엔드에 수정용 API(/api/professors/notices/{id})가 있다고 가정합니다.
+      const response = await api<any>(
+        `/api/professors/notices/${selectedNotice.noticeId}?${params.toString()}`,
+        { method: 'PATCH' } // 또는 'POST', 백엔드 설정에 맞추세요
+      );
+
+      if (response.success) {
+        toast.success("공지사항이 수정되었습니다.");
+        setSelectedNotice(null); // 모달 닫기
+        fetchNotices(); // 목록 새로고침
+      }
+    } catch (error) {
+      toast.error("수정에 실패했습니다.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (isLoading) return <div className="p-10 text-center text-zinc-400">공지사항 로딩 중...</div>;
 
   return (
@@ -60,7 +100,7 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
       <div className="divide-y divide-zinc-50">
         {notices.length > 0 ? (
           notices.map((notice) => (
-            <div key={notice.noticeId} className="px-6 py-5 hover:bg-zinc-50/50 transition-colors cursor-pointer group">
+            <div key={notice.noticeId} onClick={() => setSelectedNotice(notice)} className="px-6 py-5 hover:bg-zinc-50/50 transition-colors cursor-pointer group">
               <div className="flex items-center gap-2 mb-2">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-500 uppercase">공지</span>
                 <span className="text-xs text-zinc-400">{notice.createdDate}</span>
@@ -101,6 +141,46 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
         onPageChange={setPage} 
         className="py-6 border-t border-zinc-100" 
       />
+
+      {/* --- [추가] 2번 보기: 상세 보기 및 수정 모달 --- */}
+      <FormModal
+        open={!!selectedNotice}
+        onClose={() => setSelectedNotice(null)}
+        title="공지사항 상세 및 수정"
+        titleIcon={<Edit3 className="w-5 h-5 text-zinc-400" />}
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <button onClick={() => setSelectedNotice(null)} className="text-sm text-zinc-500 px-4 py-2">닫기</button>
+            <button 
+              onClick={handleUpdate}
+              disabled={isUpdating}
+              className="bg-zinc-900 text-white text-sm font-medium px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-50"
+            >
+              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : "수정사항 저장"} <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 py-4">
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-2 block">제목</label>
+            <input 
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10" 
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-2 block">내용</label>
+            <textarea 
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full p-3 text-sm border border-zinc-200 rounded-lg h-48 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900/10" 
+            />
+          </div>
+        </div>
+      </FormModal>
+      
     </div>
   );
 }
