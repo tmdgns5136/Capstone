@@ -1,14 +1,14 @@
 package com.example.demo.domain.professor.entity;
 
 
-import com.example.demo.domain.lecture.attendance.entity.Objection;
-import com.example.demo.domain.lecture.attendance.entity.Official;
+import com.example.demo.domain.student.lecture.attendance.entity.Objection;
+import com.example.demo.domain.student.lecture.attendance.entity.Official;
 import com.example.demo.domain.enumerate.RoleType;
-import com.example.demo.domain.lecture.board.entity.Answer;
-import com.example.demo.domain.lecture.board.entity.NoticeBoard;
-import com.example.demo.domain.lecture.board.entity.QuestionBoard;
-import com.example.demo.domain.lecture.entity.Lecture;
-import com.example.demo.domain.notification.entity.Notification;
+import com.example.demo.domain.student.lecture.board.entity.Answer;
+import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
+import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
+import com.example.demo.domain.student.lecture.entity.Lecture;
+import com.example.demo.domain.student.notification.entity.Notification;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
