@@ -4,7 +4,7 @@ import { StudentCourseDetail } from "./StudentCourseDetail";
 import { getMyLectures, MyLectureData } from "../../api/studentLecture";
 
 export default function StudentCourses() {
-  const [semester, setSemester] = useState("1");
+  const [semester, setSemester] = useState("1학기");
   const [year, setYear] = useState(2026);
   const [courses, setCourses] = useState<MyLectureData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,7 @@ export default function StudentCourses() {
     );
   }
 
-  const semesterLabel = `${year}학년도 ${semester === "1" ? "1학기" : "2학기"}`;
+  const semesterLabel = `${year}학년도 ${semester}`;
 
   return (
     <div className="space-y-6">
@@ -58,8 +58,8 @@ export default function StudentCourses() {
             }}
             className="appearance-none cursor-pointer rounded-lg border border-zinc-200 bg-white px-4 py-2.5 pr-9 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
-            <option value="2026-1">2026학년도 1학기</option>
-            <option value="2025-2">2025학년도 2학기</option>
+            <option value="2026-1학기">2026학년도 1학기</option>
+            <option value="2025-2학기">2025학년도 2학기</option>
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
         </div>

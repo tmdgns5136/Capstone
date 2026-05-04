@@ -255,3 +255,140 @@ export async function deleteObjectionRequest(
     { method: "DELETE" },
   );
 }
+
+// ── 오늘의 강의 ──
+
+export interface CourseData {
+  lectureId: number;
+  lectureName: string;
+  startTime: string;
+  endTime: string;
+  room: string;
+}
+
+export async function getTodayCourses(year: number, semester: string, today: string) {
+  return api<ApiResponse<CourseData[]>>(
+    `/api/home/today-courses?year=${year}&semester=${semester}&today=${today}`,
+    { method: "GET" },
+  );
+}
+
+// ── 현재 진행 중인 강의 ──
+
+export interface CourseStateData {
+  lectureId: number;
+  lectureName: string;
+  startTime: string;
+  endTime: string;
+  room: string;
+  attendancePercent: string;
+}
+
+export async function getCurrentLecture(year: number, semester: string, today: string) {
+  return api<ApiResponse<CourseStateData[]>>(
+    `/api/home/current-lecture?year=${year}&semester=${semester}&today=${today}`,
+    { method: "GET" },
+  );
+}
+
+// ── 공지사항 ──
+
+export interface NoticeData {
+  noticeId: number;
+  title: string;
+  createdDate: string;
+}
+
+export interface NoticeDetailData {
+  noticeId: number;
+  title: string;
+  content: string;
+  createdDate: string;
+  views: number;
+}
+
+export interface PagedResponse<T> {
+  success: boolean;
+  status: number;
+  data: T[];
+  message?: string;
+  totalElements: number;
+  totalPages: number;
+}
+
+export async function getLectureNotices(lectureId: string, page = 0, size = 10) {
+  return api<PagedResponse<NoticeData>>(
+    `/api/mylecture/${lectureId}/notices?page=${page}&size=${size}`,
+    { method: "GET" },
+  );
+}
+
+export async function getLectureNoticeDetail(lectureId: string, noticeId: number) {
+  return api<ApiResponse<NoticeDetailData>>(
+    `/api/mylecture/${lectureId}/notices/${noticeId}`,
+    { method: "GET" },
+  );
+}
+
+// ── Q&A ──
+
+export interface QuestionData {
+  questionId: number;
+  studentNum: string;
+  title: string;
+  isPrivate: boolean;
+  isAnswered: boolean;
+  createdDate: string;
+}
+
+export interface QuestionAnswer {
+  content: string;
+  professorName: string;
+  answeredDate: string;
+}
+
+export interface QuestionDetailData {
+  questionId: number;
+  title: string;
+  content: string;
+  isPrivate: boolean;
+  createdDate: string;
+  views: number;
+  answer: QuestionAnswer | null;
+}
+
+export interface QuestionRequestResponse {
+  questionId: number;
+  isPrivate: boolean;
+}
+
+export async function createQuestion(
+  lectureId: string,
+  request: { title: string; content: string; isPrivate: boolean },
+) {
+  return api<ApiResponse<QuestionRequestResponse>>(
+    `/api/mylecture/${lectureId}/question`,
+    { method: "POST", body: JSON.stringify(request) },
+  );
+}
+
+export async function getQuestions(lectureId: string, page = 0, size = 10) {
+  return api<PagedResponse<QuestionData>>(
+    `/api/mylecture/${lectureId}/questions?page=${page}&size=${size}`,
+    { method: "GET" },
+  );
+}
+
+export async function getQuestionDetail(lectureId: string, questionId: number) {
+  return api<ApiResponse<QuestionDetailData>>(
+    `/api/mylecture/${lectureId}/questions/${questionId}`,
+    { method: "GET" },
+  );
+}
+
+export async function deleteQuestion(lectureId: string, questionId: number) {
+  return api<ActionResponse>(
+    `/api/mylecture/${lectureId}/questions/${questionId}/delete`,
+    { method: "DELETE" },
+  );
+}
