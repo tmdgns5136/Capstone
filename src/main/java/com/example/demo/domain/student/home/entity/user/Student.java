@@ -1,5 +1,6 @@
 package com.example.demo.domain.student.home.entity.user;
 
+import com.example.demo.domain.enumerate.StudentStatus;
 import com.example.demo.domain.student.lecture.attendance.entity.Attendance;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
@@ -45,6 +46,10 @@ public class Student {
     @Column(name = "ROLE_TYPE", length = 20, nullable = false)
     @Enumerated(EnumType.STRING)
     private RoleType roleType;
+
+    @Column(name = "STUDENT_STATUS", length = 20, nullable = false)
+    @Enumerated(EnumType.STRING)
+    private StudentStatus studentStatus;
 
     @Builder.Default
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

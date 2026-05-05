@@ -1,6 +1,7 @@
 package com.example.demo.domain.student.mypage.service;
 
 import com.example.demo.domain.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.ImageType;
 import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.student.home.dto.user.EditRequest;
 import com.example.demo.domain.student.home.dto.user.ImgDto;
@@ -78,7 +79,7 @@ public class MyPageService {
     }
     private InquiryData.ProfileImage createProfileImage(String userNum, ImagePosition position, String suffix) {
         Student student = studentRepository.findByStudentNum(userNum);
-        String displayUrl = imageRepository.findByStudentAndPosition(student, position)
+        String displayUrl = imageRepository.findByStudentAndPositionAndImageType(student, position, ImageType.CURRENT)
                 .map(img -> "/api/mypage/image/" + Paths.get(img.getFilePath()).getFileName().toString())
                 .orElse(null);
 
@@ -175,9 +176,9 @@ public class MyPageService {
         ImgDto centerImgDto = fileUtil.getFIleDtoFromMultipartFile(centerImage, ImagePosition.CENTER, student.getStudentNum());
         ImgDto rightImgDto = fileUtil.getFIleDtoFromMultipartFile(rightImage, ImagePosition.RIGHT, student.getStudentNum());
 
-        fileService.saveImage(leftImgDto, userNum, requestId);
-        fileService.saveImage(centerImgDto, userNum, requestId);
-        fileService.saveImage(rightImgDto, userNum, requestId);
+        fileService.saveImage(leftImgDto, userNum, requestId, ImageType.REQUESTED);
+        fileService.saveImage(centerImgDto, userNum, requestId, ImageType.REQUESTED);
+        fileService.saveImage(rightImgDto, userNum, requestId, ImageType.REQUESTED);
 
         return ActionResponse.success(200, "변경 요청이 완료되었습니다.");
     }
@@ -188,13 +189,20 @@ public class MyPageService {
         Student student = studentRepository.findByStudentNum(userNum);
 
         List<Image> allImages = imageRepository.findByStudent(student);
-        // requestId를 기준으로 그룹화
+
         Map<String, List<Image>> groupedByRequest = allImages.stream()
                 .filter(img -> img.getRequestId() != null)
                 .collect(Collectors.groupingBy(Image::getRequestId));
 
         List<ListData> dataList = groupedByRequest.entrySet().stream()
-                .map(entry->{
+                // 1. DTO로 변환하기 전에 Map Entry 단계에서 먼저 정렬합니다.
+                .sorted((e1, e2) -> {
+                    // e2(뒤의 것)와 e1(앞의 것)을 비교하여 내림차순(최신순) 정렬
+                    return e2.getValue().getFirst().getImageCreated()
+                            .compareTo(e1.getValue().getFirst().getImageCreated());
+                })
+                // 2. 정렬된 순서 그대로 DTO로 변환(map)합니다.
+                .map(entry -> {
                     List<Image> images = entry.getValue();
                     Image first = images.getFirst();
 
@@ -204,14 +212,14 @@ public class MyPageService {
                             .status(first.getStatus().name())
                             .rejectReason(first.getRejectReason())
                             .profileImages(images.stream()
-                                    .map(img-> ListData.ProfileImages
-                                            .builder().orientation(img.getPosition().name())
-                                            .url("/api/mypage/image/" + Paths.get(img.getFilePath()).getFileName().toString()).build())
-                                    .collect(Collectors.toList())).build();
-
-                }).sorted(Comparator.comparing(ListData::getRequestDate).reversed())
+                                    .map(img -> ListData.ProfileImages.builder()
+                                            .orientation(img.getPosition().name())
+                                            .url("/api/mypage/image/" + Paths.get(img.getFilePath()).getFileName().toString())
+                                            .build())
+                                    .collect(Collectors.toList()))
+                            .build();
+                })
                 .collect(Collectors.toList());
-
 
         return ApiResponse.success(200, dataList);
     }

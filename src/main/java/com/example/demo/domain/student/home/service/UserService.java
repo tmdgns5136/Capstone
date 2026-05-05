@@ -1,5 +1,6 @@
 package com.example.demo.domain.student.home.service;
 
+import com.example.demo.domain.enumerate.*;
 import com.example.demo.domain.student.home.dto.dashboard.CourseData;
 import com.example.demo.domain.student.home.dto.dashboard.CourseStateData;
 import com.example.demo.domain.student.home.dto.login.JoinRequest;
@@ -20,8 +21,6 @@ import com.example.demo.domain.student.home.repository.StudentRepository;
 import com.example.demo.domain.student.lecture.entity.Enrollment;
 import com.example.demo.domain.student.lecture.repository.EnrollmentRepository;
 import com.example.demo.domain.student.mypage.dto.PasswordCheck;
-import com.example.demo.domain.enumerate.ImagePosition;
-import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.professor.repository.ProfessorRepository;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.jwt.Token;
@@ -99,7 +98,8 @@ public class UserService {
                 .studentEmail(joinRequest.getUserEmail())
                 .password(passwordEncoder.encode(joinRequest.getPassword()))
                 .phoneNum(joinRequest.getPhoneNum())
-                .roleType(RoleType.STUDENT).build();
+                .roleType(RoleType.STUDENT)
+                .studentStatus(StudentStatus.ENROLLED).build();
 
         studentRepository.saveAndFlush(student);
 
@@ -110,9 +110,9 @@ public class UserService {
         String requestId = "REQ-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + "-" + UUID.randomUUID().toString().substring(0, 5);
 
-        fileService.saveImage(leftImgDto, student.getStudentNum(), requestId);
-        fileService.saveImage(centerImgDto, student.getStudentNum(), requestId);
-        fileService.saveImage(rightImgDto, student.getStudentNum(), requestId);
+        fileService.saveImage(leftImgDto, student.getStudentNum(), requestId, ImageType.REQUESTED);
+        fileService.saveImage(centerImgDto, student.getStudentNum(), requestId, ImageType.REQUESTED);
+        fileService.saveImage(rightImgDto, student.getStudentNum(), requestId, ImageType.REQUESTED);
 
         Student savedStudent = studentRepository.findByStudentNum(student.getStudentNum());
 
@@ -141,7 +141,8 @@ public class UserService {
                 .professorEmail(joinRequest.getUserEmail())
                 .password(passwordEncoder.encode(joinRequest.getPassword()))
                 .phoneNum(joinRequest.getPhoneNum())
-                .roleType(RoleType.PROFESSOR).build();
+                .roleType(RoleType.PROFESSOR)
+                .professorStatus(ProfessorStatus.EMPLOYED).build();
 
         professorRepository.saveAndFlush(professor);
         return ActionResponse.success(201, "회원가입이 완료되었습니다.", "api/home/login");
@@ -284,8 +285,8 @@ public class UserService {
     @Transactional
     public void findPassword(EditRequest editRequest){
         String userEmail = editRequest.getUserEmail();
-        if(userEmail.length() == 22){
-            Student student = studentRepository.findByStudentEmail(userEmail);
+        Student student = studentRepository.findByStudentEmail(userEmail);
+        if(student != null){
             if(editRequest.getNewPassword() != null){
                 student.setPassword(passwordEncoder.encode(editRequest.getNewPassword()));
             }
@@ -293,6 +294,9 @@ public class UserService {
         }
         else{
             Professor professor = professorRepository.findByProfessorEmail(userEmail);
+            if(professor == null){
+                throw new CustomException(404, "존재하지 않는 이메일입니다.");
+            }
             if(editRequest.getNewPassword() != null){
                 professor.setPassword(passwordEncoder.encode(editRequest.getNewPassword()));
             }

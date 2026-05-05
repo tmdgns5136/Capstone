@@ -71,7 +71,9 @@ public class FileUtil {
             case RIGHT:  positionName = "right"; break;
             default:     positionName = position.name(); break;
         }
-        String fileName = userNum + "_" + positionName + "." + ext;
+        String uuid = UUID.randomUUID().toString().replace("-", "");
+
+        String fileName = userNum + "_" + positionName + "_" + uuid + "." + ext;
 
         Path targetPath = Paths.get(uploadPath).toAbsolutePath().normalize().resolve("photo").resolve(fileName);
         File file = targetPath.toFile();

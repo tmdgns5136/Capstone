@@ -1,6 +1,7 @@
 package com.example.demo.domain.student.home.entity.etc;
 
 import com.example.demo.domain.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.ImageType;
 import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.student.home.entity.user.Student;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -45,6 +46,10 @@ public class Image {
     @Enumerated(EnumType.STRING)
     @Column(name = "IMAGE_POSITION", length = 20, nullable = false)
     private ImagePosition position;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "IMAGE_TYPE", length = 20, nullable = false)
+    private ImageType imageType;
 
     @Column(name = "REQUEST_ID")
     private String requestId;

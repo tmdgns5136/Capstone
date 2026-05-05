@@ -1,5 +1,6 @@
 package com.example.demo.domain.student.home.service;
 
+import com.example.demo.domain.enumerate.ImageType;
 import com.example.demo.domain.student.home.dto.user.ImgDto;
 import com.example.demo.domain.enumerate.ImagePosition;
 import com.example.demo.domain.enumerate.Status;
@@ -82,7 +83,7 @@ public class FileService {
     }
 
     // 이미지 저장
-    public ImgDto saveImage(ImgDto imgDto, String userNum, String requestId){
+    public ImgDto saveImage(ImgDto imgDto, String userNum, String requestId, ImageType imageType){
         Student student = studentRepository.findByStudentNum(userNum);
         Image image = Image.builder()
                 .fileName(imgDto.getFileName())
@@ -91,6 +92,7 @@ public class FileService {
                 .fileSize(imgDto.getFileSize())
                 .status(Status.PENDING)
                 .position(imgDto.getPosition())
+                .imageType(imageType)
                 .requestId(requestId)
                 .imageCreated(imgDto.getCreatedAt())
                 .imageModified(imgDto.getModifiedAt())

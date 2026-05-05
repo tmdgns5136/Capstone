@@ -1,6 +1,8 @@
 package com.example.demo.domain.professor.entity;
 
 
+import com.example.demo.domain.enumerate.ProfessorStatus;
+import com.example.demo.domain.enumerate.StudentStatus;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
 import com.example.demo.domain.enumerate.RoleType;
@@ -48,6 +50,10 @@ public class Professor {
     @Column(name = "ROLE_TYPE", length = 20, nullable = false)
     @Enumerated(EnumType.STRING)
     private RoleType roleType;
+
+    @Column(name = "PROFESSOR_STATUS", length = 20, nullable = false)
+    @Enumerated(EnumType.STRING)
+    private ProfessorStatus professorStatus;
 
     @Builder.Default
     @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

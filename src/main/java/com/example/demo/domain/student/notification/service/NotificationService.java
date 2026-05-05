@@ -76,6 +76,7 @@ public class NotificationService {
                 break;
 
         }
+        Notification newNotification = notificationRepository.save(notification);
         NotificationRead notificationRead = NotificationRead.builder().isRead(true).redirectUrl(url).build();
 
         return ApiResponse.success(200, notificationRead);
