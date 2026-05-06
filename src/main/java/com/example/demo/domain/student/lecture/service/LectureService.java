@@ -48,6 +48,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -115,8 +116,35 @@ public class LectureService {
 
     }
 
+    private void validateFileExtension(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new CustomException(400, "파일이 비어있습니다.");
+        }
+
+        // 허용할 확장자 목록
+        List<String> allowedExtensions = Arrays.asList("jpg", "jpeg", "png", "pdf");
+
+        String fileName = file.getOriginalFilename();
+        if (fileName == null || !fileName.contains(".")) {
+            throw new CustomException(400, "잘못된 파일 형식입니다.");
+        }
+
+        String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+
+        if (!allowedExtensions.contains(extension)) {
+            throw new CustomException(400, "허용되지 않는 파일 확장자입니다. (허용: jpg, jpeg, png, pdf)");
+        }
+
+        // 추가 보안: MIME 타입 체크 (선택 사항이지만 권장)
+        String contentType = file.getContentType();
+        if (contentType == null || (!contentType.startsWith("image/") && !contentType.equals("application/pdf"))) {
+            throw new CustomException(400, "지원하지 않는 파일 형식입니다.");
+        }
+    }
+
     @Transactional
     public OfficialDto createOfficialAbsence(Authentication authentication, AbsenceRequest request, MultipartFile evidenceFile, Long lectureId) throws IOException {
+        validateFileExtension(evidenceFile);
         String userNum = authentication.getName();
         Student student = studentRepository.findByStudentNum(userNum);
 
@@ -280,6 +308,7 @@ public class LectureService {
 
     @Transactional
     public ObjectionDto createObjectionAbsence(Authentication authentication, AbsenceRequest request, MultipartFile evidenceFile, Long lectureId) throws IOException {
+        validateFileExtension(evidenceFile);
         String userNum = authentication.getName();
         Student student = studentRepository.findByStudentNum(userNum);
 

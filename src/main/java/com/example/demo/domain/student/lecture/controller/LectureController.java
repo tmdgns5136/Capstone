@@ -15,16 +15,29 @@ import com.example.demo.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import org.springframework.http.MediaType;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -33,6 +46,8 @@ import java.util.List;
 @Tag(name = "LectureController", description = "This is an Lecture controller")
 public class LectureController {
     private final LectureService lectureService;
+    @Value("${com.example.upload.path.profileImg}")
+    private String uploadPath;
 
     // 내 강의 탭
     @Operation(summary = "내 강의 조회")
@@ -42,6 +57,42 @@ public class LectureController {
                                                                        Authentication authentication){
         ApiResponse<List<LectureData>> apiResponse = lectureService.getMyLecture(authentication, year, semester);
         return ResponseEntity.ok(apiResponse);
+    }
+
+// ... (기존 import문 생략)
+
+    @GetMapping("/image/{type}/{fileName}")
+    public ResponseEntity<Resource> serveImage(@PathVariable("type") String type,
+                                               @PathVariable("fileName") String fileName) {
+        try {
+            // 1. 파일의 실제 물리적 경로 찾기
+            // uploadPath(./uploads) + type(photo/objection/official) + fileName
+            Path filePath = Paths.get(uploadPath).resolve(type).resolve(fileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            // 2. 파일이 존재하는지 또는 읽기 가능한지 확인
+            if (resource.exists() || resource.isReadable()) {
+
+                // 3. 확장자에 따른 MIME 타입 동적 감지 (jpg, png, pdf 등)
+                String contentType = Files.probeContentType(filePath);
+
+                // 타입을 알 수 없는 경우 기본 바이너리 타입으로 설정
+                if (contentType == null) {
+                    contentType = "application/octet-stream";
+                }
+
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .body(resource);
+            } else {
+                // 파일이 없을 경우 404 반환
+                return ResponseEntity.notFound().build();
+            }
+
+        } catch (IOException e) {
+            // 경로 오류나 파일 읽기 실패 시 400 반환
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     // 공결 신청
