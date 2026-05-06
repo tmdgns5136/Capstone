@@ -396,9 +396,8 @@ public class LectureService {
             String oldFullPath = System.getProperty("user.dir") + objection.getEvidencePath();
             fileUtil.deleteFileByFilePath(oldFullPath);
 
-            // 2. 새 파일 저장 (아까 수정한 대로 "official" 인자 추가!)
-            String savedFileName = fileService.saveEvidenceFile(evidenceFile, "official");
-            objection.setEvidencePath("/uploads/official/" + savedFileName);
+            String savedFileName = fileService.saveEvidenceFile(evidenceFile, "objection");
+            objection.setEvidencePath("/uploads/objection/" + savedFileName);
         }
 
         AbsenceData absenceData = AbsenceData.builder().requestId(requestId)
@@ -431,7 +430,7 @@ public class LectureService {
 
         objectionRepository.delete(objection);
         return ActionResponse.success(200, "출결 이의 신청이 취소되었습니다.",
-                "api/mylecture/" + lectureId + "/official-requests");
+                "api/mylecture/" + lectureId + "/objection-requests");
 
     }
 
