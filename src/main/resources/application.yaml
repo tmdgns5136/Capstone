@@ -1,0 +1,53 @@
+# 1. jwt는 spring 바깥(최상단)에 두는 것이 일반적입니다.
+jwt:
+  secret: vmfhaltjskqwqpwoeirutyalskdjfhgzmxncbv1234567890
+
+# 2. 모든 spring 관련 설정은 하나의 spring: 아래에 모아야 합니다.
+spring:
+  application:
+    name: demo
+
+  # 중복된 spring: 제거하고 바로 servlet으로 연결
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/attendance_db?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: root
+    password: 'lim1975harry3142'
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: limjungtaek3142@gmail.com
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+# 3. 사용자 정의 설정 (com은 spring 소속이 아니므로 최상단에 배치)
+com:
+  example:
+    upload:
+      path:
+        profileImg: ${UPLOAD_PATH:./uploads}
