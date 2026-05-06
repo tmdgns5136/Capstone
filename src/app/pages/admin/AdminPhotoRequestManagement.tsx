@@ -2,52 +2,99 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Camera, CheckCircle, XCircle, Clock, X, User, Search, AlertCircle, Image } from "lucide-react";
 import { toast } from "sonner";
-import { usePhotoRequests } from "../../hooks/usePhotoRequests";
+import { usePhotoRequests, PhotoDetailData } from "../../hooks/usePhotoRequests";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 };
 
+const BASE_IMAGE_URL = "/api/admin/image/";
+
+function getPhotoUrl(url: string) {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  const fileName = url.split("/").pop();
+  return `${BASE_IMAGE_URL}${fileName}`;
+}
+
 export default function AdminPhotoRequestManagement() {
-  const { requests, updateStatus } = usePhotoRequests();
+  const {
+    pendingRequests,
+    completedRequests,
+    loading,
+    pendingTotal,
+    completedTotal,
+    fetchPending,
+    fetchCompleted,
+    fetchDetail,
+    approve,
+  } = usePhotoRequests();
+
   const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedDetail, setSelectedDetail] = useState<PhotoDetailData | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredRequests = requests.filter(r =>
+  const filteredPending = pendingRequests.filter(r =>
     r.studentName.includes(searchQuery) ||
-    r.studentId.includes(searchQuery) ||
-    r.department.includes(searchQuery)
+    r.studentNum.includes(searchQuery)
   );
 
-  const pendingRequests = filteredRequests.filter(r => r.status === "대기");
-  const processedRequests = filteredRequests.filter(r => r.status !== "대기");
+  const filteredCompleted = completedRequests.filter(r =>
+    r.studentName.includes(searchQuery) ||
+    r.studentNum.includes(searchQuery)
+  );
 
-  const handleApprove = (id: string) => {
-    updateStatus(id, "승인");
-    toast.success("사진 변경 요청이 승인되었습니다. 얼굴 인식 데이터가 업데이트됩니다.");
-    setSelectedRequest(null);
+  const handleViewDetail = async (requestId: string) => {
+    setDetailLoading(true);
+    const detail = await fetchDetail(requestId);
+    if (detail) {
+      setSelectedDetail(detail);
+    } else {
+      toast.error("상세 정보를 불러올 수 없습니다.");
+    }
+    setDetailLoading(false);
   };
 
-  const handleReject = (id: string) => {
+  const handleApprove = async () => {
+    if (!selectedDetail) return;
+    try {
+      await approve(selectedDetail.requestId, "APPROVED");
+      toast.success("사진 변경 요청이 승인되었습니다.");
+      setSelectedDetail(null);
+      fetchPending();
+      fetchCompleted();
+    } catch (e: any) {
+      toast.error(e.message || "승인 처리에 실패했습니다.");
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedDetail) return;
     if (!rejectReason.trim()) {
       toast.error("거절 사유를 입력해주세요");
       return;
     }
-    updateStatus(id, "거절", rejectReason);
-    toast.success("사진 변경 요청이 거절되었습니다.");
-    setSelectedRequest(null);
-    setRejectReason("");
+    try {
+      await approve(selectedDetail.requestId, "REJECTED", rejectReason);
+      toast.success("사진 변경 요청이 거절되었습니다.");
+      setSelectedDetail(null);
+      setRejectReason("");
+      fetchPending();
+      fetchCompleted();
+    } catch (e: any) {
+      toast.error(e.message || "거절 처리에 실패했습니다.");
+    }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "승인":
+      case "APPROVED":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
             <CheckCircle className="w-3 h-3" strokeWidth={1.5} /> 승인
           </span>
         );
-      case "거절":
+      case "REJECTED":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-700">
             <XCircle className="w-3 h-3" strokeWidth={1.5} /> 거절
@@ -81,11 +128,11 @@ export default function AdminPhotoRequestManagement() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
           <div>
             <p className="text-sm text-zinc-400 font-medium">대기 중인 요청</p>
-            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "대기").length}</h3>
+            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{pendingTotal}</h3>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
             <Clock className="w-5 h-5 text-amber-600" strokeWidth={1.5} />
@@ -93,20 +140,11 @@ export default function AdminPhotoRequestManagement() {
         </div>
         <div className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm text-zinc-400 font-medium">승인됨</p>
-            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "승인").length}</h3>
+            <p className="text-sm text-zinc-400 font-medium">처리 완료</p>
+            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{completedTotal}</h3>
           </div>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <CheckCircle className="w-5 h-5 text-primary-dark" strokeWidth={1.5} />
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-zinc-400 font-medium">거절됨</p>
-            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "거절").length}</h3>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
-            <XCircle className="w-5 h-5 text-rose-600" strokeWidth={1.5} />
           </div>
         </div>
       </div>
@@ -125,7 +163,7 @@ export default function AdminPhotoRequestManagement() {
                   : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
               }`}
             >
-              대기 중 ({pendingRequests.length})
+              대기 중 ({pendingTotal})
             </button>
             <button
               onClick={() => setActiveTab("processed")}
@@ -135,7 +173,7 @@ export default function AdminPhotoRequestManagement() {
                   : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
               }`}
             >
-              처리 완료 ({processedRequests.length})
+              처리 완료 ({completedTotal})
             </button>
           </div>
 
@@ -143,7 +181,7 @@ export default function AdminPhotoRequestManagement() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
             <input
               type="text"
-              placeholder="학생명, 학번, 학과 검색..."
+              placeholder="학생명, 학번으로 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-xl border border-zinc-200 bg-white p-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-zinc-400"
@@ -153,12 +191,14 @@ export default function AdminPhotoRequestManagement() {
 
         {/* Tab Content */}
         <div className="p-6">
-          {activeTab === "pending" ? (
-            pendingRequests.length > 0 ? (
+          {loading ? (
+            <div className="py-16 text-center text-sm text-zinc-400">불러오는 중...</div>
+          ) : activeTab === "pending" ? (
+            filteredPending.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pendingRequests.map((request, index) => (
+                {filteredPending.map((request, index) => (
                   <motion.div
-                    key={request.id}
+                    key={request.requestId}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -166,13 +206,10 @@ export default function AdminPhotoRequestManagement() {
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 text-zinc-600 mb-2">
-                          {request.department}
-                        </span>
                         <h3 className="text-base font-semibold text-zinc-900 flex items-center gap-2">
                           <User className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
                           {request.studentName}
-                          <span className="text-xs text-zinc-400 font-normal">({request.studentId})</span>
+                          <span className="text-xs text-zinc-400 font-normal">({request.studentNum})</span>
                         </h3>
                       </div>
                       {getStatusBadge(request.status)}
@@ -180,11 +217,11 @@ export default function AdminPhotoRequestManagement() {
 
                     {/* Photo Thumbnails */}
                     <div className="grid grid-cols-3 gap-2 mb-4">
-                      {(["front", "left", "right"] as const).map((dir) => (
-                        <div key={dir} className="aspect-[3/4] rounded-lg bg-zinc-100 overflow-hidden border border-zinc-200">
+                      {request.photos.map((photo) => (
+                        <div key={photo.orientation} className="aspect-[3/4] rounded-lg bg-zinc-100 overflow-hidden border border-zinc-200">
                           <img
-                            src={request.photos[dir]}
-                            alt={dir}
+                            src={getPhotoUrl(photo.url)}
+                            alt={photo.orientation}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = "none";
@@ -199,8 +236,9 @@ export default function AdminPhotoRequestManagement() {
                     <div className="text-xs text-zinc-400 mb-4">요청일: {request.requestDate}</div>
 
                     <button
-                      onClick={() => setSelectedRequest(request)}
-                      className="w-full py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
+                      onClick={() => handleViewDetail(request.requestId)}
+                      disabled={detailLoading}
+                      className="w-full py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       <Image className="w-4 h-4" strokeWidth={1.5} /> 상세 검토하기
                     </button>
@@ -218,10 +256,10 @@ export default function AdminPhotoRequestManagement() {
             )
           ) : (
             <div className="space-y-3">
-              {processedRequests.length > 0 ? (
-                processedRequests.map((request, index) => (
+              {filteredCompleted.length > 0 ? (
+                filteredCompleted.map((request, index) => (
                   <motion.div
-                    key={request.id}
+                    key={`${request.studentNum}-${index}`}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -232,24 +270,20 @@ export default function AdminPhotoRequestManagement() {
                         <div className="w-7 h-7 bg-zinc-200 text-zinc-500 flex items-center justify-center rounded-full">
                           <User className="w-3.5 h-3.5" strokeWidth={1.5} />
                         </div>
-                        {request.studentName} <span className="text-zinc-400 text-xs font-normal">({request.studentId})</span>
-                      </div>
-                      <div className="text-sm text-zinc-600">
-                        {request.department}
+                        {request.studentName} <span className="text-zinc-400 text-xs font-normal">({request.studentNum})</span>
                       </div>
                       <div className="text-sm text-zinc-500">
-                        {request.requestDate}
+                        {request.accessDate}
                       </div>
-                      <div className="flex justify-end">
+                      <div className="flex justify-start">
                         {getStatusBadge(request.status)}
                       </div>
-                    </div>
-
-                    {request.rejectReason && (
-                      <div className="w-full md:w-auto bg-rose-50 text-rose-700 rounded-lg p-2 text-xs font-medium">
-                        <span className="text-rose-500">거절 사유:</span> {request.rejectReason}
+                      <div>
+                        {request.rejectReason && (
+                          <span className="text-xs text-rose-600">사유: {request.rejectReason}</span>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </motion.div>
                 ))
               ) : (
@@ -268,7 +302,7 @@ export default function AdminPhotoRequestManagement() {
 
       {/* Detail Modal */}
       <AnimatePresence>
-        {selectedRequest && (
+        {selectedDetail && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/20 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -281,7 +315,7 @@ export default function AdminPhotoRequestManagement() {
                 <h3 className="text-base font-semibold text-zinc-900 flex items-center gap-2">
                   <Camera className="w-4 h-4 text-amber-500" strokeWidth={1.5} /> 사진 변경 요청 검토
                 </h3>
-                <button onClick={() => { setSelectedRequest(null); setRejectReason(""); }} className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center transition-colors">
+                <button onClick={() => { setSelectedDetail(null); setRejectReason(""); }} className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center transition-colors">
                   <X className="w-4 h-4 text-zinc-500" strokeWidth={1.5} />
                 </button>
               </div>
@@ -291,13 +325,12 @@ export default function AdminPhotoRequestManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-zinc-50 rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">학생 정보</div>
-                    <div className="font-semibold text-zinc-900 text-lg">{selectedRequest.studentName}</div>
-                    <div className="text-sm text-zinc-500 mt-0.5">{selectedRequest.studentId}</div>
+                    <div className="font-semibold text-zinc-900 text-lg">{selectedDetail.studentName}</div>
+                    <div className="text-sm text-zinc-500 mt-0.5">{selectedDetail.studentNum}</div>
                   </div>
                   <div className="bg-zinc-50 rounded-xl p-4">
-                    <div className="text-xs text-zinc-400 mb-1">소속 / 요청일</div>
-                    <div className="font-semibold text-zinc-900">{selectedRequest.department}</div>
-                    <div className="text-sm text-zinc-500 mt-0.5">{selectedRequest.requestDate}</div>
+                    <div className="text-xs text-zinc-400 mb-1">요청일</div>
+                    <div className="font-semibold text-zinc-900">{selectedDetail.requestDate}</div>
                   </div>
                 </div>
 
@@ -305,16 +338,12 @@ export default function AdminPhotoRequestManagement() {
                 <div>
                   <div className="text-sm font-medium text-zinc-700 mb-3">현재 등록된 사진</div>
                   <div className="grid grid-cols-3 gap-3">
-                    {([
-                      { key: "front", label: "정면", src: "/mypage/마이페이지 정면.png" },
-                      { key: "left", label: "좌측", src: "/mypage/마이페이지 좌측.png" },
-                      { key: "right", label: "우측", src: "/mypage/마이페이지 우측.png" },
-                    ]).map((item) => (
-                      <div key={item.key} className="flex flex-col items-center gap-2">
+                    {selectedDetail.currentPhotos.map((photo) => (
+                      <div key={photo.orientation} className="flex flex-col items-center gap-2">
                         <div className="w-full aspect-[3/4] rounded-xl bg-zinc-100 overflow-hidden border border-zinc-200">
                           <img
-                            src={item.src}
-                            alt={item.label}
+                            src={getPhotoUrl(photo.url)}
+                            alt={photo.orientation}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = "none";
@@ -323,7 +352,7 @@ export default function AdminPhotoRequestManagement() {
                             }}
                           />
                         </div>
-                        <span className="text-xs font-medium text-zinc-500">{item.label}</span>
+                        <span className="text-xs font-medium text-zinc-500">{photo.orientation}</span>
                       </div>
                     ))}
                   </div>
@@ -342,16 +371,12 @@ export default function AdminPhotoRequestManagement() {
                 <div>
                   <div className="text-sm font-medium text-zinc-700 mb-3">변경 요청 사진</div>
                   <div className="grid grid-cols-3 gap-3">
-                    {([
-                      { key: "front" as const, label: "정면" },
-                      { key: "left" as const, label: "좌측 30°" },
-                      { key: "right" as const, label: "우측 30°" },
-                    ]).map((item) => (
-                      <div key={item.key} className="flex flex-col items-center gap-2">
+                    {selectedDetail.requestedPhotos.map((photo) => (
+                      <div key={photo.orientation} className="flex flex-col items-center gap-2">
                         <div className="w-full aspect-[3/4] rounded-xl bg-zinc-100 overflow-hidden border-2 border-amber-300">
                           <img
-                            src={selectedRequest.photos[item.key]}
-                            alt={item.label}
+                            src={getPhotoUrl(photo.url)}
+                            alt={photo.orientation}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = "none";
@@ -360,7 +385,7 @@ export default function AdminPhotoRequestManagement() {
                             }}
                           />
                         </div>
-                        <span className="text-xs font-medium text-amber-700">{item.label}</span>
+                        <span className="text-xs font-medium text-amber-700">{photo.orientation}</span>
                       </div>
                     ))}
                   </div>
@@ -383,13 +408,13 @@ export default function AdminPhotoRequestManagement() {
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(selectedRequest.id)}
+                    onClick={handleReject}
                     className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
                   >
                     <XCircle className="w-4 h-4" strokeWidth={1.5} /> 거절하기
                   </button>
                   <button
-                    onClick={() => handleApprove(selectedRequest.id)}
+                    onClick={handleApprove}
                     className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인하기

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "motion/react";
 import { UserCircle, Plus, Search, Edit, Trash2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -6,119 +6,159 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { toast } from "sonner";
 import { Label } from "../../components/ui/label";
+import { api } from "../../api/client";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 };
 
-const professorsData = [
-  {
-    id: 1,
-    professorId: "P20240001",
-    name: "김교수",
-    email: "kim.prof@university.ac.kr",
-    dept: "컴퓨터공학과",
-    courses: 3,
-  },
-  {
-    id: 2,
-    professorId: "P20240002",
-    name: "이교수",
-    email: "lee.prof@university.ac.kr",
-    dept: "컴퓨터공학과",
-    courses: 2,
-  },
-  {
-    id: 3,
-    professorId: "P20240003",
-    name: "박교수",
-    email: "park.prof@university.ac.kr",
-    dept: "전자공학과",
-    courses: 4,
-  },
-  {
-    id: 4,
-    professorId: "P20240004",
-    name: "정교수",
-    email: "jung.prof@university.ac.kr",
-    dept: "기계공학과",
-    courses: 2,
-  },
-];
+interface Professor {
+  userId: number;
+  userNum: string;
+  userName: string;
+  userEmail: string;
+  phoneNum: string;
+  status: string;
+}
+
+interface PageResponse {
+  content: Professor[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
+const statusLabel = (status: string) => {
+  switch (status) {
+    case "EMPLOYED": return "재직";
+    case "RETIRED": return "퇴직";
+    case "LEAVE": return "휴직";
+    default: return status || "-";
+  }
+};
 
 export default function AdminProfessorManagement() {
-  const [professors, setProfessors] = useState(professorsData);
+  const [professors, setProfessors] = useState<Professor[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingProfessor, setEditingProfessor] = useState<
-    (typeof professorsData)[0] | null
-  >(null);
+  const [editingProfessor, setEditingProfessor] = useState<Professor | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const [professorId, setProfessorId] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [dept, setDept] = useState("");
+  // 페이지네이션
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
+  // 추가 폼
+  const [userNum, setUserNum] = useState("");
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phoneNum, setPhoneNum] = useState("");
+
+  // 수정 폼
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+
+  const fetchProfessors = useCallback(async (page = 0) => {
+    setLoading(true);
+    try {
+      const res = await api<any>(`/api/admin/professors?page=${page}&size=30`);
+      const pageData: PageResponse = res.data;
+      setProfessors(pageData.content);
+      setTotalPages(pageData.totalPages);
+      setTotalElements(pageData.totalElements);
+      setCurrentPage(pageData.number);
+    } catch (e: any) {
+      toast.error(e.message || "교수 목록을 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfessors();
+  }, [fetchProfessors]);
 
   const filteredProfessors = professors.filter(
     (p) =>
-      p.name.includes(searchQuery) ||
-      p.professorId.includes(searchQuery) ||
-      p.email.includes(searchQuery) ||
-      p.dept.includes(searchQuery),
+      p.userName.includes(searchQuery) ||
+      p.userNum.includes(searchQuery) ||
+      p.userEmail.includes(searchQuery) ||
+      (p.phoneNum && p.phoneNum.includes(searchQuery)),
   );
 
-  const handleAdd = () => {
-    if (!professorId || !name || !email || !dept) {
+  const resetForm = () => {
+    setUserNum("");
+    setUserName("");
+    setUserEmail("");
+    setPassword("");
+    setPhoneNum("");
+  };
+
+  const handleAdd = async () => {
+    if (!userNum || !userName || !userEmail || !password || !phoneNum) {
       toast.error("모든 필드를 입력해주세요");
       return;
     }
-
-    const newProfessor = {
-      id: professors.length + 1,
-      professorId,
-      name,
-      email,
-      dept,
-      courses: 0,
-    };
-
-    setProfessors([...professors, newProfessor]);
-    toast.success("교수가 추가되었습니다");
-    resetForm();
-    setIsAddDialogOpen(false);
+    try {
+      await api("/api/admin/professors/register", {
+        method: "POST",
+        body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum }),
+      });
+      toast.success("교수가 등록되었습니다");
+      resetForm();
+      setIsAddDialogOpen(false);
+      fetchProfessors(currentPage);
+    } catch (e: any) {
+      toast.error(e.message || "교수 등록에 실패했습니다.");
+    }
   };
 
-  const handleEdit = (professor: (typeof professorsData)[0]) => {
+  const handleEdit = (professor: Professor) => {
     setEditingProfessor(professor);
-    setProfessorId(professor.professorId);
-    setName(professor.name);
-    setEmail(professor.email);
-    setDept(professor.dept);
+    setEditName(professor.userName);
+    setEditEmail(professor.userEmail);
+    setEditPhone(professor.phoneNum || "");
+    setEditStatus(professor.status || "");
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingProfessor) return;
-
-    setProfessors(
-      professors.map((p) =>
-        p.id === editingProfessor.id
-          ? { ...p, professorId, name, email, dept }
-          : p,
-      ),
-    );
-    toast.success("교수 정보가 수정되었습니다");
-    resetForm();
-    setEditingProfessor(null);
+    try {
+      await api(`/api/admin/professors/${editingProfessor.userNum}/edit`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          userName: editName,
+          email: editEmail,
+          phoneNum: editPhone,
+          status: editStatus,
+        }),
+      });
+      toast.success("교수 정보가 수정되었습니다");
+      setEditingProfessor(null);
+      fetchProfessors(currentPage);
+    } catch (e: any) {
+      toast.error(e.message || "교수 수정에 실패했습니다.");
+    }
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm("정말 삭제하시겠습니까?")) {
-      setProfessors(professors.filter((p) => p.id !== id));
+  const handleDelete = async (professorNum: string) => {
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+    try {
+      await api(`/api/admin/professors/${professorNum}/delete`, {
+        method: "DELETE",
+      });
       toast.success("교수가 삭제되었습니다");
+      fetchProfessors(currentPage);
+    } catch (e: any) {
+      toast.error(e.message || "교수 삭제에 실패했습니다.");
     }
   };
 
@@ -128,24 +168,17 @@ export default function AdminProfessorManagement() {
       return;
     }
     const exportData = filteredProfessors.map((p) => ({
-      사번: p.professorId,
-      이름: p.name,
-      이메일: p.email,
-      학과: p.dept,
-      "담당 강의": p.courses,
+      사번: p.userNum,
+      이름: p.userName,
+      이메일: p.userEmail,
+      전화번호: p.phoneNum,
+      상태: p.status,
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "교수 목록");
     XLSX.writeFile(workbook, "교수목록_내보내기.xlsx");
     toast.success("엑셀 파일이 다운로드되었습니다.");
-  };
-
-  const resetForm = () => {
-    setProfessorId("");
-    setName("");
-    setEmail("");
-    setDept("");
   };
 
   return (
@@ -158,12 +191,8 @@ export default function AdminProfessorManagement() {
         className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900">
-            교수 관리
-          </h1>
-          <p className="text-sm text-zinc-400 mt-1">
-            전체 교수를 조회, 추가, 수정, 삭제할 수 있습니다
-          </p>
+          <h1 className="text-3xl font-bold text-zinc-900">교수 관리</h1>
+          <p className="text-sm text-zinc-400 mt-1">전체 교수를 조회, 추가, 수정, 삭제할 수 있습니다</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -172,75 +201,73 @@ export default function AdminProfessorManagement() {
           >
             <Download className="w-4 h-4" strokeWidth={1.5} /> 목록 내보내기
           </button>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <button className="bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors flex items-center gap-2">
-              <Plus className="w-4 h-4" strokeWidth={1.5} /> 교수 추가
-            </button>
-          </DialogTrigger>
-          <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-md">
-            <div className="px-6 py-4 border-b border-zinc-100 bg-white rounded-t-2xl">
-              <DialogTitle className="text-lg font-semibold text-zinc-900">
-                새 교수 추가
-              </DialogTitle>
-              <DialogDescription className="text-sm text-zinc-400 mt-1">
-                교수 정보를 입력하세요
-              </DialogDescription>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-zinc-700">
-                  사번
-                </Label>
-                <input
-                  value={professorId}
-                  onChange={(e) => setProfessorId(e.target.value)}
-                  placeholder="P20240001"
-                  className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-zinc-700">
-                  이름
-                </Label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="홍교수"
-                  className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-zinc-700">
-                  이메일
-                </Label>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="hong.prof@university.ac.kr"
-                  className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-zinc-700">
-                  학과
-                </Label>
-                <input
-                  value={dept}
-                  onChange={(e) => setDept(e.target.value)}
-                  placeholder="컴퓨터공학과"
-                  className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                />
-              </div>
-              <button
-                onClick={handleAdd}
-                className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
-              >
-                추가하기
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <button className="bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors flex items-center gap-2">
+                <Plus className="w-4 h-4" strokeWidth={1.5} /> 교수 추가
               </button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-md">
+              <div className="px-6 py-4 border-b border-zinc-100 bg-white rounded-t-2xl">
+                <DialogTitle className="text-lg font-semibold text-zinc-900">새 교수 추가</DialogTitle>
+                <DialogDescription className="text-sm text-zinc-400 mt-1">교수 정보를 입력하세요</DialogDescription>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-zinc-700">사번</Label>
+                  <input
+                    value={userNum}
+                    onChange={(e) => setUserNum(e.target.value)}
+                    placeholder="123456"
+                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-zinc-700">이름</Label>
+                  <input
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    placeholder="홍교수"
+                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-zinc-700">이메일</Label>
+                  <input
+                    value={userEmail}
+                    onChange={(e) => setUserEmail(e.target.value)}
+                    placeholder="prof@smu.ac.kr"
+                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-zinc-700">비밀번호</Label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="영문+숫자 8자 이상"
+                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-zinc-700">전화번호</Label>
+                  <input
+                    value={phoneNum}
+                    onChange={(e) => setPhoneNum(e.target.value)}
+                    placeholder="010-1234-5678"
+                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  />
+                </div>
+                <button
+                  onClick={handleAdd}
+                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
+                >
+                  추가하기
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </motion.div>
 
@@ -257,7 +284,7 @@ export default function AdminProfessorManagement() {
             strokeWidth={1.5}
           />
           <input
-            placeholder="이름, 사번, 이메일, 학과로 검색..."
+            placeholder="이름, 사번, 이메일, 전화번호로 검색..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-xl border border-zinc-200 bg-white p-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
@@ -278,67 +305,158 @@ export default function AdminProfessorManagement() {
             <h2 className="text-sm font-semibold text-zinc-900">교수 목록</h2>
           </div>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-50 text-zinc-700">
-            {filteredProfessors.length}명
+            {totalElements}명
           </span>
         </div>
-        {/* Desktop Table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-left min-w-[650px]">
-            <thead>
-              <tr className="border-b border-zinc-100">
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50">
-                  사번
-                </th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50">
-                  이름
-                </th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50">
-                  이메일
-                </th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50">
-                  학과
-                </th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50 text-center">
-                  담당 강의
-                </th>
-                <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50 text-right">
-                  관리
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+
+        {loading ? (
+          <div className="px-6 py-16 text-center text-sm text-zinc-400">불러오는 중...</div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-zinc-100">
+                    <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50">사번</th>
+                    <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50">이름</th>
+                    <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50">이메일</th>
+                    <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50">전화번호</th>
+                    <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50 text-center">상태</th>
+                    <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 bg-zinc-50/50 text-right">관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProfessors.map((professor, index) => (
+                    <motion.tr
+                      key={professor.userNum}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: index * 0.03 }}
+                      className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors"
+                    >
+                      <td className="px-6 py-4 text-sm text-zinc-600 font-mono">{professor.userNum}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-zinc-900">{professor.userName}</td>
+                      <td className="px-6 py-4 text-sm text-zinc-600">{professor.userEmail}</td>
+                      <td className="px-6 py-4 text-sm text-zinc-600">{professor.phoneNum || "-"}</td>
+                      <td className="px-6 py-4 text-sm text-center">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
+                          {statusLabel(professor.status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <div className="flex justify-end gap-1.5">
+                          <Dialog
+                            open={editingProfessor?.userNum === professor.userNum}
+                            onOpenChange={(open) => !open && setEditingProfessor(null)}
+                          >
+                            <DialogTrigger asChild>
+                              <button
+                                onClick={() => handleEdit(professor)}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center bg-zinc-50 text-zinc-500 hover:bg-zinc-100 transition-colors"
+                              >
+                                <Edit className="w-4 h-4" strokeWidth={1.5} />
+                              </button>
+                            </DialogTrigger>
+                            <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-md">
+                              <div className="px-6 py-4 border-b border-zinc-100 bg-white rounded-t-2xl">
+                                <DialogTitle className="text-lg font-semibold text-zinc-900">교수 정보 수정</DialogTitle>
+                              </div>
+                              <div className="p-6 space-y-4">
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm font-medium text-zinc-700">사번</Label>
+                                  <input
+                                    value={editingProfessor?.userNum || ""}
+                                    disabled
+                                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm cursor-not-allowed opacity-60"
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm font-medium text-zinc-700">이름</Label>
+                                  <input
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm font-medium text-zinc-700">이메일</Label>
+                                  <input
+                                    value={editEmail}
+                                    onChange={(e) => setEditEmail(e.target.value)}
+                                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm font-medium text-zinc-700">전화번호</Label>
+                                  <input
+                                    value={editPhone}
+                                    onChange={(e) => setEditPhone(e.target.value)}
+                                    placeholder="010-1234-5678"
+                                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm font-medium text-zinc-700">상태</Label>
+                                  <select
+                                    value={editStatus}
+                                    onChange={(e) => setEditStatus(e.target.value)}
+                                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                  >
+                                    <option value="EMPLOYED">재직</option>
+                                    <option value="RETIRED">퇴직</option>
+                                    <option value="LEAVE">휴직</option>
+                                  </select>
+                                </div>
+                                <button
+                                  onClick={handleUpdate}
+                                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
+                                >
+                                  수정하기
+                                </button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <button
+                            onClick={() => handleDelete(professor.userNum)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                  {filteredProfessors.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-16 text-center text-sm text-zinc-400">
+                        검색 결과가 없습니다
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="sm:hidden p-4 space-y-3">
               {filteredProfessors.map((professor, index) => (
-                <motion.tr
-                  key={professor.id}
+                <motion.div
+                  key={professor.userNum}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.03 }}
-                  className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors"
+                  className="rounded-xl border border-zinc-200 p-4 space-y-2.5"
                 >
-                  <td className="px-6 py-4 text-sm text-zinc-600 font-mono">
-                    {professor.professorId}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-900">
-                    {professor.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-zinc-600">
-                    {professor.email}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-zinc-600">
-                    {professor.dept}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-center">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
-                      {professor.courses}개
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <div className="flex justify-end gap-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-zinc-900">{professor.userName}</p>
+                      <p className="text-xs text-zinc-400 font-mono mt-0.5">{professor.userNum}</p>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
                       <Dialog
-                        open={editingProfessor?.id === professor.id}
-                        onOpenChange={(open) =>
-                          !open && setEditingProfessor(null)
-                        }
+                        open={editingProfessor?.userNum === professor.userNum}
+                        onOpenChange={(open) => !open && setEditingProfessor(null)}
                       >
                         <DialogTrigger asChild>
                           <button
@@ -350,199 +468,87 @@ export default function AdminProfessorManagement() {
                         </DialogTrigger>
                         <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-md">
                           <div className="px-6 py-4 border-b border-zinc-100 bg-white rounded-t-2xl">
-                            <DialogTitle className="text-lg font-semibold text-zinc-900">
-                              교수 정보 수정
-                            </DialogTitle>
+                            <DialogTitle className="text-lg font-semibold text-zinc-900">교수 정보 수정</DialogTitle>
                           </div>
                           <div className="p-6 space-y-4">
                             <div className="space-y-1.5">
-                              <Label className="text-sm font-medium text-zinc-700">
-                                사번
-                              </Label>
-                              <input
-                                value={professorId}
-                                onChange={(e) => setProfessorId(e.target.value)}
-                                disabled
-                                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm cursor-not-allowed opacity-60"
-                              />
+                              <Label className="text-sm font-medium text-zinc-700">사번</Label>
+                              <input value={editingProfessor?.userNum || ""} disabled className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm cursor-not-allowed opacity-60" />
                             </div>
                             <div className="space-y-1.5">
-                              <Label className="text-sm font-medium text-zinc-700">
-                                이름
-                              </Label>
-                              <input
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                              />
+                              <Label className="text-sm font-medium text-zinc-700">이름</Label>
+                              <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
                             </div>
                             <div className="space-y-1.5">
-                              <Label className="text-sm font-medium text-zinc-700">
-                                이메일
-                              </Label>
-                              <input
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                              />
+                              <Label className="text-sm font-medium text-zinc-700">이메일</Label>
+                              <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
                             </div>
                             <div className="space-y-1.5">
-                              <Label className="text-sm font-medium text-zinc-700">
-                                학과
-                              </Label>
-                              <input
-                                value={dept}
-                                onChange={(e) => setDept(e.target.value)}
-                                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                              />
+                              <Label className="text-sm font-medium text-zinc-700">전화번호</Label>
+                              <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="010-1234-5678" className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
                             </div>
-                            <button
-                              onClick={handleUpdate}
-                              className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
-                            >
+                            <div className="space-y-1.5">
+                              <Label className="text-sm font-medium text-zinc-700">상태</Label>
+                              <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                                <option value="EMPLOYED">재직</option>
+                                <option value="RETIRED">퇴직</option>
+                                <option value="LEAVE">휴직</option>
+                              </select>
+                            </div>
+                            <button onClick={handleUpdate} className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2">
                               수정하기
                             </button>
                           </div>
                         </DialogContent>
                       </Dialog>
                       <button
-                        onClick={() => handleDelete(professor.id)}
+                        onClick={() => handleDelete(professor.userNum)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                       </button>
                     </div>
-                  </td>
-                </motion.tr>
+                  </div>
+                  <p className="text-xs text-zinc-500 truncate">{professor.userEmail}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500">{professor.phoneNum || "-"}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
+                      {statusLabel(professor.status)}
+                    </span>
+                  </div>
+                </motion.div>
               ))}
               {filteredProfessors.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-6 py-16 text-center text-sm text-zinc-400"
-                  >
-                    검색 결과가 없습니다
-                  </td>
-                </tr>
+                <p className="py-12 text-center text-sm text-zinc-400">
+                  검색 결과가 없습니다
+                </p>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </>
+        )}
 
-        {/* Mobile Card View */}
-        <div className="sm:hidden p-4 space-y-3">
-          {filteredProfessors.map((professor, index) => (
-            <motion.div
-              key={professor.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: index * 0.03 }}
-              className="rounded-xl border border-zinc-200 p-4 space-y-2.5"
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-zinc-100 flex items-center justify-center gap-2">
+            <button
+              onClick={() => fetchProfessors(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="px-3 py-1.5 text-sm rounded-lg border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50 transition-colors"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-zinc-900">
-                    {professor.name}
-                  </p>
-                  <p className="text-xs text-zinc-400 font-mono mt-0.5">
-                    {professor.professorId}
-                  </p>
-                </div>
-                <div className="flex gap-1.5 shrink-0">
-                  <Dialog
-                    open={editingProfessor?.id === professor.id}
-                    onOpenChange={(open) => !open && setEditingProfessor(null)}
-                  >
-                    <DialogTrigger asChild>
-                      <button
-                        onClick={() => handleEdit(professor)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center bg-zinc-50 text-zinc-500 hover:bg-zinc-100 transition-colors"
-                      >
-                        <Edit className="w-4 h-4" strokeWidth={1.5} />
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-md">
-                      <div className="px-6 py-4 border-b border-zinc-100 bg-white rounded-t-2xl">
-                        <DialogTitle className="text-lg font-semibold text-zinc-900">
-                          교수 정보 수정
-                        </DialogTitle>
-                      </div>
-                      <div className="p-6 space-y-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-zinc-700">
-                            사번
-                          </Label>
-                          <input
-                            value={professorId}
-                            onChange={(e) => setProfessorId(e.target.value)}
-                            disabled
-                            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm cursor-not-allowed opacity-60"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-zinc-700">
-                            이름
-                          </Label>
-                          <input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-zinc-700">
-                            이메일
-                          </Label>
-                          <input
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm font-medium text-zinc-700">
-                            학과
-                          </Label>
-                          <input
-                            value={dept}
-                            onChange={(e) => setDept(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                          />
-                        </div>
-                        <button
-                          onClick={handleUpdate}
-                          className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
-                        >
-                          수정하기
-                        </button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  <button
-                    onClick={() => handleDelete(professor.id)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-zinc-500 truncate">
-                {professor.email}
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500">{professor.dept}</span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
-                  {professor.courses}개 강의
-                </span>
-              </div>
-            </motion.div>
-          ))}
-          {filteredProfessors.length === 0 && (
-            <p className="py-12 text-center text-sm text-zinc-400">
-              검색 결과가 없습니다
-            </p>
-          )}
-        </div>
+              이전
+            </button>
+            <span className="text-sm text-zinc-600">
+              {currentPage + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => fetchProfessors(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="px-3 py-1.5 text-sm rounded-lg border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+            >
+              다음
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );
