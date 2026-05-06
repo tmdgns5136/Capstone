@@ -67,13 +67,18 @@ public class MyPageService {
                     .profileImages(profileImages)
                     .build();
         }
-        Professor professor = professorRepository.findByProfessorNum(userNum);
-        if(professor != null){
-            inquiryData = InquiryData.builder()
-                    .userName(professor.getProfessorName())
-                    .userNum(professor.getProfessorNum())
-                    .phoneNum(professor.getPhoneNum())
-                    .userEmail(professor.getProfessorEmail()).build();
+        else{
+            Professor professor = professorRepository.findByProfessorNum(userNum);
+            if(professor != null){
+                inquiryData = InquiryData.builder()
+                        .userName(professor.getProfessorName())
+                        .userNum(professor.getProfessorNum())
+                        .phoneNum(professor.getPhoneNum())
+                        .userEmail(professor.getProfessorEmail()).build();
+            }
+            else{
+                throw new CustomException(404, "존재하지 않는 사용자입니다.");
+            }
         }
         return ApiResponse.success(200, inquiryData);
     }
@@ -104,16 +109,22 @@ public class MyPageService {
             studentRepository.save(student);
         }
 
-        Professor professor = professorRepository.findByProfessorNum(userNum);
-        if(professor != null){
-            if(editRequest.getNewPassword() != null){
-                professor.setPassword(passwordEncoder.encode(editRequest.getNewPassword()));
+        else{
+            Professor professor = professorRepository.findByProfessorNum(userNum);
+            if(professor != null) {
+                if (editRequest.getNewPassword() != null) {
+                    professor.setPassword(passwordEncoder.encode(editRequest.getNewPassword()));
+                }
+                if (editRequest.getPhoneNum() != null) {
+                    professor.setPhoneNum(editRequest.getPhoneNum());
+                }
+                professorRepository.save(professor);
             }
-            if(editRequest.getPhoneNum() != null){
-                professor.setPhoneNum(editRequest.getPhoneNum());
+            else{
+                throw new CustomException(404, "존재하지 않는 유저입니다.");
             }
-            professorRepository.save(professor);
         }
+
     }
 
     // 회원 탈퇴

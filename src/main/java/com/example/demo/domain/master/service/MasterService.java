@@ -67,7 +67,6 @@ public class MasterService {
         }
 
         Professor professor = professorRepository.findByProfessorNum(courseRequest.getProfessorNum());
-        System.out.println(courseRequest.getProfessorNum());
         if (professor == null) {
             throw new CustomException(404, "해당 교수 정보를 찾을 수 없습니다.");
         }
@@ -267,7 +266,6 @@ public class MasterService {
         }
 
         Enrollment enrollment = enrollmentRepository.findByStudentAndLecture(student, lecture);
-        System.out.println(enrollment.getEnrollmentId());
         if (enrollment == null) {
             throw new CustomException(404, "해당 강의를 수강 중인 학생이 아닙니다.");
         }
@@ -342,14 +340,16 @@ public class MasterService {
         UserData userData = UserData.builder()
                 .userId(student.getStudentId())
                 .userName(student.getStudentName())
-                .userNum(userNum)
+                .userNum(student.getStudentNum())
                 .userEmail(student.getStudentEmail())
-                .phoneNum(student.getPhoneNum()).build();
+                .phoneNum(student.getPhoneNum())
+                .status(student.getStudentStatus().getCode()).build();
 
         return ApiResponse.success(200, userData);
     }
 
     // 학생 정보 수정
+    @Transactional
     public ActionResponse editStudentData(Authentication authentication, String studentNum, UserEdit userEdit){
         String userNum = authentication.getName();
         Master master = masterRepository.findByMasterNum(userNum);
@@ -386,6 +386,7 @@ public class MasterService {
     }
 
     // 학생 정보 삭제
+    @Transactional
     public ActionResponse deleteStudent(Authentication authentication, String studentNum){
         String userNum = authentication.getName();
         Master master = masterRepository.findByMasterNum(userNum);
@@ -447,7 +448,8 @@ public class MasterService {
                 .userName(professor.getProfessorName())
                 .userNum(professor.getProfessorNum())
                 .userEmail(professor.getProfessorEmail())
-                .phoneNum(professor.getPhoneNum()).build());
+                .phoneNum(professor.getPhoneNum())
+                .status(professor.getProfessorStatus().getCode()).build());
 
         return ApiResponse.success(200, userData);
 
@@ -471,14 +473,16 @@ public class MasterService {
         UserData userData = UserData.builder()
                 .userId(professor.getProfessorId())
                 .userName(professor.getProfessorName())
-                .userNum(userNum)
+                .userNum(professor.getProfessorNum())
                 .userEmail(professor.getProfessorEmail())
-                .phoneNum(professor.getPhoneNum()).build();
+                .phoneNum(professor.getPhoneNum())
+                .status(professor.getProfessorStatus().getCode()).build();
 
         return ApiResponse.success(200, userData);
     }
 
     // 교수 정보 수정
+    @Transactional
     public ActionResponse editProfessorData(Authentication authentication, String professorNum, UserEdit userEdit){
         String userNum = authentication.getName();
         Master master = masterRepository.findByMasterNum(userNum);
@@ -515,6 +519,7 @@ public class MasterService {
     }
 
     // 교수 정보 삭제
+    @Transactional
     public ActionResponse deleteProfessor(Authentication authentication, String professorNum){
         String userNum = authentication.getName();
         Master master = masterRepository.findByMasterNum(userNum);

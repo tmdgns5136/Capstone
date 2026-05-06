@@ -8,6 +8,7 @@ import com.example.demo.domain.student.notification.entity.Notification;
 import com.example.demo.domain.student.notification.repository.NotificationRepository;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ApiResponse;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class NotificationService {
         return ApiResponse.success(200, notificationData);
     }
 
+    @Transactional
     public ApiResponse<NotificationRead> readNotification(Authentication authentication, Long notificationId){
         String userNum = authentication.getName();
         Student student = studentRepository.findByStudentNum(userNum);

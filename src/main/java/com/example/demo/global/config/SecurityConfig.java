@@ -28,14 +28,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/api/home/**").permitAll()
                                 .requestMatchers("/api/mypage/image/**").permitAll()
-                                .requestMatchers(
-                                        "/swagger-ui/**",
-                                        "/swagger-ui.html",
-                                        "/v3/api-docs/**",
-                                        "/v3/api-docs",
-                                        "/swagger-resources/**",
-                                        "/webjars/**"
-                                ).permitAll()
+                                .requestMatchers("/api/admin/image/**").permitAll()
                                 .anyRequest().authenticated())
                 .addFilterBefore(new JwtTokenFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class).build();
     }
