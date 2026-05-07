@@ -228,7 +228,7 @@ export default function StudentSignup() {
         photoFiles.front,
         photoFiles.right,
       );
-      toast.success("회원가입이 완료되었습니다");
+      toast.success("회원가입이 완료되었습니다. 얼굴 사진은 관리자 승인 후 반영됩니다.");
       navigate("/login");
     } catch (error: any) {
       toast.error(error.message || "회원가입 오류");
@@ -518,6 +518,7 @@ export default function StudentSignup() {
                           <li>- 얼굴이 사진의 중앙에 위치하도록 해주세요</li>
                           <li>- 모자, 선글라스 등 얼굴을 가리는 액세서리를 제거해주세요</li>
                           <li>- JPG, PNG 형식 / 10MB 이하 파일만 업로드 가능합니다</li>
+                          <li>- 등록된 사진은 <strong>관리자 승인 후</strong> 프로필에 반영됩니다</li>
                         </ul>
                       </div>
                     </div>
