@@ -12,4 +12,5 @@ public class NotificationData {
     private String relatedId;
     private boolean isRead;
     private String createdAt;
+    private String lectureName;
 }

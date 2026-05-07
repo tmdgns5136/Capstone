@@ -27,12 +27,18 @@ public class NotificationService {
     public ApiResponse<List<NotificationData>> getNotifications(Authentication authentication){
         String userNum = authentication.getName();
         Student student = studentRepository.findByStudentNum(userNum);
+        Master master;
+        List<Notification> notifications = null;
         if(student == null){
-            Master master = masterRepository.findByMasterNum(userNum);
+            master = masterRepository.findByMasterNum(userNum);
             if(master == null) throw new CustomException(404, "유저 정보를 찾을 수 없습니다.");
+            notifications = notificationRepository.findByMaster(master);
+        }
+        else{
+            notifications = notificationRepository.findByStudent(student);
         }
 
-        List<Notification> notifications = notificationRepository.findByStudent(student);
+
 
         List<NotificationData> notificationData = notifications.stream().map(notification ->
                 NotificationData.builder().id(notification.getNotificationId())
@@ -40,7 +46,8 @@ public class NotificationService {
                         .message(notification.getMessage())
                         .relatedId(notification.getRelatedId())
                         .isRead(notification.isRead())
-                        .createdAt(notification.getNotificationCreated().toString()).build()).toList();
+                        .createdAt(notification.getNotificationCreated().toString())
+                        .lectureName(notification.getLecture().getLectureName()).build()).toList();
 
         return ApiResponse.success(200, notificationData);
     }
