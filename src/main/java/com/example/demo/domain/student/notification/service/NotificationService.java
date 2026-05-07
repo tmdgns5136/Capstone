@@ -51,7 +51,7 @@ public class NotificationService {
                             .relatedId(notification.getRelatedId())
                             .isRead(notification.isRead())
                             .createdAt(notification.getNotificationCreated().toString())
-                            .lectureName(notification.getLecture().getLectureName()).build()).toList();
+                        .lectureName(notification.getLecture().getLectureName() != null ? notification.getLecture().getLectureName() : null).build()).toList();
         }
 
 
