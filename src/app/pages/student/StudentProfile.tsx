@@ -83,6 +83,11 @@ export default function StudentProfile() {
       } catch {
         // API 실패 시 빈 상태 유지
       }
+      // 사진 변경 요청 내역도 함께 로드
+      try {
+        const reqRes = await getPhotoRequests();
+        setMyPhotoRequests(reqRes.data);
+      } catch {}
     })();
   }, []);
 

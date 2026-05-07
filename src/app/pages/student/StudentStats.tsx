@@ -92,6 +92,7 @@ export default function StudentStats() {
   const [appealDetailData, setAppealDetailData] = useState<AbsenceDetailData | null>(null);
   const [appealDetailSessionDate, setAppealDetailSessionDate] = useState("");
   const [loadingAppealDetail, setLoadingAppealDetail] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [scrollPage] = useState(() => {
@@ -105,7 +106,10 @@ export default function StudentStats() {
   // 강의 목록 + 출결 통계 로드
   useEffect(() => {
     setLoadingSummary(true);
-    getMyLectures(2026, "1")
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentSemester = now.getMonth() + 1 >= 7 ? "2학기" : "1학기";
+    getMyLectures(currentYear, currentSemester)
       .then(async (res) => {
         const lectureList = res.data;
         setLectures(lectureList);
@@ -341,7 +345,12 @@ export default function StudentStats() {
                   <span className="text-xs text-zinc-400">{record.date}</span>
                   {record.status === "결석" ? (
                     <button
-                      onClick={() => { setAppealRecord({ course: record.course, date: record.date }); setShowAppealModal(true); }}
+                      onClick={() => {
+                                  setAppealRecord({ course: record.course, date: record.date });
+                                  const matched = sessions.find((s) => s.sessionDate === record.date);
+                                  if (matched) setSelectedAppealSessionId(String(matched.sessionId));
+                                  setShowAppealModal(true);
+                                }}
                       className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800"
                     >
                       이의 신청
@@ -379,7 +388,12 @@ export default function StudentStats() {
                     <td className="px-5 py-4 text-right">
                       {record.status === "결석" ? (
                         <button
-                          onClick={() => { setAppealRecord({ course: record.course, date: record.date }); setShowAppealModal(true); }}
+                          onClick={() => {
+                                  setAppealRecord({ course: record.course, date: record.date });
+                                  const matched = sessions.find((s) => s.sessionDate === record.date);
+                                  if (matched) setSelectedAppealSessionId(String(matched.sessionId));
+                                  setShowAppealModal(true);
+                                }}
                           className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800"
                         >
                           이의 신청
@@ -562,9 +576,25 @@ export default function StudentStats() {
                           <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center shrink-0">
                             <Paperclip className="w-4 h-4 text-sky-600" strokeWidth={1.5} />
                           </div>
-                          <a href={appealDetailData.evidenceFileUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-sky-800 flex-1 truncate hover:underline">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = appealDetailData.evidenceFileUrl!.replace(/^\/uploads\//, "/api/mylecture/image/");
+                              fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } })
+                                .then(res => {
+                                  let ct = res.headers.get("content-type") || "";
+                                  if (!ct || ct.includes("octet-stream")) ct = "image/png";
+                                  return res.arrayBuffer().then(buf => new Blob([buf], { type: ct }));
+                                })
+                                .then(blob => {
+                                  setPreviewUrl(URL.createObjectURL(blob));
+                                })
+                                .catch(() => toast.error("파일을 불러올 수 없습니다."));
+                            }}
+                            className="text-sm font-medium text-sky-800 flex-1 truncate hover:underline text-left"
+                          >
                             증빙서류 보기
-                          </a>
+                          </button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 p-3 bg-zinc-50 rounded-xl border border-zinc-100">
@@ -654,19 +684,11 @@ export default function StudentStats() {
             <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5" /> 수업 날짜 <span className="text-red-500">*</span>
             </label>
-            <select
-              value={selectedAppealSessionId}
-              onChange={(e) => setSelectedAppealSessionId(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              required
-            >
-              <option value="" disabled>날짜 선택</option>
-              {sessions.map((s) => (
-                <option key={s.sessionId} value={s.sessionId}>
-                  {s.sessionDate} ({s.startTime}~{s.endTime})
-                </option>
-              ))}
-            </select>
+            <input
+              value={appealRecord?.date || ""}
+              disabled
+              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 text-sm text-zinc-500"
+            />
           </div>
         </div>
         <div>
@@ -718,6 +740,20 @@ export default function StudentStats() {
           )}
         </div>
       </FormModal>
+      {/* 증빙서류 미리보기 모달 */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60" onClick={() => { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }}>
+          <div className="relative max-w-3xl max-h-[85vh] p-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }}
+              className="absolute -top-3 -right-3 z-10 w-8 h-8 bg-white rounded-full shadow flex items-center justify-center hover:bg-zinc-100"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <img src={previewUrl} alt="증빙서류" className="max-w-full max-h-[80vh] rounded-xl shadow-xl object-contain bg-white" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

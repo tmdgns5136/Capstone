@@ -15,11 +15,8 @@ const dayMap: Record<string, number> = { "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY":
 const hours = Array.from({ length: 10 }, (_, i) => i + 9);
 
 function getTodayString() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+  return days[new Date().getDay()];
 }
 
 function parseHour(time: string) {
@@ -27,8 +24,9 @@ function parseHour(time: string) {
 }
 
 export default function StudentHome() {
-  const year = 2025;
-  const semester = "1학기";
+  const now = new Date();
+  const year = now.getFullYear();
+  const semester = now.getMonth() + 1 >= 7 ? "2학기" : "1학기";
 
   const [todayCourses, setTodayCourses] = useState<CourseData[]>([]);
   const [currentLecture, setCurrentLecture] = useState<CourseStateData | null>(null);

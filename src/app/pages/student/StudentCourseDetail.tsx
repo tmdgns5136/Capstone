@@ -60,9 +60,10 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
     setLoading(true);
     getLectureNotices(lectureId, page - 1, 10)
       .then((res) => {
-        setNotices(res.data ?? []);
-        setNoticeTotalPages(res.totalPages ?? 1);
-        setNoticeTotalElements(res.totalElements ?? 0);
+        const pageData = res.data;
+        setNotices(Array.isArray(pageData) ? pageData : pageData?.content ?? []);
+        setNoticeTotalPages(res.totalPages ?? pageData?.totalPages ?? 1);
+        setNoticeTotalElements(res.totalElements ?? pageData?.totalElements ?? 0);
       })
       .catch(() => setNotices([]))
       .finally(() => setLoading(false));
@@ -73,9 +74,10 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
     setLoading(true);
     getQuestions(lectureId, page - 1, 10)
       .then((res) => {
-        setQuestions(res.data ?? []);
-        setQaTotalPages(res.totalPages ?? 1);
-        setQaTotalElements(res.totalElements ?? 0);
+        const pageData = res.data;
+        setQuestions(Array.isArray(pageData) ? pageData : pageData?.content ?? []);
+        setQaTotalPages(res.totalPages ?? pageData?.totalPages ?? 1);
+        setQaTotalElements(res.totalElements ?? pageData?.totalElements ?? 0);
       })
       .catch(() => setQuestions([]))
       .finally(() => setLoading(false));
