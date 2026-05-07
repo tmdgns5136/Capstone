@@ -676,14 +676,15 @@ public class MasterService {
             throw new CustomException(403, "사진 변경 요청을 승인/반려할 권한이 없습니다.");
         }
 
-        Student student = null;
         List<Image> images  = imageRepository.findByRequestId(requestId);
+        Student student = images.getFirst().getStudent(); // 요청한 학생 정보 가져오기
+        if(student == null){
+            throw new CustomException(404, "존재하지 않는 학생입니다.");
+        }
         if (images.isEmpty()) {
             throw new CustomException(404, "해당 요청의 사진을 찾을 수 없습니다.");
         }
         if (request.getApprovalStatus().equals("APPROVED")) {
-            student = images.get(0).getStudent(); // 요청한 학생 정보 가져오기
-
             // 기존에 사용 중이던 CURRENT 사진들 조회
             List<Image> currentImages = imageRepository.findByStudentAndImageType(student, ImageType.CURRENT);
 
