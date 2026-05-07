@@ -19,7 +19,7 @@ function toNotification(n: NotificationData): Notification {
     id: String(n.id),
     title: n.type,
     message: n.message,
-    isRead: n.isRead,
+    isRead: n.isRead ?? n.read ?? false,
     createdAt: n.createdAt,
     type: mapTypeToUI(n.type),
   };
@@ -46,12 +46,12 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
       .then(() => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       })
-      .catch(() => {});
+      .catch(() => { });
   };
 
   const markAllAsRead = () => {
     notifications.filter(n => !n.isRead).forEach(n => {
-      markNotificationRead(Number(n.id)).catch(() => {});
+      markNotificationRead(Number(n.id)).catch(() => { });
     });
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
@@ -174,11 +174,10 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                     exit={{ opacity: 0, x: -40 }}
                     transition={{ ...spring, delay: index * 0.04 }}
                     onClick={() => handleNotificationClick(notification.id, notification.link)}
-                    className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${config.border} ${
-                      notification.isRead
+                    className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${config.border} ${notification.isRead
                         ? "bg-white hover:bg-zinc-50/80 opacity-70"
                         : "bg-zinc-50/40 hover:bg-zinc-50"
-                    } ${index < notifications.length - 1 ? "border-b border-zinc-100" : ""}`}
+                      } ${index < notifications.length - 1 ? "border-b border-zinc-100" : ""}`}
                   >
                     <div className="flex gap-3 sm:gap-4 items-start">
                       {/* Icon */}

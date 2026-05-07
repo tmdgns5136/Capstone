@@ -12,7 +12,8 @@ export interface NotificationData {
   type: string;
   message: string;
   relatedId: number;
-  isRead: boolean;
+  isRead?: boolean;
+  read?: boolean;
   createdAt: string;
 }
 

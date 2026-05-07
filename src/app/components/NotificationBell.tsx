@@ -30,7 +30,7 @@ function toNotification(n: NotificationData, role: string): Notification {
     id: String(n.id),
     title: n.type,
     message: n.message,
-    isRead: n.isRead,
+    isRead: n.isRead ?? n.read ?? false,
     createdAt: n.createdAt,
     type: mapTypeToUI(n.type),
   };
