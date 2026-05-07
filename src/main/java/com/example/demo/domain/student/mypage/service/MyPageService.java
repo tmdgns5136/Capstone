@@ -198,7 +198,7 @@ public class MyPageService {
         fileService.saveImage(rightImgDto, userNum, requestId, ImageType.REQUESTED);
 
         Notification notification = Notification.builder()
-                .message(student + " 학생의 프로필 변경 요청이 등록되었습니다.")
+                .message(student.getStudentName() + " 학생의 프로필 변경 요청이 등록되었습니다.")
                 .relatedId(requestId)
                 .isRead(false)
                 .noticeType(NoticeType.PHOTO_RESULT)
