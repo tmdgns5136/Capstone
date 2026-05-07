@@ -45,6 +45,7 @@ interface CourseSummary {
 interface DetailedRecord {
   date: string;
   course: string;
+  lectureId: string;
   status: "출석" | "지각" | "결석";
   note: string;
 }
@@ -139,6 +140,7 @@ export default function StudentStats() {
                 records.push({
                   date: sess.sessionDate,
                   course: lecture.lectureName,
+                  lectureId: lecture.lectureId,
                   status: mapStatus(sess.status),
                   note: sess.status === "ATTEND" ? "정상 인증" : "-",
                 });
@@ -345,10 +347,15 @@ export default function StudentStats() {
                   <span className="text-xs text-zinc-400">{record.date}</span>
                   {record.status === "결석" ? (
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                                   setAppealRecord({ course: record.course, date: record.date });
-                                  const matched = sessions.find((s) => s.sessionDate === record.date);
-                                  if (matched) setSelectedAppealSessionId(String(matched.sessionId));
+                                  setSelectedAppealLectureId(record.lectureId);
+                                  try {
+                                    const res = await getLectureSessions(record.lectureId);
+                                    setSessions(res.data);
+                                    const matched = res.data.find((s: SessionData) => s.sessionDate === record.date);
+                                    if (matched) setSelectedAppealSessionId(String(matched.sessionId));
+                                  } catch {}
                                   setShowAppealModal(true);
                                 }}
                       className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800"
@@ -388,10 +395,15 @@ export default function StudentStats() {
                     <td className="px-5 py-4 text-right">
                       {record.status === "결석" ? (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                                   setAppealRecord({ course: record.course, date: record.date });
-                                  const matched = sessions.find((s) => s.sessionDate === record.date);
-                                  if (matched) setSelectedAppealSessionId(String(matched.sessionId));
+                                  setSelectedAppealLectureId(record.lectureId);
+                                  try {
+                                    const res = await getLectureSessions(record.lectureId);
+                                    setSessions(res.data);
+                                    const matched = res.data.find((s: SessionData) => s.sessionDate === record.date);
+                                    if (matched) setSelectedAppealSessionId(String(matched.sessionId));
+                                  } catch {}
                                   setShowAppealModal(true);
                                 }}
                           className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800"
