@@ -29,6 +29,7 @@ public class SecurityConfig {
                         auth.requestMatchers("/api/home/**").permitAll()
                                 .requestMatchers("/api/mypage/image/**").permitAll()
                                 .requestMatchers("/api/admin/image/**").permitAll()
+                                .requestMatchers(("/api/mylecture/image/**")).permitAll()
                                 .anyRequest().authenticated())
                 .addFilterBefore(new JwtTokenFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class).build();
     }

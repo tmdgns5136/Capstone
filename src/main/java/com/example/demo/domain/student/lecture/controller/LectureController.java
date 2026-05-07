@@ -31,13 +31,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import org.springframework.http.MediaType;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -71,7 +65,7 @@ public class LectureController {
             Resource resource = new UrlResource(filePath.toUri());
 
             // 2. 파일이 존재하는지 또는 읽기 가능한지 확인
-            if (resource.exists() || resource.isReadable()) {
+            if (resource.exists() && resource.isReadable()) {
 
                 // 3. 확장자에 따른 MIME 타입 동적 감지 (jpg, png, pdf 등)
                 String contentType = Files.probeContentType(filePath);

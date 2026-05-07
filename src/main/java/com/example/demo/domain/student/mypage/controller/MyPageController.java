@@ -41,7 +41,7 @@ public class MyPageController {
             Resource resource = new UrlResource(filePath.toUri());
 
             // 2. 파일이 존재하는지 확인
-            if (resource.exists() || resource.isReadable()) {
+            if (resource.exists() && resource.isReadable()) {
                 // 3. 브라우저가 이미지로 인식하도록 헤더를 설정하여 반환
                 return ResponseEntity.ok()
                         .contentType(MediaType.IMAGE_JPEG) // 필요 시 파일 확장자에 따라 동적 처리 가능
