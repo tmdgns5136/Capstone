@@ -22,6 +22,7 @@ import com.example.demo.domain.student.lecture.entity.Enrollment;
 import com.example.demo.domain.student.lecture.repository.EnrollmentRepository;
 import com.example.demo.domain.student.mypage.dto.PasswordCheck;
 import com.example.demo.domain.professor.repository.ProfessorRepository;
+import com.example.demo.domain.student.notification.entity.Notification;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.jwt.Token;
 import com.example.demo.global.jwt.TokenProvider;
@@ -115,6 +116,14 @@ public class UserService {
         fileService.saveImage(rightImgDto, student.getStudentNum(), requestId, ImageType.REQUESTED);
 
         Student savedStudent = studentRepository.findByStudentNum(student.getStudentNum());
+
+        Notification notification = Notification.builder()
+                .message(student.getStudentName() + " 학생의 프로필 변경 요청이 등록되었습니다.")
+                .relatedId(requestId)
+                .isRead(false)
+                .noticeType(NoticeType.PHOTO_RESULT)
+                .master(masterRepository.findByMasterNum("admin"))
+                .build();
 
         return ActionResponse.success(201, "회원가입이 완료되었습니다.", "api/home/login");
     }

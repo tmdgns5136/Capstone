@@ -53,7 +53,6 @@ public class LectureController {
         return ResponseEntity.ok(apiResponse);
     }
 
-// ... (기존 import문 생략)
 
     @GetMapping("/image/{type}/{fileName}")
     public ResponseEntity<Resource> serveImage(@PathVariable("type") String type,
@@ -224,7 +223,7 @@ public class LectureController {
     // 강의 공지사항 조회
     @Operation(summary = "강의 공지사항 조회")
     @GetMapping("/{lecture_id}/notices")
-    public ResponseEntity<ApiResponse<Page<NoticeData>>> getNotices(Authentication authentication, @PathVariable("lecture_id")Long lectureId, @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
+    public ResponseEntity<ApiResponse<Page<NoticeData>>> getNotices(Authentication authentication, @PathVariable("lecture_id")Long lectureId, @PageableDefault(page = 0, size = 10, sort = "noticeCreated", direction = Sort.Direction.DESC) Pageable pageable){
         ApiResponse<Page<NoticeData>> apiResponse = lectureService.getNotices(authentication, lectureId, pageable);
         return ResponseEntity.ok(apiResponse);
     }
@@ -252,7 +251,7 @@ public class LectureController {
     @Operation(summary = "강의 질문 게시판 내역 확인")
     @GetMapping("/{lecture_id}/questions")
     public ResponseEntity<ApiResponse<Page<QuestionData>>> getQuestions(Authentication authentication, @PathVariable("lecture_id") Long lectureId,
-                                                                        @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
+                                                                        @PageableDefault(page = 0, size = 10, sort = "questionCreated", direction = Sort.Direction.DESC) Pageable pageable){
         ApiResponse<Page<QuestionData>> apiResponse = lectureService.getQuestion(authentication, lectureId, pageable);
         return ResponseEntity.ok(apiResponse);
     }

@@ -9,7 +9,7 @@ public class NotificationData {
     private Long id;
     private String type;
     private String message;
-    private Long relatedId;
+    private String relatedId;
     private boolean isRead;
     private String createdAt;
 }

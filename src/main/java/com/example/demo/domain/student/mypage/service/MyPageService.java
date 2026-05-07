@@ -2,7 +2,9 @@ package com.example.demo.domain.student.mypage.service;
 
 import com.example.demo.domain.enumerate.ImagePosition;
 import com.example.demo.domain.enumerate.ImageType;
+import com.example.demo.domain.enumerate.NoticeType;
 import com.example.demo.domain.enumerate.Status;
+import com.example.demo.domain.master.repository.MasterRepository;
 import com.example.demo.domain.student.home.dto.user.EditRequest;
 import com.example.demo.domain.student.home.dto.user.ImgDto;
 import com.example.demo.domain.student.home.entity.etc.Image;
@@ -15,6 +17,8 @@ import com.example.demo.domain.student.home.repository.StudentRepository;
 import com.example.demo.domain.student.home.util.FileUtil;
 import com.example.demo.domain.student.mypage.dto.InquiryData;
 import com.example.demo.domain.student.mypage.dto.ListData;
+import com.example.demo.domain.student.notification.entity.Notification;
+import com.example.demo.domain.student.notification.repository.NotificationRepository;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
@@ -44,6 +48,8 @@ public class MyPageService {
     private final FileUtil fileUtil;
     private final FileService fileService;
     private final PasswordEncoder passwordEncoder;
+    private final MasterRepository masterRepository;
+    private final NotificationRepository notificationRepository;
 
     // 마이페이지 조회
     public ApiResponse<InquiryData> inquiry(Authentication authentication){
@@ -190,6 +196,16 @@ public class MyPageService {
         fileService.saveImage(leftImgDto, userNum, requestId, ImageType.REQUESTED);
         fileService.saveImage(centerImgDto, userNum, requestId, ImageType.REQUESTED);
         fileService.saveImage(rightImgDto, userNum, requestId, ImageType.REQUESTED);
+
+        Notification notification = Notification.builder()
+                .message(student + " 학생의 프로필 변경 요청이 등록되었습니다.")
+                .relatedId(requestId)
+                .isRead(false)
+                .noticeType(NoticeType.PHOTO_RESULT)
+                .master(masterRepository.findByMasterNum("admin"))
+                .build();
+
+        notificationRepository.save(notification);
 
         return ActionResponse.success(200, "변경 요청이 완료되었습니다.");
     }

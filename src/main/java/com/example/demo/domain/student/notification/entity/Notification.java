@@ -1,6 +1,7 @@
 package com.example.demo.domain.student.notification.entity;
 
 import com.example.demo.domain.enumerate.NoticeType;
+import com.example.demo.domain.master.entity.Master;
 import com.example.demo.domain.student.home.entity.user.Student;
 import com.example.demo.domain.student.lecture.entity.Lecture;
 import com.example.demo.domain.professor.entity.Professor;
@@ -29,7 +30,7 @@ public class Notification {
     private String message;
 
     @Column(name = "NOTIFICATION_RELATED_ID", nullable = false)
-    private Long relatedId;
+    private String relatedId;
 
     @Column(name = "NOTIFICATION_IS_READ", nullable = false)
     private boolean isRead;
@@ -51,6 +52,11 @@ public class Notification {
     @JoinColumn(name = "PROFESSOR_ID")
     @JsonIgnore
     private Professor professor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "MASTER_ID")
+    @JsonIgnore
+    private Master master;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "LECTURE_ID")

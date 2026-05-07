@@ -20,6 +20,8 @@ import com.example.demo.domain.student.lecture.entity.Lecture;
 import com.example.demo.domain.student.lecture.repository.EnrollmentRepository;
 import com.example.demo.domain.student.lecture.repository.LectureRepository;
 import com.example.demo.domain.student.mypage.dto.InquiryData;
+import com.example.demo.domain.student.notification.entity.Notification;
+import com.example.demo.domain.student.notification.repository.NotificationRepository;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
@@ -54,6 +56,7 @@ public class MasterService {
     private final PasswordEncoder passwordEncoder;
     private final ImageRepository imageRepository;
     private final FileUtil fileUtil;
+    private final NotificationRepository notificationRepository;
 
     // 강의 등록
     @Transactional
@@ -673,12 +676,13 @@ public class MasterService {
             throw new CustomException(403, "사진 변경 요청을 승인/반려할 권한이 없습니다.");
         }
 
+        Student student = null;
         List<Image> images  = imageRepository.findByRequestId(requestId);
         if (images.isEmpty()) {
             throw new CustomException(404, "해당 요청의 사진을 찾을 수 없습니다.");
         }
         if (request.getApprovalStatus().equals("APPROVED")) {
-            Student student = images.get(0).getStudent(); // 요청한 학생 정보 가져오기
+            student = images.get(0).getStudent(); // 요청한 학생 정보 가져오기
 
             // 기존에 사용 중이던 CURRENT 사진들 조회
             List<Image> currentImages = imageRepository.findByStudentAndImageType(student, ImageType.CURRENT);
@@ -705,6 +709,26 @@ public class MasterService {
             }
             imageRepository.save(image);
         }
+        Notification notification = null;
+        if(request.getApprovalStatus().equals("REJECTED")){
+            notification = Notification.builder()
+                    .message(student.getStudentName() + "학생의 프로필 변경 요청이 반려되었습니다.")
+                    .relatedId(images.getFirst().getRequestId())
+                    .isRead(false)
+                    .noticeType(NoticeType.PHOTO_RESULT)
+                    .student(images.getFirst().getStudent())
+                    .build();
+        }
+        else{
+            notification = Notification.builder()
+                    .message(student.getStudentName() + "학생의 프로필 변경 요청이 승인되었습니다.")
+                    .relatedId(images.getFirst().getRequestId())
+                    .isRead(false)
+                    .noticeType(NoticeType.PHOTO_RESULT)
+                    .student(images.getFirst().getStudent())
+                    .build();
+        }
+        notificationRepository.save(notification);
 
         return ActionResponse.success(200, "사진 변경 요청이 처리되었습니다.", "/api/admin/photo-requests");
     }

@@ -1,6 +1,7 @@
 package com.example.demo.domain.student.lecture.service;
 
 import com.example.demo.domain.enumerate.AttendStatus;
+import com.example.demo.domain.enumerate.NoticeType;
 import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceData;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceDetailData;
@@ -36,6 +37,8 @@ import com.example.demo.domain.student.lecture.entity.LectureSession;
 import com.example.demo.domain.student.lecture.repository.EnrollmentRepository;
 import com.example.demo.domain.student.lecture.repository.LectureRepository;
 import com.example.demo.domain.student.lecture.repository.LectureSessionRepository;
+import com.example.demo.domain.student.notification.entity.Notification;
+import com.example.demo.domain.student.notification.repository.NotificationRepository;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
@@ -66,6 +69,7 @@ public class LectureService {
     private final NoticeBoardRepository noticeBoardRepository;
     private final QuestionBoardRepository questionBoardRepository;
     private final AnswerRepository answerRepository;
+    private final NotificationRepository notificationRepository;
 
     public ApiResponse<List<LectureData>> getMyLecture(Authentication authentication, Long year, String semester){
         String userNum = authentication.getName();
@@ -163,7 +167,17 @@ public class LectureService {
                 .student(student)
                 .lecture(lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."))).build();
 
+
         Official savedOfficial = officialRepository.save(official);
+
+        Notification notification = Notification.builder()
+                .message(session.getLecture().getLectureName() + " 강의에 새로운 공결신청이 접수되었습니다.")
+                .relatedId(savedOfficial.getOfficialId().toString())
+                .isRead(false)
+                .noticeType(NoticeType.ABSENCE_OFFICIAL)
+                .professor(session.getLecture().getProfessor())
+                .lecture(session.getLecture()).build();
+        notificationRepository.save(notification);
         return mapToOfficialDto(savedOfficial);
     }
 
@@ -328,6 +342,15 @@ public class LectureService {
                 .lecture(lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."))).build();
 
         Objection savedObjection = objectionRepository.save(objection);
+
+        Notification notification = Notification.builder()
+                .message(session.getLecture().getLectureName() + " 강의에 새로운 출결 이의 신청이 접수되었습니다.")
+                .relatedId(savedObjection.getObjectionId().toString())
+                .isRead(false)
+                .noticeType(NoticeType.ABSENCE_OBJECTION)
+                .professor(session.getLecture().getProfessor())
+                .lecture(session.getLecture()).build();
+        notificationRepository.save(notification);
         return mapToObjectionDto(savedObjection);
     }
 
@@ -637,6 +660,15 @@ public class LectureService {
         QuestionRequestResponse questionRequestResponse = QuestionRequestResponse.builder()
                 .questionId(savedQuestion.getQuestionId())
                 .isPrivate(savedQuestion.getQuestionPrivate()).build();
+
+        Notification notification = Notification.builder()
+                .message(lecture.getLectureName() + " 강의에 새로운 질문이 등록되었습니다.")
+                .relatedId(savedQuestion.getQuestionId().toString())
+                .isRead(false)
+                .noticeType(NoticeType.ANSWER)
+                .professor(lecture.getProfessor())
+                .lecture(lecture).build();
+        notificationRepository.save(notification);
 
         return ApiResponse.success(200, questionRequestResponse, "질문이 등록되었습니다.", "api/mylecture/" + lectureId + "/questions/" + savedQuestion.getQuestionId());
     }
