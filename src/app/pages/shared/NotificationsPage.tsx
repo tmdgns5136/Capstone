@@ -17,7 +17,7 @@ function mapTypeToUI(type: string): "info" | "warning" | "success" {
 function toNotification(n: NotificationData): Notification {
   return {
     id: String(n.id),
-    title: n.type,
+    title: n.lectureName || n.type,
     message: n.message,
     isRead: n.isRead ?? n.read ?? false,
     createdAt: n.createdAt,
@@ -25,7 +25,7 @@ function toNotification(n: NotificationData): Notification {
   };
 }
 
-export default function NotificationsPage({ role }: { role: "student" | "professor" }) {
+export default function NotificationsPage({ role }: { role: "student" | "professor" | "admin" }) {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,11 +64,29 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
     setNotifications([]);
   };
 
-  const handleNotificationClick = (id: string, link?: string) => {
-    markAsRead(id);
-    if (link) {
-      navigate(link);
-    }
+  const mapRedirectUrl = (url: string): string | null => {
+    if (!url) return null;
+    const lectureMatch = url.match(/mylecture\/(\d+)/);
+    const lectureId = lectureMatch ? lectureMatch[1] : null;
+    if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/official-requests/")) return `/${role}/absence-request`;
+    if (url.includes("/objection-requests/")) return `/${role}/stats`;
+    if (url.includes("mypage")) return `/${role}/profile`;
+    return null;
+  };
+
+  const handleNotificationClick = (id: string) => {
+    markNotificationRead(Number(id))
+      .then((res) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        const url = res.data?.redirectUrl;
+        const frontRoute = url ? mapRedirectUrl(url) : null;
+        if (frontRoute) {
+          navigate(frontRoute);
+        }
+      })
+      .catch(() => {});
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -173,7 +191,7 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -40 }}
                     transition={{ ...spring, delay: index * 0.04 }}
-                    onClick={() => handleNotificationClick(notification.id, notification.link)}
+                    onClick={() => handleNotificationClick(notification.id)}
                     className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${config.border} ${notification.isRead
                         ? "bg-white hover:bg-zinc-50/80 opacity-70"
                         : "bg-zinc-50/40 hover:bg-zinc-50"

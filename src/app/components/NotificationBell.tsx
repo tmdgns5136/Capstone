@@ -28,7 +28,7 @@ function mapTypeToUI(type: string): "info" | "warning" | "success" {
 function toNotification(n: NotificationData, role: string): Notification {
   return {
     id: String(n.id),
-    title: n.type,
+    title: n.lectureName || n.type,
     message: n.message,
     isRead: n.isRead ?? n.read ?? false,
     createdAt: n.createdAt,
@@ -90,12 +90,30 @@ export function NotificationBell({ role }: NotificationBellProps) {
     setNotifications([]);
   };
 
-  const handleNotificationClick = (id: string, link?: string) => {
-    markAsRead(id);
+  const mapRedirectUrl = (url: string): string | null => {
+    if (!url) return null;
+    const lectureMatch = url.match(/mylecture\/(\d+)/);
+    const lectureId = lectureMatch ? lectureMatch[1] : null;
+    if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/official-requests/")) return `/${role}/absence-request`;
+    if (url.includes("/objection-requests/")) return `/${role}/stats`;
+    if (url.includes("mypage")) return `/${role}/profile`;
+    return null;
+  };
+
+  const handleNotificationClick = (id: string) => {
     setIsOpen(false);
-    if (link) {
-      navigate(link);
-    }
+    markNotificationRead(Number(id))
+      .then((res) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        const url = res.data?.redirectUrl;
+        const frontRoute = url ? mapRedirectUrl(url) : null;
+        if (frontRoute) {
+          navigate(frontRoute);
+        }
+      })
+      .catch(() => {});
   };
 
   const viewAll = () => {
@@ -184,7 +202,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      onClick={() => handleNotificationClick(notification.id, notification.link)}
+                      onClick={() => handleNotificationClick(notification.id)}
                       className={`px-5 py-3.5 cursor-pointer transition-colors hover:bg-zinc-50/80 ${
                         notification.isRead ? "opacity-50" : ""
                       }`}

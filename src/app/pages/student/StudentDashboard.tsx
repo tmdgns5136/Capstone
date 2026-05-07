@@ -7,6 +7,7 @@ import StudentStats from "./StudentStats";
 import StudentCourseStats from "./StudentCourseStats";
 import StudentProfile from "./StudentProfile";
 import StudentAbsenceRequest from "./StudentAbsenceRequest";
+import StudentCourseDetailPage from "./StudentCourseDetailPage";
 import NotificationsPage from "../shared/NotificationsPage";
 import TopNav from "../../components/layout/TopNav";
 import Footer from "../../components/layout/Footer";
@@ -50,6 +51,7 @@ export default function StudentDashboard() {
             <Route index element={<StudentHome />} />
             <Route path="timetable" element={<StudentTimetable />} />
             <Route path="courses" element={<StudentCourses />} />
+            <Route path="courses/:lectureId" element={<StudentCourseDetailPage />} />
             <Route path="stats" element={<StudentStats />} />
             <Route path="stats/:courseId" element={<StudentCourseStats />} />
             <Route path="absence-request" element={<StudentAbsenceRequest />} />

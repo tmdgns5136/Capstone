@@ -15,6 +15,7 @@ export interface NotificationData {
   isRead?: boolean;
   read?: boolean;
   createdAt: string;
+  lectureName?: string;
 }
 
 export interface NotificationRead {
