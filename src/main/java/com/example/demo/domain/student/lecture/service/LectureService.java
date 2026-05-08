@@ -314,8 +314,10 @@ public class LectureService {
         String fullPath = System.getProperty("user.dir") + official.getEvidencePath();
         fileUtil.deleteFileByFilePath(fullPath);
 
-        Notification notification = notificationRepository.findByRelatedId(requestId.toString());
-        notificationRepository.delete(notification);
+        List<Notification> notifications = notificationRepository.findByRelatedId(requestId.toString());
+        if(!notifications.isEmpty()){
+            notificationRepository.deleteAll(notifications);
+        }
 
         officialRepository.delete(official);
         return ActionResponse.success(200, "공결 신청이 취소되었습니다.",
@@ -483,8 +485,10 @@ public class LectureService {
         String fullPath = System.getProperty("user.dir") + objection.getEvidencePath();
         fileUtil.deleteFileByFilePath(fullPath);
 
-        Notification notification = notificationRepository.findByRelatedId(requestId.toString());
-        notificationRepository.delete(notification);
+        List<Notification> notifications = notificationRepository.findByRelatedId(requestId.toString());
+        if(!notifications.isEmpty()){
+            notificationRepository.deleteAll(notifications);
+        }
 
         objectionRepository.delete(objection);
         return ActionResponse.success(200, "출결 이의 신청이 취소되었습니다.",
@@ -757,8 +761,10 @@ public class LectureService {
             throw new CustomException(403, "본인의 질문만 삭제할 수 있습니다.");
         }
 
-        Notification notification = notificationRepository.findByRelatedId(questionId.toString());
-        notificationRepository.delete(notification);
+        List<Notification> notifications = notificationRepository.findByRelatedId(questionId.toString());
+        if(!notifications.isEmpty()){
+            notificationRepository.deleteAll(notifications);
+        }
 
         questionBoardRepository.delete(question);
 

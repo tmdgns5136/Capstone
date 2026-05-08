@@ -10,5 +10,5 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
     public List<Notification> findByStudent(Student student);
     public List<Notification> findByMaster(Master master);
-    public Notification findByRelatedId(String relatedId);
+    public List<Notification> findByRelatedId(String relatedId);
 }
