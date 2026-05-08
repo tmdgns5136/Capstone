@@ -303,13 +303,13 @@ export default function ProfessorAppealManagement() {
 
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(selectedRequest.appealId)} // .id -> .appealId 수정
+                    onClick={() => handleReject(selectedRequest.objectionId)} // .id -> .appealId 수정
                     className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
                   >
                     <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
                   </button>
                   <button
-                    onClick={() => handleApprove(selectedRequest.appealId)} // .id -> .appealId 수정
+                    onClick={() => handleApprove(selectedRequest.objectionId)} // .id -> .appealId 수정
                     className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)

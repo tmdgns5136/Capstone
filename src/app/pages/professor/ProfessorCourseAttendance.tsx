@@ -16,33 +16,51 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
   // 1. [수정] 시차 문제 해결된 날짜 계산 로직
   const SCHEDULE = useMemo(() => {
     const currentCourse = courses.find(c => String(c.lectureId) === String(lectureId));
-    const dayMap: Record<string, number> = { MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 0 };
-    const targetDay = dayMap[(currentCourse as any)?.lecture_day || "WEDNESDAY"] || 3;
-    
-    // 개강 주 월요일 기준 (3월 2일)
-    const startDate = new Date(2026, 2, 2); 
+    if (!currentCourse) return [];
+
+    const dayMap: Record<string, number> = { 
+      '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6, '일': 0,
+      MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 0 
+    };
+
+    // 1) lecture_day가 있으면 쓰고, 없으면 schedule(화 00:00...) 문자열에서 요일을 추출합니다.
+    const rawDays = (currentCourse as any)?.lecture_day || (currentCourse as any)?.lectureDay;
+    let lectureDays: string[] = [];
+
+    if (rawDays) {
+      lectureDays = rawDays.split(',').map((d: string) => d.trim().toUpperCase());
+    } else if (currentCourse.schedule) {
+      // "화 14:00..., 목 15:00..." 형태에서 한글 요일만 뽑아냅니다.
+      const foundDays = currentCourse.schedule.match(/[월화수목금토일]/g);
+      if (foundDays) lectureDays = foundDays;
+    }
+
+    // 요일 정보가 전혀 없으면 기본값 수요일
+    if (lectureDays.length === 0) lectureDays = ["수"];
+
+    const startDate = new Date(2026, 2, 2); // 3월 2일 월요일
 
     return Array.from({ length: 15 }, (_, i) => {
       const week = i + 1;
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + (targetDay - 1) + (i * 7));
-      
-      // [핵심 fix] toISOString() 대신 로컬 날짜 문자열 직접 생성 (YYYY-MM-DD)
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
-      
-      const dayLabel = ["일","월","화","수","목","금","토"][d.getDay()];
+      const sessions = lectureDays.map((dayName: string, subIdx: number) => {
+        const targetDay = dayMap[dayName] || 3;
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + (targetDay - 1) + (i * 7));
+        
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        const dayLabel = ["일","월","화","수","목","금","토"][d.getDay()];
 
-      return {
-        week,
-        sessions: [{
-          sessionId: `w${week}-1`,
-          date: dateStr, // 이제 정확히 "2026-03-04"가 들어감
+        return {
+          sessionId: `w${week}-${subIdx + 1}`,
+          date: dateStr,
           dateLabel: `${d.getMonth() + 1}월 ${d.getDate()}일 (${dayLabel})`,
-        }]
-      };
+        };
+      });
+
+      return { week, sessions };
     });
   }, [courses, lectureId]);
 
@@ -56,12 +74,12 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
   const [pendingMap, setPendingMap] = useState<Record<string, any[]>>({});
 
   const currentWeekData = SCHEDULE.find((w) => w.week === selectedWeek)!;
-  const selectedSession = currentWeekData.sessions.find((s) => s.sessionId === selectedSessionId) ?? currentWeekData.sessions[0];
-  const key = selectedSession.sessionId;
-  const sessionDate = selectedSession.date;
+  const selectedSession = currentWeekData?.sessions?.find((s: { sessionId: string }) => s.sessionId === selectedSessionId) ?? currentWeekData?.sessions?.[0];
+  const key = selectedSession?.sessionId ?? "";
+  const sessionDate = selectedSession?.date ?? "";
 
   const fetchAttendance = useCallback(async () => {
-    if (!lectureId) return;
+    if (!lectureId || !sessionDate || !key) return;
     setLoading(true);
     try {
       const response = await getAttendanceMonitoring(lectureId, { date: sessionDate });
@@ -79,6 +97,14 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
     if (!savedMap[key]) fetchAttendance();
   }, [key, fetchAttendance, savedMap]);
 
+  if (!currentWeekData || !selectedSession) {
+    return (
+      <div className="flex justify-center items-center h-64 bg-white rounded-2xl border border-zinc-100 shadow-sm">
+        <Loader2 className="w-8 h-8 animate-spin text-zinc-300" />
+      </div>
+    );
+  }
+  
   const baseStudents = savedMap[key] ?? [];
   const students = pendingMap[key] ?? baseStudents;
   const hasPending = !!pendingMap[key];
@@ -125,6 +151,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
 
   const filteredStudents = students.filter(s => s.name.includes(searchQuery) || s.studentId.includes(searchQuery));
   const pagedStudents = filteredStudents.slice((page - 1) * 8, page * 8);
+  
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
       {/* 주차 선택 */}
@@ -144,7 +171,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
       <div className="px-6 py-3 border-b border-zinc-100 bg-zinc-50">
         <p className="text-xs font-medium text-zinc-400 mb-2">{selectedWeek}주차 수업 선택</p>
         <div className="flex gap-2">
-          {currentWeekData.sessions.map((session) => (
+          {currentWeekData.sessions.map((session: { sessionId: string; dateLabel: string }) => (
             <button key={session.sessionId} onClick={() => { setSelectedSessionId(session.sessionId); setPage(1); }}
               className={`px-8 py-3 rounded-[20px] text-sm font-black transition-all ${
                 selectedSessionId === session.sessionId ? "bg-[#18181B] text-white shadow-xl" : "bg-white border border-zinc-200 text-zinc-600"

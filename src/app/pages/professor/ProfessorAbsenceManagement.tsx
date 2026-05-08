@@ -309,7 +309,7 @@ export default function ProfessorAbsenceManagement() {
                     </div>
                     <span className="text-sm font-medium text-primary-dark flex-1">증빙서류_첨부됨.pdf</span>
                     <button 
-                      onClick={() => handleFileDownload(selectedRequest.absenceId, selectedRequest.fileName)}
+                      onClick={() => handleFileDownload(selectedRequest.officialId, selectedRequest.fileName)}
                       className="text-sm font-medium text-primary-dark bg-primary/20 hover:bg-primary/30 px-3 py-1.5 rounded-lg transition-colors"
                     >
                     다운로드
@@ -337,13 +337,13 @@ export default function ProfessorAbsenceManagement() {
 
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(selectedRequest.absenceId)}
+                    onClick={() => handleReject(selectedRequest.officialId)}
                     className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
                   >
                     <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
                   </button>
                   <button
-                    onClick={() => handleApprove(selectedRequest.absenceId)}
+                    onClick={() => handleApprove(selectedRequest.officialId)}
                     className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인하기

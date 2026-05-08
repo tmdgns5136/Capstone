@@ -28,7 +28,7 @@ const navItems = [
 ];
 
 export default function ProfessorDashboard() {
-  const {isAuthenticated, role, userName} = useAuth();
+  const {isAuthenticated, role, userName, major} = useAuth();
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-white dark:bg-[#09090b]">
@@ -36,7 +36,6 @@ export default function ProfessorDashboard() {
         role="professor"
         navItems={navItems}
         userName={userName || "교수"}
-        userDepartment="컴퓨터과학과" //추후 api에서 받아오는 정보로 변경
       />
       <main className="flex-1 pt-14">
         <ClassSimulatorProvider>

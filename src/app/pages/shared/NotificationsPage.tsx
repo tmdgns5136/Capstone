@@ -1,111 +1,93 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Bell, Check, Trash2, ArrowLeft, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Bell, Check, Trash2, ArrowLeft, Info, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { getNotifications, markNotificationRead, type NotificationData } from "../../api/notification";
 import { Notification } from "../../components/NotificationBell";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
+
+/** 🌟 1. API 타입별 UI 제목 및 경로 설정 함수 (역할별 구분) */
+function getNotificationUIConfig(type: string, role: "student" | "professor") {
+  const isProfessor = role === "professor";
+
+  switch (type) {
+    case "ABSENCE_OFFICIAL":
+      return {
+        title: "공결 신청",
+        uiType: "info" as const,
+        link: isProfessor ? "/professor/appeal-management" : "/student/absence-request"
+      };
+    case "ABSENCE_OBJECTION":
+      return {
+        title: "이의 신청",
+        uiType: "warning" as const,
+        link: isProfessor ? "/professor/absence-management" : "/student/absence-objection"
+      };
+    case "ANSWER":
+      return {
+        title: "답변 등록",
+        uiType: "success" as const,
+        link: isProfessor ? "/professor/appeal-management" : "/student"
+      };
+    default:
+      return {
+        title: "시스템 알림",
+        uiType: "info" as const,
+        link: `/${role}`
+      };
+  }
+}
+
+/** 🌟 2. 백엔드 데이터를 UI 객체로 변환 (ID 매핑 및 Link 추가) */
+function toNotification(n: NotificationData, role: "student" | "professor"): Notification {
+  const config = getNotificationUIConfig(n.type, role);
+
+  return {
+    id: String(n.notificationId), // 백엔드 필드명(notificationId) 매핑
+    title: config.title,
+    message: n.message,
+    isRead: n.isRead,
+    createdAt: n.createdAt,
+    type: config.uiType,
+    link: config.link, // handleNotificationClick에서 사용
+  };
+}
 
 export default function NotificationsPage({ role }: { role: "student" | "professor" }) {
   const navigate = useNavigate();
-
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // 🌟 3. 데이터 로딩 로직 (role 전달)
   useEffect(() => {
-    // Shared mock data fetching (In real app, this would be an API call)
-    if (role === "student") {
-      setNotifications([
-        {
-          id: "1",
-          title: "출결 상태 변경",
-          message: "데이터베이스 심화 과목의 출결 상태가 '지각'으로 변경되었습니다.",
-          isRead: false,
-          createdAt: "10분 전",
-          type: "warning",
-          link: "/student/stats/데이터베이스"
-        },
-        {
-          id: "2",
-          title: "공결 신청 승인",
-          message: "운영체제 과목의 공결 신청이 승인되었습니다.",
-          isRead: false,
-          createdAt: "1시간 전",
-          type: "success",
-          link: "/student/absence-request"
-        },
-        {
-          id: "3",
-          title: "시스템 알림",
-          message: "서버 점검이 예정되어 있습니다. (02:00 - 04:00)",
-          isRead: true,
-          createdAt: "1일 전",
-          type: "info",
-          link: "/student"
-        },
-        {
-          id: "4",
-          title: "새로운 과제",
-          message: "네트워크 프로그래밍 과목에 새로운 과제가 등록되었습니다.",
-          isRead: true,
-          createdAt: "2일 전",
-          type: "info",
-          link: "/student/courses"
-        },
-      ]);
-    } else {
-      setNotifications([
-        {
-          id: "1",
-          title: "새로운 공결 신청",
-          message: "김철수 학생이 알고리즘 과목에 공결을 신청했습니다.",
-          isRead: false,
-          createdAt: "5분 전",
-          type: "info",
-          link: "/professor/absence-management"
-        },
-        {
-          id: "2",
-          title: "출결 시스템 경고",
-          message: "405호 라즈베리파이 센서 연결이 불안정합니다.",
-          isRead: false,
-          createdAt: "30분 전",
-          type: "warning",
-          link: "/professor/class-control"
-        },
-        {
-          id: "3",
-          title: "데이터 동기화 완료",
-          message: "어제 강의의 출결 데이터 분석이 완료되었습니다.",
-          isRead: true,
-          createdAt: "2시간 전",
-          type: "success",
-          link: "/professor/monitoring"
-        },
-        {
-          id: "4",
-          title: "학생 등록",
-          message: "이영희 학생이 새로운 강의에 수강 신청했습니다.",
-          isRead: true,
-          createdAt: "1일 전",
-          type: "info",
-          link: "/professor/courses"
-        },
-      ]);
-    }
+    setLoading(true);
+    getNotifications()
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+        setNotifications(list.map((n: NotificationData) => toNotification(n, role)));
+      })
+      .catch(() => setNotifications([]))
+      .finally(() => setLoading(false));
   }, [role]);
 
   const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n =>
-      n.id === id ? { ...n, isRead: true } : n
-    ));
+    markNotificationRead(Number(id))
+      .then(() => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      })
+      .catch(() => {});
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    notifications.filter(n => !n.isRead).forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => {});
+    });
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
   const deleteNotification = (id: string) => {
-    setNotifications(notifications.filter(n => n.id !== id));
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const clearAll = () => {
@@ -113,9 +95,10 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
   };
 
   const handleNotificationClick = (id: string, link?: string) => {
+    console.log("이동하려는 주소:", link);
     markAsRead(id);
     if (link) {
-      navigate(link);
+      navigate(link); // 👈 이제 알림 클릭 시 해당 관리/조회 페이지로 이동합니다.
     }
   };
 
@@ -127,6 +110,15 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
     success: { icon: CheckCircle2, bg: "bg-primary/10", text: "text-primary-dark", border: "border-l-primary" },
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
+
+  // 이 아래 렌더링(JSX) 부분은 기존 디자인을 그대로 유지합니다.
   return (
     <div className="max-w-3xl mx-auto pb-12 px-3 sm:px-4">
       {/* Header */}

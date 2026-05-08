@@ -66,7 +66,7 @@ export default function ProfessorHome() {
   }, [fetchDashboardData]);
 
   // 2. 강의 제어 핸들러 (API 7, 7-1번 연동)
-  const handleStartLecture = async (lectureId: string) => {
+  const handleStartLecture = async (lectureId: number) => {
     try {
       const response = await startLecture(lectureId);
       if (response.success) {
@@ -79,7 +79,7 @@ export default function ProfessorHome() {
     }
   };
 
-  const handleEndLecture = async (lectureId: string) => {
+  const handleEndLecture = async (lectureId: number) => {
     try {
       const response = await endLecture(lectureId);
       if (response.success) {
@@ -94,6 +94,7 @@ export default function ProfessorHome() {
 
   // 시간표 기반 활성 강의 찾기
   const activeCourse = todayLectures.find(l => l.status === "IN_PROGRESS") || todayLectures[0];
+  const currentlyActive = todayLectures.find(l => l.status === "IN_PROGRESS");
 
   if (loading) return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>;
 
@@ -117,7 +118,7 @@ export default function ProfessorHome() {
 
       {/* Stats Grid: API 6번 실제 데이터 적용 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="총 수강생" value={stats?.totalStudents} unit="명" icon={<Users className="text-rose-400" />} />
+        <StatCard label="현재 강의 수강생" value={currentlyActive ? currentlyActive.students : 0} unit="명" icon={<Users className="text-rose-400" />} />
         <StatCard label="평균 출석률" value={stats?.avgAttendance} unit="%" icon={<CheckCircle className="text-primary" />} isProgress />
         <StatCard label="공결 대기" value={stats?.pendingAbsences} unit="건" icon={<AlertCircle className="text-amber-400" />} />
         <StatCard label="오늘 강의" value={stats?.todayClasses} unit="개" icon={<Clock className="text-primary" />} dark />
@@ -158,7 +159,7 @@ export default function ProfessorHome() {
                 <AttendanceStat label="미출석" value={attendanceData.absent} color="text-zinc-500" />
               </div>
               <button
-                onClick={() => handleEndLecture(activeCourse?.lectureId || "")}
+                onClick={() => handleEndLecture(activeCourse?.lectureId || 0)}
                 className="w-full flex items-center justify-center gap-2 bg-rose-600 text-white font-bold py-4 rounded-xl hover:bg-rose-700 transition-colors"
               >
                 <Square className="w-4 h-4 fill-current" /> 수업 종료 및 저장
@@ -170,7 +171,7 @@ export default function ProfessorHome() {
                 <div className="h-full bg-primary/20 w-0" />
               </div>
               <button
-                onClick={() => handleStartLecture(activeCourse?.lectureId || "")}
+                onClick={() => handleStartLecture(activeCourse?.lectureId || 0)}
                 disabled={!activeCourse}
                 className="w-full flex items-center justify-center gap-2 bg-primary text-white font-bold py-4 rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50"
               >

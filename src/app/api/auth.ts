@@ -5,6 +5,7 @@ export interface LoginData {
   userName: string;
   role: string;
   accessToken: string;
+  major?: string;
 }
 
 export async function login(userNum: string, password: string) {
@@ -56,11 +57,12 @@ export async function signupProfessor(
   userEmail: string,
   password: string,
   phoneNum: string,
+  major: string
 ) {
   return api("/signup/professor", {
     method: "POST",
     skipAuth: true,
-    body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum }),
+    body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum, major }),
   });
 }
 

@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Bell, Check, Trash2, ArrowRight, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { getNotifications, markNotificationRead, type NotificationData } from "../api/notification";
 
 export interface Notification {
   id: string;
@@ -17,76 +18,65 @@ interface NotificationBellProps {
   role: "student" | "professor";
 }
 
+// 🌟 디자인은 유지하되, 백엔드 타입에 맞춰 아이콘/타입 결정
+function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
+  switch (type) {
+    case "ABSENCE_REQUEST":
+      return { title: "공결 신청", uiType: "info" };
+    case "APPEAL_REQUEST":
+      return { title: "이의 신청", uiType: "warning" };
+    case "ANSWER_REGISTER":
+      return { title: "답변 등록", uiType: "success" };
+    default:
+      return { title: "시스템 알림", uiType: "info" };
+  }
+}
+
+// 🌟 백엔드 데이터를 UI용 객체로 변환 (ID와 Link 매핑 추가)
+function toNotification(n: NotificationData, role: string): Notification {
+  const { title, uiType } = mapTypeToUI(n.type);
+  const isProfessor = role === "professor";
+  
+  // 역할에 따른 이동 경로 설정
+  let link = `/${role}`;
+  if (n.type === "ABSENCE_REQUEST") link = isProfessor ? "/professor/absence-management" : "/student/absence-request";
+  else if (n.type === "APPEAL_REQUEST") link = isProfessor ? "/professor/appeal-management" : "/student/stats";
+  else if (n.type === "ANSWER_REGISTER") link = isProfessor ? "/professor/appeal-management" : "/student";
+
+  return {
+    id: String(n.notificationId), // 백엔드 필드명(notificationId) 매핑
+    title: title,
+    message: n.message,
+    isRead: n.isRead,
+    createdAt: n.createdAt,
+    type: uiType,
+    link: link
+  };
+}
+
 const spring = { type: "spring" as const, stiffness: 200, damping: 24 };
 
 export function NotificationBell({ role }: NotificationBellProps) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "출결 상태 변경",
-      message: "데이터베이스 심화 과목의 출결 상태가 '지각'으로 변경되었습니다.",
-      isRead: false,
-      createdAt: "10분 전",
-      type: "warning",
-      link: "/student/stats/데이터베이스"
-    },
-    {
-      id: "2",
-      title: "공결 신청 승인",
-      message: "운영체제 과목의 공결 신청이 승인되었습니다.",
-      isRead: false,
-      createdAt: "1시간 전",
-      type: "success",
-      link: "/student/absence-request"
-    },
-    {
-      id: "3",
-      title: "시스템 알림",
-      message: "서버 점검이 예정되어 있습니다. (02:00 - 04:00)",
-      isRead: true,
-      createdAt: "1일 전",
-      type: "info",
-      link: "/student"
-    },
-  ]);
+  const fetchNotifications = useCallback(() => {
+    getNotifications()
+      .then((res) => {
+        // ApiResponse<List<NotificationResponse>> 구조에서 데이터 추출
+        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+        setNotifications(list.map((n: NotificationData) => toNotification(n, role)));
+      })
+      .catch(() => {});
+  }, [role]);
 
   useEffect(() => {
-    if (role === "professor") {
-      setNotifications([
-        {
-          id: "1",
-          title: "새로운 공결 신청",
-          message: "김철수 학생이 알고리즘 과목에 공결을 신청했습니다.",
-          isRead: false,
-          createdAt: "5분 전",
-          type: "info",
-          link: "/professor/absence-management"
-        },
-        {
-          id: "2",
-          title: "출결 시스템 경고",
-          message: "405호 라즈베리파이 센서 연결이 불안정합니다.",
-          isRead: false,
-          createdAt: "30분 전",
-          type: "warning",
-          link: "/professor/class-control"
-        },
-        {
-          id: "3",
-          title: "데이터 동기화 완료",
-          message: "어제 강의의 출결 데이터 분석이 완료되었습니다.",
-          isRead: true,
-          createdAt: "2시간 전",
-          type: "success",
-          link: "/professor/monitoring"
-        },
-      ]);
-    }
-  }, [role]);
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -101,13 +91,18 @@ export function NotificationBell({ role }: NotificationBellProps) {
   }, []);
 
   const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n =>
-      n.id === id ? { ...n, isRead: true } : n
-    ));
+    markNotificationRead(Number(id))
+      .then(() => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      })
+      .catch(() => {});
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    notifications.filter(n => !n.isRead).forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => {});
+    });
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
   const clearAll = () => {

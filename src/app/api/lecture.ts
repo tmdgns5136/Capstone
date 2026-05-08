@@ -36,11 +36,13 @@ export interface LectureSession {
 
 // 5. 오늘 강의 일정 타입
 export interface TodayLecture {
-  lectureId: string;
+  lectureId: number;
+  lecturCode: string;
   name: string;
   location: string;
   time: string;
   status: "WAIT" | "IN_PROGRESS" | "DONE" | string; 
+  students: number;
 }
 
 // 6. 대시보드 통계 타입
@@ -54,8 +56,9 @@ export interface DashboardStats {
 //API 함수
 
 // 4. 담당 강의 목록 조회
-export async function getLectures() {
-  return api<ApiResponse<Lecture[]>>("/api/professors/lectures", {
+export async function getLectures(semester?: string) {
+  const params = semester ? `?semester=${encodeURIComponent(semester)}` : "";
+  return api<ApiResponse<Lecture[]>>(`/api/professors/lectures${params}`, {
     method: "GET",
   });
 }
@@ -75,14 +78,14 @@ export async function getDashboardStats() {
 }
 
 // 7. 수업 시작
-export async function startLecture(lectureId: string) {
+export async function startLecture(lectureId: number) {
   return api<ApiResponse<any>>(`/api/professors/lectures/${lectureId}/start`, {
     method: "POST",
   });
 }
 
 // 7-1. 수업 종료
-export async function endLecture(lectureId: string) {
+export async function endLecture(lectureId: number) {
   return api<ApiResponse<any>>(`/api/professors/lectures/${lectureId}/end`, {
     method: "POST",
   });
