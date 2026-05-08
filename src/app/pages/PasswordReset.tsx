@@ -273,7 +273,7 @@ export default function PasswordReset() {
                         onClick={() => setShowNew(!showNew)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-zinc-500 transition-colors"
                       >
-                        {showNew ? <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.5} /> : <Eye className="w-[18px] h-[18px]" strokeWidth={1.5} />}
+                        {showNew ? <Eye className="w-[18px] h-[18px]" strokeWidth={1.5} /> : <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.5} />}
                       </button>
                     </div>
                   </div>
@@ -297,7 +297,7 @@ export default function PasswordReset() {
                         onClick={() => setShowConfirm(!showConfirm)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-zinc-500 transition-colors"
                       >
-                        {showConfirm ? <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.5} /> : <Eye className="w-[18px] h-[18px]" strokeWidth={1.5} />}
+                        {showConfirm ? <Eye className="w-[18px] h-[18px]" strokeWidth={1.5} /> : <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.5} />}
                       </button>
                     </div>
                     {confirmPassword && newPassword !== confirmPassword && (
