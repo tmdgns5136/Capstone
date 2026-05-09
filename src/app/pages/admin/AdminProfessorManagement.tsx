@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "motion/react";
-import { UserCircle, Plus, Search, Edit, Trash2, Download } from "lucide-react";
+import { UserCircle, Plus, Search, Edit, Trash2, Download, Eye, EyeOff } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
   Dialog,
@@ -32,6 +32,13 @@ interface PageResponse {
   size: number;
 }
 
+const formatPhone = (value: string) => {
+  const nums = value.replace(/\D/g, "").slice(0, 11);
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+};
+
 const statusLabel = (status: string) => {
   switch (status) {
     case "EMPLOYED": return "재직";
@@ -59,12 +66,15 @@ export default function AdminProfessorManagement() {
   const [userEmail, setUserEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phoneNum, setPhoneNum] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // 수정 폼
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const fetchProfessors = useCallback(async (page = 0) => {
     setLoading(true);
@@ -100,6 +110,7 @@ export default function AdminProfessorManagement() {
     setUserEmail("");
     setPassword("");
     setPhoneNum("");
+    setShowPassword(false);
   };
 
   const handleAdd = async () => {
@@ -110,7 +121,7 @@ export default function AdminProfessorManagement() {
     try {
       await api("/api/admin/professors/register", {
         method: "POST",
-        body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum }),
+        body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum: phoneNum.replace(/\D/g, "") }),
       });
       toast.success("교수가 등록되었습니다");
       resetForm();
@@ -127,19 +138,23 @@ export default function AdminProfessorManagement() {
     setEditEmail(professor.userEmail);
     setEditPhone(professor.phoneNum || "");
     setEditStatus(professor.status || "");
+    setEditPassword("");
+    setShowEditPassword(false);
   };
 
   const handleUpdate = async () => {
     if (!editingProfessor) return;
     try {
+      const body: any = {
+        userName: editName,
+        email: editEmail,
+        phoneNum: editPhone.replace(/\D/g, ""),
+        status: editStatus,
+      };
+      if (editPassword) body.password = editPassword;
       await api(`/api/admin/professors/${editingProfessor.userNum}/edit`, {
         method: "PATCH",
-        body: JSON.stringify({
-          userName: editName,
-          email: editEmail,
-          phoneNum: editPhone,
-          status: editStatus,
-        }),
+        body: JSON.stringify(body),
       });
       toast.success("교수 정보가 수정되었습니다");
       setEditingProfessor(null);
@@ -171,7 +186,7 @@ export default function AdminProfessorManagement() {
       사번: p.userNum,
       이름: p.userName,
       이메일: p.userEmail,
-      전화번호: p.phoneNum,
+      전화번호: formatPhone(p.phoneNum),
       상태: p.status,
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -242,19 +257,28 @@ export default function AdminProfessorManagement() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium text-zinc-700">비밀번호</Label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="영문+숫자 8자 이상"
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="영문+숫자 8자 이상"
+                      className="w-full rounded-xl border border-zinc-200 bg-white p-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                    >
+                      {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium text-zinc-700">전화번호</Label>
                   <input
                     value={phoneNum}
-                    onChange={(e) => setPhoneNum(e.target.value)}
+                    onChange={(e) => setPhoneNum(formatPhone(e.target.value))}
                     placeholder="010-1234-5678"
                     className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                   />
@@ -338,7 +362,7 @@ export default function AdminProfessorManagement() {
                       <td className="px-6 py-4 text-sm text-zinc-600 font-mono">{professor.userNum}</td>
                       <td className="px-6 py-4 text-sm font-medium text-zinc-900">{professor.userName}</td>
                       <td className="px-6 py-4 text-sm text-zinc-600">{professor.userEmail}</td>
-                      <td className="px-6 py-4 text-sm text-zinc-600">{professor.phoneNum || "-"}</td>
+                      <td className="px-6 py-4 text-sm text-zinc-600">{formatPhone(professor.phoneNum)}</td>
                       <td className="px-6 py-4 text-sm text-center">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
                           {statusLabel(professor.status)}
@@ -391,7 +415,7 @@ export default function AdminProfessorManagement() {
                                   <Label className="text-sm font-medium text-zinc-700">전화번호</Label>
                                   <input
                                     value={editPhone}
-                                    onChange={(e) => setEditPhone(e.target.value)}
+                                    onChange={(e) => setEditPhone(formatPhone(e.target.value))}
                                     placeholder="010-1234-5678"
                                     className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                                   />
@@ -407,6 +431,25 @@ export default function AdminProfessorManagement() {
                                     <option value="RETIRED">퇴직</option>
                                     <option value="LEAVE">휴직</option>
                                   </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-sm font-medium text-zinc-700">비밀번호 변경</Label>
+                                  <div className="relative">
+                                    <input
+                                      type={showEditPassword ? "text" : "password"}
+                                      value={editPassword}
+                                      onChange={(e) => setEditPassword(e.target.value)}
+                                      placeholder="변경할 비밀번호 입력 (미입력 시 유지)"
+                                      className="w-full rounded-xl border border-zinc-200 bg-white p-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowEditPassword(!showEditPassword)}
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                                    >
+                                      {showEditPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                    </button>
+                                  </div>
                                 </div>
                                 <button
                                   onClick={handleUpdate}
@@ -485,7 +528,7 @@ export default function AdminProfessorManagement() {
                             </div>
                             <div className="space-y-1.5">
                               <Label className="text-sm font-medium text-zinc-700">전화번호</Label>
-                              <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="010-1234-5678" className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                              <input value={editPhone} onChange={(e) => setEditPhone(formatPhone(e.target.value))} placeholder="010-1234-5678" className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
                             </div>
                             <div className="space-y-1.5">
                               <Label className="text-sm font-medium text-zinc-700">상태</Label>
@@ -494,6 +537,25 @@ export default function AdminProfessorManagement() {
                                 <option value="RETIRED">퇴직</option>
                                 <option value="LEAVE">휴직</option>
                               </select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-sm font-medium text-zinc-700">비밀번호 변경</Label>
+                              <div className="relative">
+                                <input
+                                  type={showEditPassword ? "text" : "password"}
+                                  value={editPassword}
+                                  onChange={(e) => setEditPassword(e.target.value)}
+                                  placeholder="변경할 비밀번호 입력 (미입력 시 유지)"
+                                  className="w-full rounded-xl border border-zinc-200 bg-white p-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowEditPassword(!showEditPassword)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                                >
+                                  {showEditPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                </button>
+                              </div>
                             </div>
                             <button onClick={handleUpdate} className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2">
                               수정하기
@@ -511,7 +573,7 @@ export default function AdminProfessorManagement() {
                   </div>
                   <p className="text-xs text-zinc-500 truncate">{professor.userEmail}</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-500">{professor.phoneNum || "-"}</span>
+                    <span className="text-xs text-zinc-500">{formatPhone(professor.phoneNum)}</span>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
                       {statusLabel(professor.status)}
                     </span>

@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ interface EditFormState {
   email: string;
   phoneNum: string;
   status: string;
+  password: string;
 }
 
 interface AdminStudentTableProps {
@@ -33,7 +34,17 @@ interface AdminStudentTableProps {
   onUpdate: () => void;
   onDelete: (userNum: string) => void;
   onEditFormChange: (field: keyof EditFormState, value: string) => void;
+  showEditPassword: boolean;
+  onToggleEditPassword: () => void;
 }
+
+const formatPhone = (value: string) => {
+  if (!value) return "-";
+  const nums = value.replace(/\D/g, "");
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+};
 
 const statusLabel = (status: string) => {
   switch (status) {
@@ -54,6 +65,8 @@ export function AdminStudentTable({
   onUpdate,
   onDelete,
   onEditFormChange,
+  showEditPassword,
+  onToggleEditPassword,
 }: AdminStudentTableProps) {
   const editDialogContent = (
     <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-md">
@@ -65,6 +78,25 @@ export function AdminStudentTable({
         <FormInput label="이름" value={editForm.name} onChange={(e) => onEditFormChange("name", e.target.value)} />
         <FormInput label="이메일" value={editForm.email} onChange={(e) => onEditFormChange("email", e.target.value)} />
         <FormInput label="전화번호" value={editForm.phoneNum} onChange={(e) => onEditFormChange("phoneNum", e.target.value)} placeholder="010-1234-5678" />
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-zinc-700">비밀번호 변경</label>
+          <div className="relative">
+            <input
+              type={showEditPassword ? "text" : "password"}
+              value={editForm.password}
+              onChange={(e) => onEditFormChange("password", e.target.value)}
+              placeholder="변경할 비밀번호 입력 (미입력 시 유지)"
+              className="w-full rounded-xl border border-zinc-200 bg-white p-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+            />
+            <button
+              type="button"
+              onClick={onToggleEditPassword}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+            >
+              {showEditPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-zinc-700">상태</label>
           <select
@@ -115,7 +147,7 @@ export function AdminStudentTable({
                 <td className="px-6 py-4 text-sm text-zinc-600 font-mono">{student.userNum}</td>
                 <td className="px-6 py-4 text-sm font-medium text-zinc-900">{student.userName}</td>
                 <td className="px-6 py-4 text-sm text-zinc-600">{student.userEmail}</td>
-                <td className="px-6 py-4 text-sm text-zinc-600">{student.phoneNum || "-"}</td>
+                <td className="px-6 py-4 text-sm text-zinc-600">{formatPhone(student.phoneNum)}</td>
                 <td className="px-6 py-4 text-sm text-center">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
                     {statusLabel(student.status)}
@@ -198,7 +230,7 @@ export function AdminStudentTable({
             </div>
             <p className="text-xs text-zinc-500 truncate">{student.userEmail}</p>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">{student.phoneNum || "-"}</span>
+              <span className="text-xs text-zinc-500">{formatPhone(student.phoneNum)}</span>
               <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
                 {statusLabel(student.status)}
               </span>

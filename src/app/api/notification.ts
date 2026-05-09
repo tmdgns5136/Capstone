@@ -1,38 +1,25 @@
 import { api } from "./client";
 
-export interface ApiResponse<T> {
-  success: boolean;
-  status: number;
-  data: T;
-  message?: string;
-}
-
 export interface NotificationData {
   id: number;
-  type: string;
+  notificationId?: number;
+  type: string;           // ABSENCE_REQUEST, APPEAL_REQUEST, ANSWER_REGISTER, PHOTO_RESULT
   message: string;
-  relatedId: number;
+  lectureName?: string | null;
+  relatedId: number | string;
+  read: boolean;
   isRead?: boolean;
-  read?: boolean;
-  createdAt: string;
-  lectureName?: string;
-}
-
-export interface NotificationRead {
-  isRead: boolean;
-  redirectUrl: string;
+  createdAt: string;      // "yyyy-MM-dd HH:mm"
 }
 
 export async function getNotifications() {
-  return api<ApiResponse<NotificationData[]>>(
-    `/api/notifications`,
-    { method: "GET" },
-  );
+  return api<{ data: NotificationData[] }>("/api/notifications", {
+    method: "GET",
+  });
 }
 
 export async function markNotificationRead(notificationId: number) {
-  return api<ApiResponse<NotificationRead>>(
-    `/api/notifications/${notificationId}/read`,
-    { method: "PATCH" },
-  );
+  return api(`/api/notifications/${notificationId}/read`, {
+    method: "PATCH",
+  });
 }

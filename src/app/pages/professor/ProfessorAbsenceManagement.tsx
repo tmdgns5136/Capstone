@@ -20,23 +20,23 @@ export default function ProfessorAbsenceManagement() {
     r.studentId.includes(searchQuery)
   );
 
-  const pendingRequests = filteredRequests.filter(r => r.status === "WAIT");
-  const processedRequests = filteredRequests.filter(r => r.status !== "WAIT");
+  const pendingRequests = filteredRequests.filter(r => r.status === "PENDING");
+  const processedRequests = filteredRequests.filter(r => r.status !== "PENDING");
 
-  const handleApprove = async (absenceId: number) => {
-  const success = await updateStatus(absenceId, "APPROVED");
+  const handleApprove = async (officialId: number) => { 
+  const success = await updateStatus(officialId, "APPROVED");
   if (success) {
     toast.success("승인 처리되었습니다");
     setSelectedRequest(null);
   }
 };
 
-  const handleReject = async (absenceId: number) => {
+  const handleReject = async (officialId: number) => { // id: string -> absenceId: number
   if (!rejectReason.trim()) {
     toast.error("거절 사유를 입력해주세요");
     return;
   }
-  const success = await updateStatus(absenceId, "REJECTED", rejectReason);
+  const success = await updateStatus(officialId, "REJECTED", rejectReason);
   if (success) {
     toast.success("거절 처리되었습니다");
     setSelectedRequest(null);
@@ -44,9 +44,9 @@ export default function ProfessorAbsenceManagement() {
   }
 };
 
-  const handleFileDownload = async (absenceId: number, fileName: string) => {
+  const handleFileDownload = async (officialId: number, fileName: string) => {
   try {
-    const blob = await downloadAbsenceDocument(absenceId);
+    const blob = await downloadAbsenceDocument(officialId);
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -97,7 +97,7 @@ export default function ProfessorAbsenceManagement() {
         <div className="bg-white rounded-xl border border-zinc-200  p-5 flex items-center justify-between">
           <div>
             <p className="text-sm text-zinc-400 font-medium">대기 중인 신청</p>
-            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "WAIT").length}</h3>
+            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "PENDING").length}</h3>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
             <Clock className="w-5 h-5 text-amber-600" strokeWidth={1.5} />
@@ -170,7 +170,7 @@ export default function ProfessorAbsenceManagement() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pendingRequests.map((request, index) => (
                   <motion.div
-                    key={request.absenceId}
+                    key={request.officialId}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -218,7 +218,7 @@ export default function ProfessorAbsenceManagement() {
               {processedRequests.length > 0 ? (
                 processedRequests.map((request, index) => (
                   <motion.div
-                    key={request.absenceId}
+                    key={request.officialId}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -308,8 +308,8 @@ export default function ProfessorAbsenceManagement() {
                       <Download className="w-4 h-4 text-primary-dark" strokeWidth={1.5} />
                     </div>
                     <span className="text-sm font-medium text-primary-dark flex-1">증빙서류_첨부됨.pdf</span>
-                    <button
-                      onClick={() => handleFileDownload(selectedRequest.absenceId, selectedRequest.fileName)}
+                    <button 
+                      onClick={() => handleFileDownload(selectedRequest.officialId, selectedRequest.fileName)}
                       className="text-sm font-medium text-primary-dark bg-primary/20 hover:bg-primary/30 px-3 py-1.5 rounded-lg transition-colors"
                     >
                     다운로드
@@ -337,13 +337,13 @@ export default function ProfessorAbsenceManagement() {
 
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(selectedRequest.absenceId)}
+                    onClick={() => handleReject(selectedRequest.officialId)}
                     className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
                   >
                     <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
                   </button>
                   <button
-                    onClick={() => handleApprove(selectedRequest.absenceId)}
+                    onClick={() => handleApprove(selectedRequest.officialId)}
                     className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인하기

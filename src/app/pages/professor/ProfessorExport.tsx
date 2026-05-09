@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
 const sampleData = [
   { studentId: "20240101", name: "김철수", attendance: 14, late: 1, absent: 0, excused: 0, rate: 93.3, grade: "A" },
@@ -106,7 +106,7 @@ export default function ProfessorExport() {
                   className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary appearance-none cursor-pointer"
                 >
                   {courses.map((course) => (
-                    <option key={course.id} value={course.name}>
+                    <option key={course.lectureId} value={course.name}>
                       {course.name}
                     </option>
                   ))}

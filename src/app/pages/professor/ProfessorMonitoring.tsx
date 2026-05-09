@@ -2,21 +2,21 @@ import { useState, useEffect, useCallback } from "react";
 import { Users, BarChart3, ChevronDown, Search, Loader2, FileSpreadsheet, Download } from "lucide-react";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx"; // 엑셀 라이브러리 임포트 확인
 import { getAttendanceMonitoring, AttendanceMonitoringData } from "../../api/attendance";
 
 const SEMESTERS = ["2026-1", "2025-2"] as const;
 
 export default function ProfessorMonitoring() {
   const { courses, loading: coursesLoading } = useProfessorCourses();
-
+  
   // 상태 관리
   const [semester, setSemester] = useState<string>(SEMESTERS[0]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [monitoringData, setMonitoringData] = useState<AttendanceMonitoringData | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
-  const [includeStats, setIncludeStats] = useState(true);
+  const [includeStats, setIncludeStats] = useState(true); // 엑셀 옵션 상태 추가
 
   // 현재 선택된 강의 객체 찾기
   const selectedCourse = courses.find(c => c.lectureId === selectedCourseId);
@@ -87,7 +87,7 @@ export default function ProfessorMonitoring() {
     toast.success("엑셀 파일이 다운로드되었습니다.");
   };
 
-  const filteredStudents = monitoringData?.students.filter((s) =>
+  const filteredStudents = monitoringData?.students.filter((s) => 
     s.name.includes(searchQuery) || s.studentId.includes(searchQuery)
   ) || [];
 
@@ -101,7 +101,7 @@ export default function ProfessorMonitoring() {
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">출결 조회</h1>
           <p className="text-sm text-zinc-400 mt-1">강의별 학기 전체 출결 현황입니다.</p>
         </div>
-
+        
         <div className="flex items-center gap-3">
           <select
             value={semester}
@@ -110,7 +110,7 @@ export default function ProfessorMonitoring() {
           >
             {SEMESTERS.map((s) => <option key={s} value={s}>{s}학기</option>)}
           </select>
-
+          
           <select
             value={selectedCourseId}
             onChange={(e) => setSelectedCourseId(e.target.value)}

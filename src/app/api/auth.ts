@@ -5,6 +5,7 @@ export interface LoginData {
   userName: string;
   role: string;
   accessToken: string;
+  major?: string;
 }
 
 export async function login(userNum: string, password: string) {
@@ -34,7 +35,7 @@ export async function signupStudent(
   const formData = new FormData();
   formData.append(
     "joinRequest",
-    new Blob([JSON.stringify({ userNum, userName, userEmail, password, phoneNum })], {
+    new Blob([JSON.stringify({ userNum, userName, userEmail, password, phoneNum: phoneNum.replace(/\D/g, "") })], {
       type: "application/json",
     }),
   );
@@ -56,11 +57,12 @@ export async function signupProfessor(
   userEmail: string,
   password: string,
   phoneNum: string,
+  major: string
 ) {
   return api("/signup/professor", {
     method: "POST",
     skipAuth: true,
-    body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum }),
+    body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum: phoneNum.replace(/\D/g, ""), major }),
   });
 }
 

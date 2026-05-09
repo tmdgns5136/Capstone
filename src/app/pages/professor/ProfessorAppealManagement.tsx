@@ -20,11 +20,11 @@ export default function ProfessorAppealManagement() {
     r.studentId.includes(searchQuery)
   );
 
-  const pendingRequests = filteredRequests.filter(r => r.status === "WAIT");
-  const processedRequests = filteredRequests.filter(r => r.status !== "WAIT");
+  const pendingRequests = filteredRequests.filter(r => r.status === "PENDING");
+  const processedRequests = filteredRequests.filter(r => r.status !== "PENDING");
 
-  // 2. 처리 함수 수정
-  const handleApprove = async (id: string) => {
+  // 2. 처리 함수 수정 
+  const handleApprove = async (id: string) => { 
     const success = await updateStatus(id, "APPROVED");
     if (success) {
       toast.success("이의 신청이 승인되었습니다. 출결 상태가 출석으로 변경됩니다.");
@@ -91,7 +91,7 @@ export default function ProfessorAppealManagement() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
           <div>
             <p className="text-sm text-zinc-400 font-medium">대기 중인 이의</p>
-            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "WAIT").length}</h3>
+            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "PENDING").length}</h3>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
             <Clock className="w-5 h-5 text-amber-600" strokeWidth={1.5} />
@@ -159,7 +159,7 @@ export default function ProfessorAppealManagement() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pendingRequests.map((request, index) => (
                   <motion.div
-                    key={request.appealId}
+                    key={request.objectionId} 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -207,7 +207,7 @@ export default function ProfessorAppealManagement() {
               {processedRequests.length > 0 ? (
                 processedRequests.map((request, index) => (
                   <motion.div
-                    key={request.appealId}
+                    key={request.objectionId} // id -> objectionId 수정
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -303,13 +303,13 @@ export default function ProfessorAppealManagement() {
 
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(selectedRequest.appealId)}
+                    onClick={() => handleReject(selectedRequest.objectionId)} // .id -> .appealId 수정
                     className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
                   >
                     <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
                   </button>
                   <button
-                    onClick={() => handleApprove(selectedRequest.appealId)}
+                    onClick={() => handleApprove(selectedRequest.objectionId)} // .id -> .appealId 수정
                     className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)

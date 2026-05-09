@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "motion/react";
-import { Users, Plus, Download } from "lucide-react";
+import { Users, Plus, Download, Eye, EyeOff } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
   Dialog,
@@ -16,6 +16,13 @@ import { AdminStudentTable } from "./AdminStudentTable";
 import { api } from "../../api/client";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 };
+
+const formatPhone = (value: string) => {
+  const nums = value.replace(/\D/g, "").slice(0, 11);
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+};
 
 interface Student {
   userId: number;
@@ -53,11 +60,15 @@ export default function AdminStudentManagement() {
   const [password, setPassword] = useState("");
   const [phoneNum, setPhoneNum] = useState("");
 
+  const [showPassword, setShowPassword] = useState(false);
+
   // 수정 폼
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const fetchStudents = useCallback(async (page = 0) => {
     setLoading(true);
@@ -93,6 +104,7 @@ export default function AdminStudentManagement() {
     setUserEmail("");
     setPassword("");
     setPhoneNum("");
+    setShowPassword(false);
   };
 
   const handleAdd = async () => {
@@ -103,7 +115,7 @@ export default function AdminStudentManagement() {
     try {
       await api("/api/admin/students/register", {
         method: "POST",
-        body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum }),
+        body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum: phoneNum.replace(/\D/g, "") }),
       });
       toast.success("학생이 등록되었습니다");
       resetForm();
@@ -118,21 +130,25 @@ export default function AdminStudentManagement() {
     setEditingStudent(student);
     setEditName(student.userName);
     setEditEmail(student.userEmail);
-    setEditPhone(student.phoneNum || "");
+    setEditPhone(formatPhone(student.phoneNum || ""));
     setEditStatus(student.status || "");
+    setEditPassword("");
+    setShowEditPassword(false);
   };
 
   const handleUpdate = async () => {
     if (!editingStudent) return;
     try {
+      const body: any = {
+        userName: editName,
+        email: editEmail,
+        phoneNum: editPhone.replace(/\D/g, ""),
+        status: editStatus,
+      };
+      if (editPassword) body.password = editPassword;
       await api(`/api/admin/students/${editingStudent.userNum}/edit`, {
         method: "PATCH",
-        body: JSON.stringify({
-          userName: editName,
-          email: editEmail,
-          phoneNum: editPhone,
-          status: editStatus,
-        }),
+        body: JSON.stringify(body),
       });
       toast.success("학생 정보가 수정되었습니다");
       setEditingStudent(null);
@@ -164,7 +180,7 @@ export default function AdminStudentManagement() {
       학번: s.userNum,
       이름: s.userName,
       이메일: s.userEmail,
-      전화번호: s.phoneNum,
+      전화번호: formatPhone(s.phoneNum),
       상태: s.status,
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -209,8 +225,26 @@ export default function AdminStudentManagement() {
                 <FormInput label="학번" value={userNum} onChange={(e) => setUserNum(e.target.value)} placeholder="202110001" />
                 <FormInput label="이름" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="홍길동" />
                 <FormInput label="이메일" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} placeholder="hong@example.com" />
-                <FormInput label="비밀번호" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="영문+숫자 8자 이상" />
-                <FormInput label="전화번호" value={phoneNum} onChange={(e) => setPhoneNum(e.target.value)} placeholder="010-1234-5678" />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-zinc-700">비밀번호</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="영문+숫자 8자 이상"
+                      className="w-full rounded-xl border border-zinc-200 bg-white p-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                    >
+                      {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <FormInput label="전화번호" value={phoneNum} onChange={(e) => setPhoneNum(formatPhone(e.target.value))} placeholder="010-1234-5678" />
                 <button
                   onClick={handleAdd}
                   className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
@@ -256,16 +290,19 @@ export default function AdminStudentManagement() {
           <AdminStudentTable
             students={filteredStudents}
             editingStudent={editingStudent}
-            editForm={{ name: editName, email: editEmail, phoneNum: editPhone, status: editStatus }}
+            editForm={{ name: editName, email: editEmail, phoneNum: editPhone, status: editStatus, password: editPassword }}
             onEdit={handleEdit}
             onCancelEdit={() => setEditingStudent(null)}
             onUpdate={handleUpdate}
             onDelete={handleDelete}
+            showEditPassword={showEditPassword}
+            onToggleEditPassword={() => setShowEditPassword(!showEditPassword)}
             onEditFormChange={(field, value) => {
               if (field === "name") setEditName(value);
               else if (field === "email") setEditEmail(value);
-              else if (field === "phoneNum") setEditPhone(value);
+              else if (field === "phoneNum") setEditPhone(formatPhone(value));
               else if (field === "status") setEditStatus(value);
+              else if (field === "password") setEditPassword(value);
             }}
           />
         )}

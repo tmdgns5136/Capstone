@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { User, Hash, Check, Mail, Eye, EyeOff, Phone } from "lucide-react";
+import { User, Hash, Check, Mail, Eye, EyeOff, Phone, BookOpen } from "lucide-react";
 import { OtpInput } from "../../components/OtpInput";
 import { toast } from "sonner";
 import { sendEmailCode, verifyEmailCode, signupProfessor } from "../../api/auth";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
+const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
 function formatPhone(value: string) {
   const nums = value.replace(/\D/g, "").slice(0, 11);
@@ -21,10 +21,12 @@ export default function ProfessorSignup() {
 
   const [name, setName] = useState("");
   const [professorId, setProfessorId] = useState("");
+  const [major, setMajor] = useState(""); // ✅ 전공 상태 추가
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
+  
   const [verificationCode, setVerificationCode] = useState("");
   const [sentCode, setSentCode] = useState("");
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -101,6 +103,10 @@ export default function ProfessorSignup() {
       toast.error("사번은 숫자 6자리여야 합니다.");
       return;
     }
+    if (!major) {
+      toast.error("전공을 입력해주세요.");
+      return;
+    }
     if (password !== confirmPassword) {
       toast.error("비밀번호가 일치하지 않습니다.");
       return;
@@ -112,7 +118,8 @@ export default function ProfessorSignup() {
 
     setLoading(true);
     try {
-      await signupProfessor(professorId, name, email, password, phone);
+      // ✅ api/auth.ts의 signupProfessor 함수에도 major를 받을 수 있도록 파라미터를 추가해 주셔야 합니다!
+      await signupProfessor(professorId, name, email, password, phone, major);
       toast.success("회원가입이 완료되었습니다");
       navigate("/login");
     } catch (error: any) {
@@ -202,24 +209,43 @@ export default function ProfessorSignup() {
                   </div>
                 </div>
 
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">전화번호</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
-                    <input
-                      type="tel"
-                      placeholder="010-1234-5678"
-                      value={phone}
-                      onChange={(e) => setPhone(formatPhone(e.target.value))}
-                      maxLength={13}
-                      className={`${phone.length > 0 && phone.replace(/-/g, '').length < 10 ? inputErrorClass : inputClass} pl-10`}
-                      required
-                    />
+                {/* Phone & Major (전화번호와 전공을 한 줄에 배치) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">전화번호</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                      <input
+                        type="tel"
+                        placeholder="010-1234-5678"
+                        value={phone}
+                        onChange={(e) => setPhone(formatPhone(e.target.value))}
+                        maxLength={13}
+                        className={`${phone.length > 0 && phone.replace(/-/g, '').length < 10 ? inputErrorClass : inputClass} pl-10`}
+                        required
+                      />
+                    </div>
+                    {phone.length > 0 && phone.replace(/-/g, '').length < 10 && (
+                      <p className="text-xs text-rose-500 mt-1">전화번호를 올바르게 입력해주세요.</p>
+                    )}
                   </div>
-                  {phone.length > 0 && phone.replace(/-/g, '').length < 10 && (
-                    <p className="text-xs text-rose-500 mt-1">전화번호를 올바르게 입력해주세요.</p>
-                  )}
+
+                  {/* Major (전공) 추가 */}
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">전공 (학과)</label>
+                    <div className="relative">
+                      <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                      <input
+                        type="text"
+                        placeholder="컴퓨터과학과"
+                        value={major}
+                        onChange={(e) => setMajor(e.target.value)}
+                        className={`${inputClass} pl-10`}
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Email */}
@@ -315,7 +341,7 @@ export default function ProfessorSignup() {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
                       >
-                        {showPassword ? <Eye className="w-4 h-4" strokeWidth={1.5} /> : <EyeOff className="w-4 h-4" strokeWidth={1.5} />}
+                        {showPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.5} /> : <Eye className="w-4 h-4" strokeWidth={1.5} />}
                       </button>
                     </div>
                   </div>
@@ -337,7 +363,7 @@ export default function ProfessorSignup() {
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
                       >
-                        {showConfirmPassword ? <Eye className="w-4 h-4" strokeWidth={1.5} /> : <EyeOff className="w-4 h-4" strokeWidth={1.5} />}
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.5} /> : <Eye className="w-4 h-4" strokeWidth={1.5} />}
                       </button>
                     </div>
                     {confirmPassword && password !== confirmPassword && (

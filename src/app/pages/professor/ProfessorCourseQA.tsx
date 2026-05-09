@@ -1,116 +1,242 @@
-import { useState } from "react";
-import { Lock, Send, Edit2, MessageSquare } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { MessageSquare, Search, ChevronRight, Loader2, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "../../api/client";
+import { FormModal } from "../../components/FormModal";
 
-const initialQAData = [
-  { id: 1, author: "익명", question: "SQL JOIN에 대해 질문있습니다", answer: null as string | null, isPrivate: false, date: "2026-03-11", status: "미답변" as const },
-  { id: 2, author: "익명", question: "중간고사 범위가 어떻게 되나요?", answer: "챕터 1~5까지입니다.", isPrivate: false, date: "2026-03-12", status: "답변완료" as const },
-  { id: 3, author: "익명", question: "React Hook 사용법 문의", answer: "useState와 useEffect를 참고하세요.", isPrivate: true, date: "2026-03-12", status: "답변완료" as const },
-];
+interface ProfessorCourseQAProps {
+  lectureId: string;
+}
 
-export function ProfessorCourseQA() {
-  const [qaData] = useState(initialQAData);
-  const [answerText, setAnswerText] = useState("");
-  const [answeringFor, setAnsweringFor] = useState<number | null>(null);
+export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
 
-  const handleAnswerQuestion = (questionId: number) => {
-    if (!answerText.trim()) {
-      toast.error("답변을 입력해주세요");
-      return;
+  const [selectedQuestion, setSelectedQuestion] = useState<any | null>(null);
+  const [answerContent, setAnswerContent] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  const fetchQuestions = useCallback(async () => {
+    if (!lectureId) return;
+    setLoading(true);
+    try {
+      // 1. API 호출 (page와 size 필수)
+      const response: any = await api(
+        `/api/professors/lectures/${lectureId}/questions?page=${page}&size=5`, 
+        { method: "GET" }
+      );
+      
+      if (response.success) {
+        // [범인 검거 및 수정] 
+        // response.data는 { data: [...], totalPages: 1 } 형태이므로, 
+        // 진짜 리스트인 response.data.data를 가져와야 합니다.
+        setQuestions(response.data.data || []);
+      }
+    } catch (error: any) {
+      if (error.status !== 404) {
+        toast.error("질의응답을 불러오는데 실패했습니다.");
+      }
+      setQuestions([]);
+    } finally {
+      setLoading(false);
     }
-    toast.success("답변이 등록되었습니다");
-    setAnswerText("");
-    setAnsweringFor(null);
+  }, [lectureId, page]);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
+
+  const handleQuestionClick = async (questionId: number) => {
+    try {
+      setIsDetailLoading(true);
+      const response: any = await api(
+        `/api/professors/lectures/${lectureId}/questions/${questionId}`,
+        { method: "GET" }
+      );
+      if (response.success) {
+        setSelectedQuestion(response.data);
+        // 이미 답변이 있다면 입력창에 채워줍니다.
+        setAnswerContent(response.data.answer?.content || "");
+      }
+    } catch (error) {
+      toast.error("질문 상세 내용을 불러오지 못했습니다.");
+    } finally {
+      setIsDetailLoading(false);
+    }
   };
 
-  if (qaData.length === 0) {
-    return (
-      <div className="p-6 text-center py-16">
-        <MessageSquare className="w-10 h-10 text-zinc-200 mx-auto mb-3" />
-        <p className="text-sm text-zinc-400">등록된 질문이 없습니다</p>
-      </div>
-    );
-  }
+  const handleAnswerSubmit = async () => {
+    if (!answerContent.trim()) return;
+    
+    try {
+      setIsSubmitting(true);
+      const isUpdate = !!selectedQuestion.answer;
+      
+      // 백엔드: @RequestBody Map<String, String>이므로 JSON 객체로 보냅니다.
+      const response: any = await api(
+        isUpdate 
+          ? `/api/professors/answers/${selectedQuestion.questionId}` 
+          : `/api/professors/questions/${selectedQuestion.questionId}/answer`,
+        {
+          method: isUpdate ? "PATCH" : "POST",
+          body: JSON.stringify({ content: answerContent }), // JSON 형식!!
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+
+      if (response.success) {
+        toast.success(isUpdate ? "답변이 수정되었습니다." : "답변이 등록되었습니다.");
+        setSelectedQuestion(null);
+        fetchQuestions(); // 리스트 갱신
+      }
+    } catch (error) {
+      toast.error("답변 저장에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // --- [3. 답변 삭제] ---
+  const handleAnswerDelete = async () => {
+    if (!window.confirm("답변을 삭제하시겠습니까?")) return;
+
+    try {
+      setIsSubmitting(true);
+      const response: any = await api(
+        `/api/professors/answers/${selectedQuestion.questionId}`,
+        { method: "DELETE" }
+      );
+      if (response.success) {
+        toast.success("답변이 삭제되었습니다.");
+        setSelectedQuestion(null);
+        fetchQuestions();
+      }
+    } catch (error) {
+      toast.error("답변 삭제에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // questions가 배열인지 한 번 더 확인하여 에러 방지
+  const filteredQuestions = Array.isArray(questions) 
+    ? questions.filter((q) =>
+        q.title?.includes(searchQuery) || q.studentNum?.includes(searchQuery)
+      )
+    : [];
 
   return (
-    <div>
-      <div className="px-6 py-3 text-sm text-zinc-400 border-b border-zinc-50">
-        학생 질문 목록
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <input
+            placeholder="제목 또는 학번으로 검색"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-zinc-50 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-zinc-900/5"
+          />
+        </div>
       </div>
-      <div className="divide-y divide-zinc-50">
-        {qaData.map((q) => (
-          <div key={q.id} className="px-6 py-5">
-            {/* Question header */}
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 text-zinc-600">{q.author}</span>
-              {q.isPrivate && (
-                <span className="px-2 py-0.5 rounded text-xs font-medium bg-zinc-800 text-white flex items-center gap-1">
-                  <Lock className="w-2.5 h-2.5" /> 비밀글
-                </span>
-              )}
-              {!q.answer && (
-                <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 animate-pulse">미답변</span>
-              )}
-              <span className="text-xs text-zinc-400">{q.date}</span>
-            </div>
 
-            <h4 className="text-base font-semibold text-zinc-900 mb-3">{q.question}</h4>
-
-            {q.answer ? (
-              <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-primary-dark bg-primary/30 px-2 py-0.5 rounded">내 답변</span>
-                  <div className="flex gap-1">
-                    <button className="text-xs text-zinc-400 hover:text-zinc-600 px-2 py-1 rounded hover:bg-zinc-100">수정</button>
-                    <button className="text-xs text-zinc-400 hover:text-rose-500 px-2 py-1 rounded hover:bg-zinc-100">삭제</button>
+      <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="py-20 text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-zinc-300" />
+            <p className="text-sm text-zinc-400 mt-2">질문을 불러오는 중...</p>
+          </div>
+        ) : filteredQuestions.length === 0 ? (
+          <div className="py-20 text-center">
+            <MessageSquare className="w-12 h-12 text-zinc-100 mx-auto mb-3" />
+            <p className="text-sm text-zinc-400">등록된 질문이 없습니다.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-zinc-50">
+            {filteredQuestions.map((q) => (
+              <button
+                key={q.questionId}
+                onClick={() => handleQuestionClick(q.questionId)}
+                className="w-full p-5 flex items-center justify-between hover:bg-zinc-50/50 transition-colors text-left"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    {q.isPrivate && (
+                      <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">비밀글</span>
+                    )}
+                    <h3 className="text-sm font-semibold text-zinc-900">{q.title}</h3>
+                    {q.isAnswered ? (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">답변완료</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-zinc-400 bg-zinc-50 px-1.5 py-0.5 rounded border border-zinc-100">답변대기</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-zinc-400">
+                    <span>{q.studentNum}</span>
+                    <span>•</span>
+                    <span>{q.createdDate}</span>
                   </div>
                 </div>
-                <p className="text-sm text-zinc-700">{q.answer}</p>
-              </div>
-            ) : (
-              <div>
-                {answeringFor === q.id ? (
-                  <div className="space-y-3 mt-2">
-                    <div>
-                      <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
-                        <Send className="w-3.5 h-3.5" /> 답변 작성
-                      </label>
-                      <textarea
-                        placeholder="답변을 입력하세요..."
-                        value={answerText}
-                        onChange={(e) => setAnswerText(e.target.value)}
-                        rows={3}
-                        className="w-full rounded-lg border border-zinc-200 p-3 text-sm resize-none placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                      />
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => { setAnsweringFor(null); setAnswerText(""); }}
-                        className="text-sm text-zinc-500 px-4 py-2 hover:text-zinc-700"
-                      >
-                        취소
-                      </button>
-                      <button
-                        onClick={() => handleAnswerQuestion(q.id)}
-                        className="bg-zinc-900 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-zinc-800"
-                      >
-                        답변 등록
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setAnsweringFor(q.id)}
-                    className="mt-2 w-full bg-zinc-100 text-zinc-700 text-sm font-medium py-3 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Edit2 className="w-4 h-4" /> 이 질문에 답변하기
-                  </button>
-                )}
-              </div>
-            )}
+                <ChevronRight className="w-4 h-4 text-zinc-300" />
+              </button>
+            ))}
           </div>
-        ))}
+        )}
       </div>
+      {/* Q&A 상세 및 답변 모달 */}
+      <FormModal
+        open={!!selectedQuestion}
+        onClose={() => setSelectedQuestion(null)}
+        title="질문 상세 보기"
+        titleIcon={<MessageSquare className="w-5 h-5 text-zinc-400" />}
+        footer={
+          <div className="flex justify-between items-center w-full">
+            {selectedQuestion?.answer ? (
+              <button 
+                onClick={handleAnswerDelete}
+                className="text-red-500 text-sm flex items-center gap-1 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" /> 답변 삭제
+              </button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button onClick={() => setSelectedQuestion(null)} className="text-sm text-zinc-500 px-4 py-2">닫기</button>
+              <button 
+                onClick={handleAnswerSubmit}
+                disabled={isSubmitting || !answerContent.trim()}
+                className="bg-zinc-900 text-white text-sm font-medium px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {selectedQuestion?.answer ? "답변 수정" : "답변 등록"}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        {isDetailLoading ? (
+          <div className="py-10 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-200" /></div>
+        ) : (
+          <div className="space-y-6 py-4">
+            <div className="bg-zinc-50 rounded-xl p-4">
+              <h4 className="text-xs font-bold text-zinc-400 uppercase mb-2">Student Question</h4>
+              <p className="text-sm font-bold text-zinc-900 mb-2">{selectedQuestion?.title}</p>
+              <p className="text-sm text-zinc-600 leading-relaxed whitespace-pre-wrap">{selectedQuestion?.content}</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-zinc-400 uppercase">Professor's Answer</label>
+              <textarea 
+                value={answerContent}
+                onChange={(e) => setAnswerContent(e.target.value)}
+                placeholder="답변 내용을 입력하세요..."
+                className="w-full p-4 text-sm border border-zinc-200 rounded-xl h-40 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900/10 transition-all"
+              />
+            </div>
+          </div>
+        )}
+      </FormModal>
     </div>
   );
 }

@@ -22,7 +22,6 @@ export function useProfessorCourses() {
           setCourses(response.data);
         }
       } catch (err) {
-        console.error("데이터 로드 실패:", err);
         setError("강의 정보를 불러오는 데 실패했습니다.");
       } finally {
         setLoading(false);

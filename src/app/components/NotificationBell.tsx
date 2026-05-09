@@ -15,24 +15,55 @@ export interface Notification {
 }
 
 interface NotificationBellProps {
-  role: "student" | "professor";
+  role: "student" | "professor" | "admin";
 }
 
-function mapTypeToUI(type: string): "info" | "warning" | "success" {
-  const lower = type.toLowerCase();
-  if (lower.includes("warn") || lower.includes("alert")) return "warning";
-  if (lower.includes("success") || lower.includes("approv")) return "success";
-  return "info";
+// 🌟 디자인은 유지하되, 백엔드 타입에 맞춰 아이콘/타입 결정
+function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
+  switch (type) {
+    case "ABSENCE_REQUEST":
+      return { title: "공결 신청", uiType: "info" };
+    case "APPEAL_REQUEST":
+      return { title: "이의 신청", uiType: "warning" };
+    case "ANSWER_REGISTER":
+      return { title: "답변 등록", uiType: "success" };
+    case "PHOTO_RESULT":
+      return { title: "사진 변경 요청", uiType: "info" };
+    default:
+      return { title: "시스템 알림", uiType: "info" };
+  }
 }
 
+// 🌟 백엔드 데이터를 UI용 객체로 변환 (ID와 Link 매핑 추가)
 function toNotification(n: NotificationData, role: string): Notification {
+  const { title, uiType } = mapTypeToUI(n.type);
+  const isProfessor = role === "professor";
+  const isAdmin = role === "admin";
+
+  // 역할에 따른 이동 경로 설정
+  let link = `/${role}`;
+  if (n.type === "ABSENCE_REQUEST") {
+    link = isAdmin ? "/admin" : isProfessor ? "/professor/absence-management" : "/student/absence-request";
+  } else if (n.type === "APPEAL_REQUEST") {
+    link = isAdmin ? "/admin" : isProfessor ? "/professor/appeal-management" : "/student/stats";
+  } else if (n.type === "ANSWER_REGISTER") {
+    link = isProfessor ? "/professor/appeal-management" : "/student";
+  } else if (n.type === "PHOTO_RESULT") {
+    link = isAdmin ? "/admin/photo-requests" : `/${role}`;
+  }
+
+  // 백엔드 응답 필드명 호환 (id / notificationId, read / isRead)
+  const notifId = n.id ?? n.notificationId ?? 0;
+  const isRead = n.read ?? n.isRead ?? false;
+
   return {
-    id: String(n.id),
-    title: n.lectureName || n.type,
+    id: String(notifId),
+    title: title,
     message: n.message,
-    isRead: n.isRead ?? n.read ?? false,
+    isRead: isRead,
     createdAt: n.createdAt,
-    type: mapTypeToUI(n.type),
+    type: uiType,
+    link: link
   };
 }
 
@@ -47,8 +78,9 @@ export function NotificationBell({ role }: NotificationBellProps) {
   const fetchNotifications = useCallback(() => {
     getNotifications()
       .then((res) => {
-        const list = res.data ?? [];
-        setNotifications(list.map((n) => toNotification(n, role)));
+        // ApiResponse<List<NotificationResponse>> 구조에서 데이터 추출
+        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+        setNotifications(list.map((n: NotificationData) => toNotification(n, role)));
       })
       .catch(() => {});
   }, [role]);
@@ -90,30 +122,12 @@ export function NotificationBell({ role }: NotificationBellProps) {
     setNotifications([]);
   };
 
-  const mapRedirectUrl = (url: string): string | null => {
-    if (!url) return null;
-    const lectureMatch = url.match(/mylecture\/(\d+)/);
-    const lectureId = lectureMatch ? lectureMatch[1] : null;
-    if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
-    if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
-    if (url.includes("/official-requests/")) return `/${role}/absence-request`;
-    if (url.includes("/objection-requests/")) return `/${role}/stats`;
-    if (url.includes("mypage")) return `/${role}/profile`;
-    return null;
-  };
-
-  const handleNotificationClick = (id: string) => {
+  const handleNotificationClick = (id: string, link?: string) => {
+    markAsRead(id);
     setIsOpen(false);
-    markNotificationRead(Number(id))
-      .then((res) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-        const url = res.data?.redirectUrl;
-        const frontRoute = url ? mapRedirectUrl(url) : null;
-        if (frontRoute) {
-          navigate(frontRoute);
-        }
-      })
-      .catch(() => {});
+    if (link) {
+      navigate(link);
+    }
   };
 
   const viewAll = () => {
@@ -202,7 +216,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      onClick={() => handleNotificationClick(notification.id)}
+                      onClick={() => handleNotificationClick(notification.id, notification.link)}
                       className={`px-5 py-3.5 cursor-pointer transition-colors hover:bg-zinc-50/80 ${
                         notification.isRead ? "opacity-50" : ""
                       }`}
