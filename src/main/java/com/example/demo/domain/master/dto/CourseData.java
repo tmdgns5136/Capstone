@@ -19,4 +19,5 @@ public class CourseData {
     private String startTime;
     private String endTime;
     private String room;
+    private int studentCount;
 }

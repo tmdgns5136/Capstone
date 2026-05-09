@@ -17,8 +17,10 @@ import com.example.demo.domain.student.lecture.board.dto.NoticeData;
 import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
 import com.example.demo.domain.student.lecture.entity.Enrollment;
 import com.example.demo.domain.student.lecture.entity.Lecture;
+import com.example.demo.domain.student.lecture.entity.LectureSession;
 import com.example.demo.domain.student.lecture.repository.EnrollmentRepository;
 import com.example.demo.domain.student.lecture.repository.LectureRepository;
+import com.example.demo.domain.student.lecture.repository.LectureSessionRepository;
 import com.example.demo.domain.student.mypage.dto.InquiryData;
 import com.example.demo.domain.student.notification.entity.Notification;
 import com.example.demo.domain.student.notification.repository.NotificationRepository;
@@ -43,6 +45,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -57,6 +64,7 @@ public class MasterService {
     private final ImageRepository imageRepository;
     private final FileUtil fileUtil;
     private final NotificationRepository notificationRepository;
+    private final LectureSessionRepository lectureSessionRepository;
 
     // 강의 등록
     @Transactional
@@ -91,6 +99,54 @@ public class MasterService {
         return ActionResponse.success(201, "강의가 등록되었습니다.", "/api/home");
     }
 
+    // lectureSession 생성
+    private void createLectureSessions(Lecture lecture) {
+        // 시간 파싱을 위한 포매터 (HH:mm 형식 가정)
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+        LocalTime startTime = LocalTime.parse(lecture.getLectureStart(), timeFormatter);
+        LocalTime endTime = LocalTime.parse(lecture.getLectureEnd(), timeFormatter);
+        DayOfWeek targetDay = DayOfWeek.valueOf(lecture.getLectureDay().toUpperCase());
+
+        // A. 개강일 계산: 해당 연도 3월 1일부터 시작하여 첫 번째 평일(월~금) 찾기
+        LocalDate startDate = LocalDate.of(lecture.getLectureYear().intValue(), 3, 1);
+        while (startDate.getDayOfWeek() == DayOfWeek.SATURDAY || startDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            startDate = startDate.plusDays(1);
+        }
+
+        // B. 첫 번째 수업일 찾기 (개강일 이후 해당 요일인 첫 날)
+        LocalDate firstClassDate = startDate;
+        while (firstClassDate.getDayOfWeek() != targetDay) {
+            firstClassDate = firstClassDate.plusDays(1);
+        }
+
+        long sessionCount = 1; // SESSION_NUM 관리용
+
+        // C. 15주간 반복
+        for (int week = 0; week < 16; week++) {
+            LocalDate currentDay = firstClassDate.plusWeeks(week);
+            LocalTime currentPeriodStart = startTime;
+
+            // D. 시간 분할 (50분 수업, 10분 휴식 = 1시간 간격)
+            // 다음 수업 시작+50분이 전체 종료시간을 넘지 않을 때까지 생성
+            while (!currentPeriodStart.plusMinutes(50).isAfter(endTime)) {
+
+                LectureSession session = LectureSession.builder()
+                        .lecture(lecture)
+                        .sessionNum(sessionCount++) // 세션 번호 증가
+                        .scheduledAt(currentDay)
+                        .sessionStart(LocalDateTime.of(currentDay, currentPeriodStart))
+                        .sessionEnd(LocalDateTime.of(currentDay, currentPeriodStart.plusMinutes(50)))
+                        .status(SessionStatus.NOT_STARTED)
+                        .build();
+
+                lectureSessionRepository.save(session);
+
+                // 다음 교시 시작 (1시간 뒤)
+                currentPeriodStart = currentPeriodStart.plusHours(1);
+            }
+        }
+    }
+
     // 교수별 강의 목록 조회
     public ApiResponse<List<CourseData>> getProfessorLecture(Authentication authentication, String professorNum, Long year, String semester){
         String userNum = authentication.getName();
@@ -120,7 +176,8 @@ public class MasterService {
                             .endTime(lecture.getLectureEnd())
                             .room(lecture.getLectureRoom())
                             .lectureDay(lecture.getLectureDay())
-                            .division(lecture.getLectureDivision()).build();
+                            .division(lecture.getLectureDivision())
+                            .studentCount(enrollmentRepository.countByLecture_LectureId(lecture.getLectureId())).build();
 
                 }).toList();
 
