@@ -12,6 +12,7 @@ import {
 import { Label } from "../../components/ui/label";
 import { toast } from "sonner";
 import { api } from "../../api/client";
+import { CURRENT_YEAR, CURRENT_SEMESTER_NUM } from "../../constants/semester";
 
 interface Lecture {
   lectureId: number;
@@ -48,6 +49,8 @@ export default function AdminCourseManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Lecture | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
   // 수강생 관리 상태
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
@@ -107,7 +110,7 @@ export default function AdminCourseManagement() {
       }
 
       const lecturePromises = professors.map((prof: any) =>
-        api(`/api/admin/lectures/${prof.userNum}?year=2026&semester=1`, { method: "GET" }).catch(() => null)
+        api(`/api/admin/lectures/${prof.userNum}?year=${CURRENT_YEAR}&semester=${CURRENT_SEMESTER_NUM}`, { method: "GET" }).catch(() => null)
       );
 
       const responses = await Promise.all(lecturePromises);
@@ -145,7 +148,7 @@ export default function AdminCourseManagement() {
       const res = await api<any>("/api/admin/professors?size=100", { method: "GET" });
       const data = res.data?.content || res.data?.data || res.data || [];
       setProfessorList(Array.isArray(data) ? data.map((p: any) => ({ userNum: p.userNum, userName: p.userName })) : []);
-    } catch { setProfessorList([]); }
+    } catch { setProfessorList([]); toast.error("교수 목록을 불러오지 못했습니다."); }
   }, []);
 
   useEffect(() => { fetchProfessors(); }, [fetchProfessors]);
@@ -156,7 +159,7 @@ export default function AdminCourseManagement() {
       const res = await api<any>("/api/admin/students?size=1000", { method: "GET" });
       const data = res.data?.content || res.data?.data || res.data || [];
       setAllStudents(Array.isArray(data) ? data.map((s: any) => ({ userNum: s.userNum, userName: s.userName })) : []);
-    } catch { setAllStudents([]); }
+    } catch { setAllStudents([]); toast.error("학생 목록을 불러오지 못했습니다."); }
   }, []);
 
   useEffect(() => { fetchAllStudents(); }, [fetchAllStudents]);
@@ -218,7 +221,8 @@ export default function AdminCourseManagement() {
 
   // 저장 (API 호출)
   const handleSaveStudents = async () => {
-    if (!selectedCourse) return;
+    if (!selectedCourse || submitting) return;
+    setSubmitting(true);
     try {
       // 추가 API 호출
       for (const s of pendingAdds) {
@@ -238,6 +242,8 @@ export default function AdminCourseManagement() {
       fetchLectures();
     } catch (e: any) {
       toast.error(e.message || "저장 실패");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -254,13 +260,15 @@ export default function AdminCourseManagement() {
   };
 
   const handleAdd = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await api("/api/admin/lectures", {
         method: "POST",
         body: JSON.stringify({
           lectureName: name, lectureCode: code, professorNum: profNum,
           startTime: start, endTime: end, room: room,
-          year: 2026, semester: "1", lectureDay: day, division: division
+          year: CURRENT_YEAR, semester: CURRENT_SEMESTER_NUM, lectureDay: day, division: division
         }),
       });
       toast.success("등록되었습니다.");
@@ -269,6 +277,8 @@ export default function AdminCourseManagement() {
       fetchLectures();
     } catch (e: any) {
       toast.error("등록 실패");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -289,14 +299,15 @@ export default function AdminCourseManagement() {
   };
 
   const handleUpdate = async () => {
-    if (!editingCourse) return;
+    if (!editingCourse || submitting) return;
+    setSubmitting(true);
     try {
       await api(`/api/admin/lectures/${editingCourse.lectureId}/edit`, {
         method: "PATCH",
         body: JSON.stringify({
           lectureName: name, lectureCode: code, professorNum: profNum,
           startTime: start, endTime: end, room: room,
-          year: 2026, semester: "1", lectureDay: day, division: division
+          year: CURRENT_YEAR, semester: CURRENT_SEMESTER_NUM, lectureDay: day, division: division
         }),
       });
       toast.success("수정되었습니다.");
@@ -304,17 +315,23 @@ export default function AdminCourseManagement() {
       fetchLectures();
     } catch (e: any) {
       toast.error("수정 실패");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+  const handleDeleteConfirm = async () => {
+    if (deleteTarget === null || submitting) return;
+    setSubmitting(true);
     try {
-      await api(`/api/admin/lectures/${id}/delete`, { method: "DELETE" });
+      await api(`/api/admin/lectures/${deleteTarget}/delete`, { method: "DELETE" });
       toast.success("삭제되었습니다.");
       fetchLectures();
     } catch (e: any) {
       toast.error("삭제 실패");
+    } finally {
+      setSubmitting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -416,7 +433,7 @@ export default function AdminCourseManagement() {
                   </div>
                 </div>
               </div>
-              <button onClick={handleAdd} className="w-full bg-primary text-white py-3 rounded-xl font-bold">등록하기</button>
+              <button onClick={handleAdd} disabled={submitting} className="w-full bg-primary text-white py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? "처리 중..." : "등록하기"}</button>
             </div>
           </DialogContent>
         </Dialog>
@@ -457,6 +474,8 @@ export default function AdminCourseManagement() {
             <tbody className="divide-y divide-zinc-100 text-sm">
               {loading ? (
                 <tr><td colSpan={7} className="py-20 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-300"/></td></tr>
+              ) : filteredCourses.length === 0 ? (
+                <tr><td colSpan={7} className="py-16 text-center text-sm text-zinc-400">검색 결과가 없습니다</td></tr>
               ) : filteredCourses.map((course, index) => (
                 <motion.tr key={course.lectureId} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.02 }} className="hover:bg-zinc-50/50 transition-colors">
                   <td className="px-6 py-4">
@@ -479,7 +498,7 @@ export default function AdminCourseManagement() {
                     <div className="flex justify-end gap-1.5">
                       <button onClick={() => { setSelectedCourse(course); setIsStudentModalOpen(true); setShowStudentDropdown(false); setInputStudentNum(""); setSelectedStudentName(""); setStudentSearch(""); fetchStudents(course.lectureId); }} className="w-8 h-8 rounded-lg flex items-center justify-center bg-zinc-50 text-zinc-500 hover:bg-primary/10 hover:text-primary transition-colors"><Users className="w-4 h-4" /></button>
                       <button onClick={() => handleEditInit(course)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-zinc-50 text-zinc-500 hover:bg-zinc-100 transition-colors"><Edit className="w-4 h-4"/></button>
-                      <button onClick={() => handleDelete(course.lectureId)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"><Trash2 className="w-4 h-4"/></button>
+                      <button onClick={() => setDeleteTarget(course.lectureId)} disabled={submitting} className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><Trash2 className="w-4 h-4"/></button>
                     </div>
                   </td>
                 </motion.tr>
@@ -492,6 +511,8 @@ export default function AdminCourseManagement() {
         <div className="lg:hidden divide-y divide-zinc-100">
           {loading ? (
             <div className="py-20 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-300"/></div>
+          ) : filteredCourses.length === 0 ? (
+            <div className="py-16 text-center text-sm text-zinc-400">검색 결과가 없습니다</div>
           ) : filteredCourses.map((course) => (
             <div key={course.lectureId} className="p-5 space-y-4 hover:bg-zinc-50/50 transition-colors text-left">
               <div className="flex justify-between items-start gap-3">
@@ -505,7 +526,7 @@ export default function AdminCourseManagement() {
                 <div className="flex gap-1">
                   <button onClick={() => { setSelectedCourse(course); setIsStudentModalOpen(true); setShowStudentDropdown(false); setInputStudentNum(""); setSelectedStudentName(""); setStudentSearch(""); fetchStudents(course.lectureId); }} className="w-9 h-9 rounded-xl flex items-center justify-center bg-zinc-50 text-zinc-500"><Users className="w-4 h-4" /></button>
                   <button onClick={() => handleEditInit(course)} className="w-9 h-9 rounded-xl flex items-center justify-center bg-zinc-50 text-zinc-500"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(course.lectureId)} className="w-9 h-9 rounded-xl flex items-center justify-center bg-rose-50 text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => setDeleteTarget(course.lectureId)} disabled={submitting} className="w-9 h-9 rounded-xl flex items-center justify-center bg-rose-50 text-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-3 px-4 bg-zinc-50/80 rounded-2xl border border-zinc-100">
@@ -591,8 +612,8 @@ export default function AdminCourseManagement() {
             )}
           </div>
           <div className="p-4 bg-zinc-50 border-t flex justify-end gap-2">
-            <button onClick={handleSaveStudents} className="px-5 py-2 text-sm font-bold text-zinc-600 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-100">저장</button>
-            <button onClick={async () => { await handleSaveStudents(); setIsStudentModalOpen(false); }} className="px-5 py-2 text-sm font-bold text-white bg-zinc-900 rounded-xl hover:bg-zinc-800">완료</button>
+            <button onClick={handleSaveStudents} disabled={submitting} className="px-5 py-2 text-sm font-bold text-zinc-600 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? "처리 중..." : "저장"}</button>
+            <button onClick={async () => { await handleSaveStudents(); setIsStudentModalOpen(false); }} disabled={submitting} className="px-5 py-2 text-sm font-bold text-white bg-zinc-900 rounded-xl hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? "처리 중..." : "완료"}</button>
           </div>
         </DialogContent>
       </Dialog>
@@ -675,11 +696,36 @@ export default function AdminCourseManagement() {
                   </div>
                 </div>
               </div>
-              <button onClick={handleUpdate} className="w-full bg-primary text-white py-3 rounded-xl font-bold">수정 완료</button>
+              <button onClick={handleUpdate} disabled={submitting} className="w-full bg-primary text-white py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? "처리 중..." : "수정 완료"}</button>
             </div>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* 삭제 확인 Dialog */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-sm">
+          <div className="p-6 text-center space-y-4">
+            <DialogTitle className="text-lg font-semibold text-zinc-900">강의 삭제</DialogTitle>
+            <DialogDescription className="text-sm text-zinc-500">정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</DialogDescription>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 text-sm font-medium rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={submitting}
+                className="flex-1 py-2.5 text-sm font-medium rounded-xl bg-rose-500 text-white hover:bg-rose-600 transition-colors disabled:opacity-50"
+              >
+                {submitting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

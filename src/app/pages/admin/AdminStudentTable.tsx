@@ -33,6 +33,7 @@ interface AdminStudentTableProps {
   onCancelEdit: () => void;
   onUpdate: () => void;
   onDelete: (userNum: string) => void;
+  submitting?: boolean;
   onEditFormChange: (field: keyof EditFormState, value: string) => void;
   showEditPassword: boolean;
   onToggleEditPassword: () => void;
@@ -64,6 +65,7 @@ export function AdminStudentTable({
   onCancelEdit,
   onUpdate,
   onDelete,
+  submitting,
   onEditFormChange,
   showEditPassword,
   onToggleEditPassword,
@@ -112,9 +114,10 @@ export function AdminStudentTable({
         </div>
         <button
           onClick={onUpdate}
-          className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
+          disabled={submitting}
+          className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          수정하기
+          {submitting ? "처리 중..." : "수정하기"}
         </button>
       </div>
     </DialogContent>
@@ -171,7 +174,8 @@ export function AdminStudentTable({
                     </Dialog>
                     <button
                       onClick={() => onDelete(student.userNum)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                      disabled={submitting}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                     </button>

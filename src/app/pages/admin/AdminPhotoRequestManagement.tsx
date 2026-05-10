@@ -15,6 +15,25 @@ function getPhotoUrl(url: string) {
   return `${BASE_IMAGE_URL}${fileName}`;
 }
 
+function PhotoThumbnail({ src, alt }: { src: string; alt: string }) {
+  const [hasError, setHasError] = useState(false);
+  if (hasError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-zinc-300">
+        <Image className="w-6 h-6" strokeWidth={1.5} />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-cover"
+      onError={() => setHasError(true)}
+    />
+  );
+}
+
 export default function AdminPhotoRequestManagement() {
   const {
     pendingRequests,
@@ -219,16 +238,7 @@ export default function AdminPhotoRequestManagement() {
                     <div className="grid grid-cols-3 gap-2 mb-4">
                       {request.photos.map((photo) => (
                         <div key={photo.orientation} className="aspect-[3/4] rounded-lg bg-zinc-100 overflow-hidden border border-zinc-200">
-                          <img
-                            src={getPhotoUrl(photo.url)}
-                            alt={photo.orientation}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                              (e.target as HTMLImageElement).parentElement!.innerHTML =
-                                '<div class="w-full h-full flex items-center justify-center text-zinc-300"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>';
-                            }}
-                          />
+                          <PhotoThumbnail src={getPhotoUrl(photo.url)} alt={photo.orientation} />
                         </div>
                       ))}
                     </div>
@@ -341,16 +351,7 @@ export default function AdminPhotoRequestManagement() {
                     {selectedDetail.currentPhotos.map((photo) => (
                       <div key={photo.orientation} className="flex flex-col items-center gap-2">
                         <div className="w-full aspect-[3/4] rounded-xl bg-zinc-100 overflow-hidden border border-zinc-200">
-                          <img
-                            src={getPhotoUrl(photo.url)}
-                            alt={photo.orientation}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                              (e.target as HTMLImageElement).parentElement!.innerHTML =
-                                '<div class="w-full h-full flex items-center justify-center text-zinc-300 text-sm">이미지 없음</div>';
-                            }}
-                          />
+                          <PhotoThumbnail src={getPhotoUrl(photo.url)} alt={photo.orientation} />
                         </div>
                         <span className="text-xs font-medium text-zinc-500">{photo.orientation}</span>
                       </div>
@@ -374,16 +375,7 @@ export default function AdminPhotoRequestManagement() {
                     {selectedDetail.requestedPhotos.map((photo) => (
                       <div key={photo.orientation} className="flex flex-col items-center gap-2">
                         <div className="w-full aspect-[3/4] rounded-xl bg-zinc-100 overflow-hidden border-2 border-amber-300">
-                          <img
-                            src={getPhotoUrl(photo.url)}
-                            alt={photo.orientation}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                              (e.target as HTMLImageElement).parentElement!.innerHTML =
-                                '<div class="w-full h-full flex items-center justify-center text-zinc-300 text-sm">이미지 없음</div>';
-                            }}
-                          />
+                          <PhotoThumbnail src={getPhotoUrl(photo.url)} alt={photo.orientation} />
                         </div>
                         <span className="text-xs font-medium text-amber-700">{photo.orientation}</span>
                       </div>

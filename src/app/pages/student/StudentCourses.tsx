@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { ChevronDown, ArrowRight, Loader2 } from "lucide-react";
 import { StudentCourseDetail } from "./StudentCourseDetail";
 import { getMyLectures, MyLectureData } from "../../api/studentLecture";
+import { CURRENT_YEAR, CURRENT_SEMESTER, SEMESTER_OPTIONS } from "../../constants/semester";
 
 export default function StudentCourses() {
-  const [semester, setSemester] = useState("1학기");
-  const [year, setYear] = useState(2026);
+  const [semester, setSemester] = useState(CURRENT_SEMESTER);
+  const [year, setYear] = useState(CURRENT_YEAR);
   const [courses, setCourses] = useState<MyLectureData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState<MyLectureData | null>(null);
@@ -58,8 +59,11 @@ export default function StudentCourses() {
             }}
             className="appearance-none cursor-pointer rounded-lg border border-zinc-200 bg-white px-4 py-2.5 pr-9 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
-            <option value="2026-1학기">2026학년도 1학기</option>
-            <option value="2025-2학기">2025학년도 2학기</option>
+            {SEMESTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={`${opt.value.split("-")[0]}-${opt.value.split("-")[1] === "1" ? "1학기" : "2학기"}`}>
+                {opt.label}
+              </option>
+            ))}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
         </div>

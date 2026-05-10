@@ -4,12 +4,13 @@ import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 import { toast } from "sonner";
 import * as XLSX from "xlsx"; // 엑셀 라이브러리 임포트 확인
 import { getAttendanceMonitoring, AttendanceMonitoringData } from "../../api/attendance";
+import { CURRENT_SEMESTER_CODE, PREV_SEMESTER_CODE } from "../../constants/semester";
 
-const SEMESTERS = ["2026-1", "2025-2"] as const;
+const SEMESTERS = [CURRENT_SEMESTER_CODE, PREV_SEMESTER_CODE] as const;
 
 export default function ProfessorMonitoring() {
   const { courses, loading: coursesLoading } = useProfessorCourses();
-  
+
   // 상태 관리
   const [semester, setSemester] = useState<string>(SEMESTERS[0]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
@@ -172,7 +173,9 @@ export default function ProfessorMonitoring() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {filteredStudents.map((s) => (
+                {filteredStudents.length === 0 ? (
+                  <tr><td colSpan={6} className="py-16 text-center text-sm text-zinc-400">{searchQuery ? "검색 결과가 없습니다" : "학생 데이터가 없습니다"}</td></tr>
+                ) : filteredStudents.map((s) => (
                   <tr key={s.studentId} className="hover:bg-zinc-50/50 transition-colors">
                     <td className="px-6 py-4 text-sm text-zinc-500">{s.studentId}</td>
                     <td className="px-6 py-4 text-sm font-bold text-zinc-900">{s.name}</td>
@@ -193,6 +196,7 @@ export default function ProfessorMonitoring() {
                   </tr>
                 ))}
               </tbody>
+
             </table>
           )}
         </div>

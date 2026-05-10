@@ -47,6 +47,8 @@ export default function AdminStudentManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // 페이지네이션
   const [currentPage, setCurrentPage] = useState(0);
@@ -90,6 +92,10 @@ export default function AdminStudentManagement() {
     fetchStudents();
   }, [fetchStudents]);
 
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchQuery]);
+
   const filteredStudents = students.filter(
     (s) =>
       s.userName.includes(searchQuery) ||
@@ -112,6 +118,25 @@ export default function AdminStudentManagement() {
       toast.error("모든 필드를 입력해주세요");
       return;
     }
+    if (!/^\d{9}$/.test(userNum)) {
+      toast.error("학번은 9자리 숫자여야 합니다");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+      toast.error("올바른 이메일 형식을 입력해주세요");
+      return;
+    }
+    if (!/^(?=.*[a-zA-Z])(?=.*\d).{8,}$/.test(password)) {
+      toast.error("비밀번호는 영문+숫자 포함 8자 이상이어야 합니다");
+      return;
+    }
+    const phoneDigits = phoneNum.replace(/\D/g, "");
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      toast.error("전화번호를 올바르게 입력해주세요");
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await api("/api/admin/students/register", {
         method: "POST",
@@ -123,6 +148,8 @@ export default function AdminStudentManagement() {
       fetchStudents(currentPage);
     } catch (e: any) {
       toast.error(e.message || "학생 등록에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -137,7 +164,8 @@ export default function AdminStudentManagement() {
   };
 
   const handleUpdate = async () => {
-    if (!editingStudent) return;
+    if (!editingStudent || submitting) return;
+    setSubmitting(true);
     try {
       const body: any = {
         userName: editName,
@@ -155,19 +183,25 @@ export default function AdminStudentManagement() {
       fetchStudents(currentPage);
     } catch (e: any) {
       toast.error(e.message || "학생 수정에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = async (studentNum: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget || submitting) return;
+    setSubmitting(true);
     try {
-      await api(`/api/admin/students/${studentNum}/delete`, {
+      await api(`/api/admin/students/${deleteTarget}/delete`, {
         method: "DELETE",
       });
       toast.success("학생이 삭제되었습니다");
       fetchStudents(currentPage);
     } catch (e: any) {
       toast.error(e.message || "학생 삭제에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -247,9 +281,10 @@ export default function AdminStudentManagement() {
                 <FormInput label="전화번호" value={phoneNum} onChange={(e) => setPhoneNum(formatPhone(e.target.value))} placeholder="010-1234-5678" />
                 <button
                   onClick={handleAdd}
-                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
+                  disabled={submitting}
+                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  추가하기
+                  {submitting ? "처리 중..." : "추가하기"}
                 </button>
               </div>
             </DialogContent>
@@ -294,7 +329,8 @@ export default function AdminStudentManagement() {
             onEdit={handleEdit}
             onCancelEdit={() => setEditingStudent(null)}
             onUpdate={handleUpdate}
-            onDelete={handleDelete}
+            onDelete={(num) => setDeleteTarget(num)}
+            submitting={submitting}
             showEditPassword={showEditPassword}
             onToggleEditPassword={() => setShowEditPassword(!showEditPassword)}
             onEditFormChange={(field, value) => {
@@ -330,6 +366,31 @@ export default function AdminStudentManagement() {
           </div>
         )}
       </motion.div>
+
+      {/* 삭제 확인 Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-sm">
+          <div className="p-6 text-center space-y-4">
+            <DialogTitle className="text-lg font-semibold text-zinc-900">학생 삭제</DialogTitle>
+            <DialogDescription className="text-sm text-zinc-500">정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</DialogDescription>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 text-sm font-medium rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={submitting}
+                className="flex-1 py-2.5 text-sm font-medium rounded-xl bg-rose-500 text-white hover:bg-rose-600 transition-colors disabled:opacity-50"
+              >
+                {submitting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

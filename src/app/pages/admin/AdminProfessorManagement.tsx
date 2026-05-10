@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { Label } from "../../components/ui/label";
 import { api } from "../../api/client";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
 interface Professor {
   userId: number;
@@ -54,6 +54,8 @@ export default function AdminProfessorManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProfessor, setEditingProfessor] = useState<Professor | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // 페이지네이션
   const [currentPage, setCurrentPage] = useState(0);
@@ -96,6 +98,10 @@ export default function AdminProfessorManagement() {
     fetchProfessors();
   }, [fetchProfessors]);
 
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchQuery]);
+
   const filteredProfessors = professors.filter(
     (p) =>
       p.userName.includes(searchQuery) ||
@@ -118,6 +124,25 @@ export default function AdminProfessorManagement() {
       toast.error("모든 필드를 입력해주세요");
       return;
     }
+    if (!/^\d{6}$/.test(userNum)) {
+      toast.error("사번은 6자리 숫자여야 합니다");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+      toast.error("올바른 이메일 형식을 입력해주세요");
+      return;
+    }
+    if (!/^(?=.*[a-zA-Z])(?=.*\d).{8,}$/.test(password)) {
+      toast.error("비밀번호는 영문+숫자 포함 8자 이상이어야 합니다");
+      return;
+    }
+    const phoneDigits = phoneNum.replace(/\D/g, "");
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      toast.error("전화번호를 올바르게 입력해주세요");
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await api("/api/admin/professors/register", {
         method: "POST",
@@ -129,6 +154,8 @@ export default function AdminProfessorManagement() {
       fetchProfessors(currentPage);
     } catch (e: any) {
       toast.error(e.message || "교수 등록에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -143,7 +170,8 @@ export default function AdminProfessorManagement() {
   };
 
   const handleUpdate = async () => {
-    if (!editingProfessor) return;
+    if (!editingProfessor || submitting) return;
+    setSubmitting(true);
     try {
       const body: any = {
         userName: editName,
@@ -161,19 +189,25 @@ export default function AdminProfessorManagement() {
       fetchProfessors(currentPage);
     } catch (e: any) {
       toast.error(e.message || "교수 수정에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = async (professorNum: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget || submitting) return;
+    setSubmitting(true);
     try {
-      await api(`/api/admin/professors/${professorNum}/delete`, {
+      await api(`/api/admin/professors/${deleteTarget}/delete`, {
         method: "DELETE",
       });
       toast.success("교수가 삭제되었습니다");
       fetchProfessors(currentPage);
     } catch (e: any) {
       toast.error(e.message || "교수 삭제에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -285,9 +319,10 @@ export default function AdminProfessorManagement() {
                 </div>
                 <button
                   onClick={handleAdd}
-                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
+                  disabled={submitting}
+                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  추가하기
+                  {submitting ? "처리 중..." : "추가하기"}
                 </button>
               </div>
             </DialogContent>
@@ -453,16 +488,18 @@ export default function AdminProfessorManagement() {
                                 </div>
                                 <button
                                   onClick={handleUpdate}
-                                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
+                                  disabled={submitting}
+                                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  수정하기
+                                  {submitting ? "처리 중..." : "수정하기"}
                                 </button>
                               </div>
                             </DialogContent>
                           </Dialog>
                           <button
-                            onClick={() => handleDelete(professor.userNum)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                            onClick={() => setDeleteTarget(professor.userNum)}
+                            disabled={submitting}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                           </button>
@@ -557,15 +594,16 @@ export default function AdminProfessorManagement() {
                                 </button>
                               </div>
                             </div>
-                            <button onClick={handleUpdate} className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2">
-                              수정하기
+                            <button onClick={handleUpdate} disabled={submitting} className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                              {submitting ? "처리 중..." : "수정하기"}
                             </button>
                           </div>
                         </DialogContent>
                       </Dialog>
                       <button
-                        onClick={() => handleDelete(professor.userNum)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                        onClick={() => setDeleteTarget(professor.userNum)}
+                        disabled={submitting}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                       </button>
@@ -612,6 +650,31 @@ export default function AdminProfessorManagement() {
           </div>
         )}
       </motion.div>
+
+      {/* 삭제 확인 Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-sm">
+          <div className="p-6 text-center space-y-4">
+            <DialogTitle className="text-lg font-semibold text-zinc-900">교수 삭제</DialogTitle>
+            <DialogDescription className="text-sm text-zinc-500">정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</DialogDescription>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 text-sm font-medium rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={submitting}
+                className="flex-1 py-2.5 text-sm font-medium rounded-xl bg-rose-500 text-white hover:bg-rose-600 transition-colors disabled:opacity-50"
+              >
+                {submitting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

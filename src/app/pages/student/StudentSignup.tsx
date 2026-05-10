@@ -82,8 +82,21 @@ export default function StudentSignup() {
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
-    if (studentId.length !== 9) {
-      toast.error("학번은 9자리여야 합니다.");
+    if (!/^\d{9}$/.test(studentId)) {
+      toast.error("학번은 9자리 숫자여야 합니다.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("올바른 이메일 형식을 입력해주세요.");
+      return;
+    }
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      toast.error("전화번호를 올바르게 입력해주세요.");
+      return;
+    }
+    if (!/^(?=.*[a-zA-Z])(?=.*\d).{8,}$/.test(password)) {
+      toast.error("비밀번호는 영문+숫자 포함 8자 이상이어야 합니다.");
       return;
     }
     if (password !== confirmPassword) {

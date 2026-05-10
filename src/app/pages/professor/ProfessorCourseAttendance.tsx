@@ -5,6 +5,7 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { Pagination } from "../../components/Pagination";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 import { getAttendanceMonitoring, updateAttendance } from "../../api/attendance";
+import { getSemesterStartDate } from "../../constants/semester";
 
 interface ProfessorCourseAttendanceProps {
   lectureId: string;
@@ -38,7 +39,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
     // 요일 정보가 전혀 없으면 기본값 수요일
     if (lectureDays.length === 0) lectureDays = ["수"];
 
-    const startDate = new Date(2026, 2, 2); // 3월 2일 월요일
+    const startDate = getSemesterStartDate();
 
     return Array.from({ length: 15 }, (_, i) => {
       const week = i + 1;
@@ -235,6 +236,8 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
           <tbody className="divide-y divide-zinc-50">
             {loading && students.length === 0 ? (
               <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-200" /></td></tr>
+            ) : pagedStudents.length === 0 ? (
+              <tr><td colSpan={4} className="py-16 text-center text-sm text-zinc-400">{searchQuery ? "검색 결과가 없습니다" : "등록된 학생이 없습니다"}</td></tr>
             ) : pagedStudents.map((student) => (
               <tr key={student.studentId} className={`transition-colors ${hasPending && baseStudents.find(b => b.studentId === student.studentId)?.status !== student.status ? "bg-amber-50/60" : "hover:bg-zinc-50/30"}`}>
                 <td className="px-4 py-3 text-sm text-zinc-400 font-medium">{student.studentId}</td>

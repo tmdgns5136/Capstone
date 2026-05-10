@@ -312,7 +312,15 @@ export default function StudentAbsenceRequest() {
                   id="file-upload"
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const selected = e.target.files?.[0] || null;
+                    if (selected && selected.size > 5 * 1024 * 1024) {
+                      toast.error("파일 크기는 5MB 이하여야 합니다");
+                      e.target.value = "";
+                      return;
+                    }
+                    setFile(selected);
+                  }}
                   className="hidden"
                 />
 

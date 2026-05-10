@@ -99,12 +99,25 @@ export default function ProfessorSignup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (professorId.length !== 6) {
-      toast.error("사번은 숫자 6자리여야 합니다.");
+    if (!/^\d{6}$/.test(professorId)) {
+      toast.error("사번은 6자리 숫자여야 합니다.");
       return;
     }
     if (!major) {
       toast.error("전공을 입력해주세요.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("올바른 이메일 형식을 입력해주세요.");
+      return;
+    }
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      toast.error("전화번호를 올바르게 입력해주세요.");
+      return;
+    }
+    if (!/^(?=.*[a-zA-Z])(?=.*\d).{8,}$/.test(password)) {
+      toast.error("비밀번호는 영문+숫자 포함 8자 이상이어야 합니다.");
       return;
     }
     if (password !== confirmPassword) {
@@ -341,7 +354,7 @@ export default function ProfessorSignup() {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.5} /> : <Eye className="w-4 h-4" strokeWidth={1.5} />}
+                        {showPassword ? <Eye className="w-4 h-4" strokeWidth={1.5} /> : <EyeOff className="w-4 h-4" strokeWidth={1.5} />}
                       </button>
                     </div>
                   </div>
@@ -363,7 +376,7 @@ export default function ProfessorSignup() {
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
                       >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.5} /> : <Eye className="w-4 h-4" strokeWidth={1.5} />}
+                        {showConfirmPassword ? <Eye className="w-4 h-4" strokeWidth={1.5} /> : <EyeOff className="w-4 h-4" strokeWidth={1.5} />}
                       </button>
                     </div>
                     {confirmPassword && password !== confirmPassword && (

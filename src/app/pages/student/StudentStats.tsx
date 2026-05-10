@@ -61,7 +61,7 @@ function mapStatus(s: string): "출석" | "지각" | "결석" {
 
 export default function StudentStats() {
   const navigate = useNavigate();
-  const [semester, setSemester] = useState("2026년 1학기");
+  const [semester, setSemester] = useState(`${new Date().getFullYear()}년 ${new Date().getMonth() + 1 >= 7 ? "2학기" : "1학기"}`);
   const [filter, setFilter] = useState<"전체" | "출석" | "결석">("전체");
 
   // 이의 신청 모달
@@ -284,7 +284,7 @@ export default function StudentStats() {
       {/* Header */}
       <PageHeader
         title="출석 현황"
-        description="2026학년도 1학기 실시간 출결 현황입니다."
+        description={`${new Date().getFullYear()}학년도 ${new Date().getMonth() + 1 >= 7 ? "2학기" : "1학기"} 실시간 출결 현황입니다.`}
         actions={
           <button className="flex items-center gap-2 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
             <Calendar className="w-4 h-4" /> {semester}

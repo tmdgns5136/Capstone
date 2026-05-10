@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ArrowRight, MessageSquare, Plus, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Pagination } from "../../components/Pagination";
 import { FormModal } from "../../components/FormModal";
 import {
@@ -49,6 +50,9 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
   const [qaTotalElements, setQaTotalElements] = useState(0);
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionDetailData | null>(null);
 
+  // 상세 로딩
+  const [detailLoading, setDetailLoading] = useState(false);
+
   // 질문 작성 폼
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
@@ -96,16 +100,20 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
 
   // 공지사항 상세
   const handleNoticeClick = (noticeId: number) => {
+    setDetailLoading(true);
     getLectureNoticeDetail(lectureId, noticeId)
       .then((res) => setSelectedNotice(res.data))
-      .catch(() => {});
+      .catch(() => { toast.error("공지사항을 불러오지 못했습니다."); })
+      .finally(() => setDetailLoading(false));
   };
 
   // Q&A 상세
   const handleQuestionClick = (questionId: number) => {
+    setDetailLoading(true);
     getQuestionDetail(lectureId, questionId)
       .then((res) => setSelectedQuestion(res.data))
-      .catch(() => {});
+      .catch(() => { toast.error("질문 상세를 불러오지 못했습니다."); })
+      .finally(() => setDetailLoading(false));
   };
 
   // 질문 작성
@@ -124,7 +132,7 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
         setShowQuestionModal(false);
         fetchQuestions();
       })
-      .catch(() => {})
+      .catch(() => { toast.error("질문 등록에 실패했습니다."); })
       .finally(() => setSubmitting(false));
   };
 
@@ -136,10 +144,19 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
         setSelectedQuestion(null);
         fetchQuestions();
       })
-      .catch(() => {});
+      .catch(() => { toast.error("질문 삭제에 실패했습니다."); });
   };
 
   const isFormValid = formTitle.trim() && formContent.trim();
+
+  // 상세 로딩 중
+  if (detailLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
+      </div>
+    );
+  }
 
   // 공지사항 상세 뷰
   if (selectedNotice) {

@@ -229,7 +229,8 @@ export default function AdminDeviceManagement() {
   const [secretAuthAction, setSecretAuthAction] = useState<"view" | "copy">("view"); // 인증 후 동작
   const [secretAuthPassword, setSecretAuthPassword] = useState("");
   const [secretAuthError, setSecretAuthError] = useState(false);
-  const ADMIN_PASSWORD = "test1234"; // TODO: 실제 인증 API로 교체
+  const [secretAuthLoading, setSecretAuthLoading] = useState(false);
+  const ADMIN_PASSWORD = "test1234"; // TODO: 백엔드에 관리자 비밀번호 확인 API 추가 후 교체
 
   // 카메라 테스트
   const [testResult, setTestResult] = useState<any>(null);
@@ -1107,9 +1108,10 @@ export default function AdminDeviceManagement() {
                 </div>
                 <button
                   onClick={handleSecretAuth}
-                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors"
+                  disabled={secretAuthLoading}
+                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50"
                 >
-                  확인
+                  {secretAuthLoading ? "확인 중..." : "확인"}
                 </button>
               </div>
             </motion.div>

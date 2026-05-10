@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Clock, MapPin, User, Loader2 } from "lucide-react";
 import { getLectureTimeTable, LectureTimeTable } from "../../api/studentLecture";
+import { CURRENT_YEAR, CURRENT_SEMESTER_NUM, CURRENT_SEMESTER_LABEL } from "../../constants/semester";
 
 const timeSlots = [
   "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
@@ -53,7 +54,7 @@ export default function StudentTimetable() {
 
   useEffect(() => {
     setLoading(true);
-    getLectureTimeTable(2026, "1")
+    getLectureTimeTable(CURRENT_YEAR, CURRENT_SEMESTER_NUM)
       .then((res) => {
         const entries: TimetableEntry[] = res.data.map((item, idx) => ({
           name: item.lectureName,
@@ -90,7 +91,7 @@ export default function StudentTimetable() {
         {/* Timetable Card */}
         <div className="bg-white rounded-xl border border-zinc-200  overflow-hidden">
           <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-900 tracking-tight">2026학년도 1학기</h2>
+            <h2 className="text-lg font-semibold text-zinc-900 tracking-tight">{CURRENT_SEMESTER_LABEL}</h2>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
               <Clock strokeWidth={1.5} className="w-3.5 h-3.5" />
               진행 중

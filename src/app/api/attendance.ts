@@ -42,7 +42,9 @@ export async function getAttendanceMonitoring(
   lectureId: string, 
   params: { date?: string; semester?: string } = {}
 ) {
-  const semester = params.semester || "2026-1";
+  const now = new Date();
+  const defaultSemester = `${now.getFullYear()}-${now.getMonth() + 1 >= 7 ? "2" : "1"}`;
+  const semester = params.semester || defaultSemester;
   
   // [수정] URL을 더 명확하게 조립합니다. 
   // lectureId가 undefined면 여기서 바로 티가 납니다.

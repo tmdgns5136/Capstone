@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { api } from "../api/client";
 
 export interface PhotoItem {
@@ -57,7 +58,7 @@ export function usePhotoRequests() {
       setPendingRequests(pageData.content);
       setPendingTotal(pageData.totalElements);
     } catch {
-      // silently fail
+      toast.error("대기 중인 사진 요청을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -70,7 +71,7 @@ export function usePhotoRequests() {
       setCompletedRequests(pageData.content);
       setCompletedTotal(pageData.totalElements);
     } catch {
-      // silently fail
+      toast.error("처리된 사진 요청을 불러오지 못했습니다.");
     }
   }, []);
 

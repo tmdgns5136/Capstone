@@ -4,6 +4,7 @@ import { Search, RotateCcw, Save, Check, X, AlarmClock, Loader2, RefreshCw, Edit
 import { toast } from "sonner";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 import { getAttendanceMonitoring, updateAttendance } from "../../api/attendance";
+import { getSemesterStartDate } from "../../constants/semester";
 
 export default function ProfessorAttendanceEdit() {
   const { courses, loading: coursesLoading } = useProfessorCourses();
@@ -19,7 +20,7 @@ export default function ProfessorAttendanceEdit() {
     const currentCourse = courses.find(c => String(c.lectureId) === selectedLectureId);
     const dayMap: Record<string, number> = { MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5 };
     const targetDay = dayMap[(currentCourse as any)?.lecture_day || "WEDNESDAY"] || 3;
-    const startDate = new Date(2026, 2, 2);
+    const startDate = getSemesterStartDate();
 
     return Array.from({ length: 15 }, (_, i) => {
       const d = new Date(startDate);
