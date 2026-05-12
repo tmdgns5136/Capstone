@@ -1,7 +1,7 @@
 package com.example.demo.domain.attendance.entity;
 
-import com.example.demo.domain.home.entity.user.Student;
-import com.example.demo.domain.lecture.entity.lecture.Lecture;
+import com.example.demo.domain.student.home.entity.user.Student;
+import com.example.demo.domain.student.lecture.entity.Lecture;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;

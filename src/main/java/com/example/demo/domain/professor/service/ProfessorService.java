@@ -1,17 +1,18 @@
 package com.example.demo.domain.professor.service;
 
-import com.example.demo.domain.entity.enumerate.SessionStatus;
-import com.example.demo.domain.entity.enumerate.Status;
-import com.example.demo.domain.home.entity.user.Student;
-import com.example.demo.domain.home.repository.StudentRepository;
-import com.example.demo.domain.lecture.dto.dto.*;
-import com.example.demo.domain.lecture.entity.attendance.Objection;
-import com.example.demo.domain.lecture.entity.attendance.Official;
-import com.example.demo.domain.lecture.entity.lecture.Enrollment;
-import com.example.demo.domain.lecture.entity.lecture.Lecture;
-import com.example.demo.domain.lecture.entity.lecture.LectureSchedule;
-import com.example.demo.domain.lecture.entity.lecture.LectureSession;
-import com.example.demo.domain.lecture.repository.*;
+import com.example.demo.domain.enumerate.SessionStatus;
+import com.example.demo.domain.enumerate.Status;
+import com.example.demo.domain.student.home.entity.user.Student;
+import com.example.demo.domain.student.home.repository.StudentRepository;
+import com.example.demo.domain.student.lecture.attendance.dto.*;
+import com.example.demo.domain.student.lecture.attendance.entity.Objection;
+import com.example.demo.domain.student.lecture.attendance.entity.Official;
+import com.example.demo.domain.student.lecture.attendance.repository.ObjectionRepository;
+import com.example.demo.domain.student.lecture.attendance.repository.OfficialRepository;
+import com.example.demo.domain.student.lecture.entity.Enrollment;
+import com.example.demo.domain.student.lecture.entity.Lecture;
+import com.example.demo.domain.student.lecture.entity.LectureSchedule;
+import com.example.demo.domain.student.lecture.entity.LectureSession;
 import com.example.demo.domain.professor.dto.ProfessorDashboardResponse;
 import com.example.demo.domain.professor.dto.ProfessorLectureResponse;
 import com.example.demo.domain.professor.dto.TodayLectureResponse;
@@ -21,12 +22,16 @@ import com.example.demo.domain.attendance.entity.AttendanceStatus;
 import com.example.demo.domain.attendance.dto.AttendanceMonitoringResponse;
 import com.example.demo.domain.attendance.dto.AttendanceStudentResponse;
 import com.example.demo.domain.attendance.repository.AttendanceRecordRepository;
+import com.example.demo.domain.student.lecture.repository.EnrollmentRepository;
+import com.example.demo.domain.student.lecture.repository.LectureRepository;
+import com.example.demo.domain.student.lecture.repository.LectureScheduleRepository;
+import com.example.demo.domain.student.lecture.repository.LectureSessionRepository;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
-import com.example.demo.domain.board.repository.NoticeBoardRepository;
-import com.example.demo.domain.board.repository.QuestionBoardRepository;
-import com.example.demo.domain.entity.board.NoticeBoard;
-import com.example.demo.domain.entity.board.QuestionBoard;
+import com.example.demo.domain.student.lecture.board.repository.NoticeBoardRepository;
+import com.example.demo.domain.student.lecture.board.repository.QuestionBoardRepository;
+import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
+import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -157,7 +162,7 @@ public class ProfessorService {
 
         int pendingAbsences = officialRepository.countByLecture_Professor_ProfessorIdAndStatus(
                 professorId,
-                com.example.demo.domain.entity.enumerate.Status.PENDING
+                Status.PENDING
         );
 
         return new ProfessorDashboardResponse(
