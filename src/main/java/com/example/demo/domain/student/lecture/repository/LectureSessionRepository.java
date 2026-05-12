@@ -9,6 +9,16 @@ import java.util.List;
 import java.util.Optional;
 
 public interface LectureSessionRepository extends JpaRepository<LectureSession, Long> {
-    Optional<LectureSession> findByLectureAndScheduledAt(Lecture lecture, LocalDate scheduledAt);
-    public List<LectureSession> findByLecture(Lecture lecture);
+
+    Optional<LectureSession> findByLectureAndScheduledAt(
+            Lecture lecture,
+            LocalDate scheduledAt
+    );
+
+    List<LectureSession> findByLecture(Lecture lecture);
+
+    List<LectureSession> findByLectureAndScheduledAtOrderBySessionStartAsc(
+            Lecture lecture,
+            LocalDate scheduledAt
+    );
 }

@@ -26,12 +26,22 @@ public class Attendance {
     @Column(name = "ATTENDANCE_ID", unique = true, nullable = false)
     private Long attendanceId;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "ATTEND_STATUS", length = 20, nullable = false)
     private AttendStatus attendStatus = AttendStatus.TBD;
 
     @Column(name = "CHECK_TIME")
     private LocalDateTime checkTime;
+
+    @Column(name = "ENTER_TIME")
+    private LocalDateTime enterTime;
+
+    @Column(name = "EXIT_TIME")
+    private LocalDateTime exitTime;
+
+    @Column(name = "STAY_RATE")
+    private Double stayRate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "SESSION_ID")

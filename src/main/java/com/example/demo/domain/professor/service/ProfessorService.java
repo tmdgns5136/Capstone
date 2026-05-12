@@ -1,5 +1,6 @@
 package com.example.demo.domain.professor.service;
 
+import com.example.demo.domain.enumerate.AttendStatus;
 import com.example.demo.domain.enumerate.SessionStatus;
 import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.student.home.entity.user.Student;
@@ -34,6 +35,11 @@ import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
 import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
 import com.example.demo.domain.student.lecture.board.entity.Answer;
 import com.example.demo.domain.student.lecture.board.repository.AnswerRepository;
+import com.example.demo.domain.enumerate.NoticeType;
+import com.example.demo.domain.student.notification.entity.Notification;
+import com.example.demo.domain.student.notification.repository.NotificationRepository;
+import com.example.demo.domain.student.lecture.attendance.entity.Attendance;
+import com.example.demo.domain.student.lecture.attendance.repository.AttendanceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -51,6 +57,8 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Duration;
+import java.util.stream.Collectors;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
@@ -74,6 +82,8 @@ public class ProfessorService {
     private final NoticeBoardRepository noticeBoardRepository;
     private final QuestionBoardRepository questionBoardRepository;
     private final AnswerRepository answerRepository;
+    private final NotificationRepository notificationRepository;
+    private final AttendanceRepository attendanceRepository;
 
 
     public List<ProfessorLectureResponse> getLectures(Long professorId, String semester) {
@@ -343,6 +353,19 @@ public class ProfessorService {
         answerRepository.save(answer);
         questionBoardRepository.save(question);
 
+        Answer savedAnswer = answerRepository.save(answer);
+
+        Notification notification = Notification.builder()
+                .message(question.getLecture().getLectureName() + " 강의 질문에 답변이 등록되었습니다.")
+                .relatedId(question.getQuestionId().toString())
+                .isRead(false)
+                .noticeType(NoticeType.ANSWER)
+                .student(question.getStudent())
+                .lecture(question.getLecture())
+                .build();
+
+        notificationRepository.save(notification);
+
         Long lectureId = question.getLecture().getLectureId();
 
         return ActionResponse.success(
@@ -460,6 +483,106 @@ public class ProfessorService {
         session.setStatus(SessionStatus.ENDED);
         session.setSessionEnd(LocalDateTime.now());
         lectureSessionRepository.save(session);
+
+        // 오늘 해당 강의의 전체 세션 조회
+        List<LectureSession> todaySessions =
+                lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(
+                        lecture,
+                        LocalDate.now()
+                );
+
+        if (!todaySessions.isEmpty()) {
+
+            // 전체 시작 시간
+            LocalDateTime totalStartTime =
+                    todaySessions.get(0).getSessionStart();
+
+            // 전체 종료 시간
+            LocalDateTime totalEndTime =
+                    todaySessions.get(todaySessions.size() - 1).getSessionEnd();
+
+            // 전체 수업 시간(분)
+            long totalMinutes =
+                    Duration.between(totalStartTime, totalEndTime).toMinutes();
+
+            // 쉬는 시간
+            long breakMinutes =
+                    (todaySessions.size() - 1) * 10L;
+
+            // 실제 수업 시간
+            long actualLectureMinutes =
+                    totalMinutes - breakMinutes;
+
+            // 오늘 세션 출석 전체 조회
+            List<Attendance> attendances =
+                    attendanceRepository.findByLectureSessionIn(todaySessions);
+
+            // 학생별 그룹화
+            Map<Student, List<Attendance>> attendanceMap =
+                    attendances.stream()
+                            .collect(Collectors.groupingBy(Attendance::getStudent));
+
+            for (Map.Entry<Student, List<Attendance>> entry : attendanceMap.entrySet()) {
+
+                List<Attendance> studentAttendances = entry.getValue();
+
+                // 가장 빠른 입장
+                LocalDateTime firstEnter =
+                        studentAttendances.stream()
+                                .map(Attendance::getEnterTime)
+                                .filter(t -> t != null)
+                                .min(LocalDateTime::compareTo)
+                                .orElse(null);
+
+                // 가장 늦은 퇴장
+                LocalDateTime lastExit =
+                        studentAttendances.stream()
+                                .map(Attendance::getExitTime)
+                                .filter(t -> t != null)
+                                .max(LocalDateTime::compareTo)
+                                .orElse(null);
+
+                if (firstEnter == null || lastExit == null) {
+                    for (Attendance attendance : studentAttendances) {
+                        attendance.setAttendStatus(AttendStatus.ABSENCE);
+                        attendance.setStayRate(0.0);
+                    }
+
+                    attendanceRepository.saveAll(studentAttendances);
+                    continue;
+                }
+
+                // 학생 체류 시간
+                long stayMinutes =
+                        Duration.between(firstEnter, lastExit).toMinutes();
+
+                // 체류율
+                double stayRate =
+                        (double) stayMinutes / actualLectureMinutes * 100.0;
+
+                // 상태 판정
+                AttendStatus status;
+
+                if (stayRate >= 80.0) {
+                    status = AttendStatus.ATTEND;
+                } else if (stayRate >= 50.0) {
+                    status = AttendStatus.LATENESS;
+                } else {
+                    status = AttendStatus.ABSENCE;
+                }
+
+                // 저장
+                for (Attendance attendance : studentAttendances) {
+                    attendance.setStayRate(
+                            Math.round(stayRate * 10.0) / 10.0
+                    );
+
+                    attendance.setAttendStatus(status);
+                }
+
+                attendanceRepository.saveAll(studentAttendances);
+            }
+        }
 
         return ActionResponse.success(200,
                 "출석 체크가 종료되었습니다.",
