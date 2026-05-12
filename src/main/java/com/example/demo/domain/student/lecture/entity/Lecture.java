@@ -1,33 +1,40 @@
 package com.example.demo.domain.student.lecture.entity;
 
-import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
-import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
 import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
+import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
+import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
+import com.example.demo.domain.student.notification.entity.Notification;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-// 복합 제약조건
-@Table(name = "LECTURE", uniqueConstraints = {
-        @UniqueConstraint(
-                name = "uk_lecture_unique_set",
-                // 클래스 내부 필드명과 일치해야 함
-                columnNames = {"LECTURE_CODE", "LECTURE_YEAR", "LECTURE_SEMESTER", "lecture_division"}
-        )
-})
+@Table(
+        name = "LECTURE",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_lecture_unique_set",
+                        columnNames = {
+                                "LECTURE_CODE",
+                                "LECTURE_YEAR",
+                                "LECTURE_SEMESTER",
+                                "lecture_division"
+                        }
+                )
+        }
+)
 public class Lecture {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "LECTURE_ID", unique = true, nullable = false)
@@ -84,7 +91,12 @@ public class Lecture {
     @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Objection> objections = new ArrayList<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL)
+    private List<Notification> notifications = new ArrayList<>();
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PROFESSOR_ID")
+    @JsonIgnore
     private Professor professor;
 }

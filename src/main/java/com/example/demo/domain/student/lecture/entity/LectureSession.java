@@ -4,11 +4,10 @@ import com.example.demo.domain.enumerate.SessionStatus;
 import com.example.demo.domain.student.lecture.attendance.entity.Attendance;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
@@ -17,13 +16,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 @Builder
 @Table(name = "LECTURE_SESSION")
 public class LectureSession {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "SESSION_ID", unique = true, nullable = false)
@@ -47,6 +48,7 @@ public class LectureSession {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "LECTURE_ID")
+    @JsonIgnore
     private Lecture lecture;
 
     @Builder.Default

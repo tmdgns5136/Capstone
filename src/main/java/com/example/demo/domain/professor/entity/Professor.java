@@ -1,11 +1,14 @@
 package com.example.demo.domain.professor.entity;
 
+import com.example.demo.domain.enumerate.ProfessorStatus;
+import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
+import com.example.demo.domain.student.lecture.board.entity.Answer;
 import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
 import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
-import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.student.lecture.entity.Lecture;
+import com.example.demo.domain.student.notification.entity.Notification;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,6 +25,7 @@ import java.util.List;
 @Builder
 @Table(name = "PROFESSOR")
 public class Professor {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "PROFESSOR_ID", unique = true, nullable = false)
@@ -49,6 +53,10 @@ public class Professor {
     @Enumerated(EnumType.STRING)
     private RoleType roleType;
 
+    @Column(name = "PROFESSOR_STATUS", length = 20, nullable = false)
+    @Enumerated(EnumType.STRING)
+    private ProfessorStatus professorStatus;
+
     @Builder.Default
     @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Lecture> lectures = new ArrayList<>();
@@ -69,5 +77,10 @@ public class Professor {
     @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL)
     private List<Official> officials = new ArrayList<>();
 
+    @OneToOne(mappedBy = "professor", cascade = CascadeType.ALL)
+    private Answer answer;
 
+    @Builder.Default
+    @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL)
+    private List<Notification> notifications = new ArrayList<>();
 }

@@ -8,10 +8,15 @@ import java.util.List;
 import java.util.Optional;
 
 public interface LectureRepository extends JpaRepository<Lecture, Long> {
-    public List<Lecture> findByProfessor(Professor professor);
 
-    public List<Lecture> findByProfessor_ProfessorId(Long professorId);
-    
-    Optional<Lecture> findByLectureCodeAndProfessor_ProfessorId(String lectureCode, Long professorId);
+    List<Lecture> findByProfessor(Professor professor);
 
+    List<Lecture> findByProfessor_ProfessorId(Long professorId);
+
+    boolean existsByLectureCode(String lectureCode);
+
+    Optional<Lecture> findByLectureCodeAndProfessor_ProfessorId(
+            String lectureCode,
+            Long professorId
+    );
 }

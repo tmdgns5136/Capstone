@@ -11,7 +11,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface OfficialRepository extends JpaRepository<Official, Long> {
-    public List<Official> findByStudentAndLecture(Student student, Lecture lecture);
+
+    List<Official> findByStudentAndLecture(Student student, Lecture lecture);
+
     int countByLecture_Professor_ProfessorIdAndStatus(Long professorId, Status status);
-    public Page<Official> Professor_ProfessorId(Long professorId, Pageable pageable);
+
+    Page<Official> Professor_ProfessorId(Long professorId, Pageable pageable);
 }

@@ -1,27 +1,27 @@
 package com.example.demo.domain.student.lecture.board.entity;
 
-
-import com.example.demo.domain.student.lecture.entity.Lecture;
 import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.student.home.entity.user.Student;
+import com.example.demo.domain.student.lecture.entity.Lecture;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "QUESTION_BOARD")
 public class QuestionBoard {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "QUESTION_ID", unique = true, nullable = false)
@@ -34,9 +34,9 @@ public class QuestionBoard {
     @Column(name = "QUESTION_CONTEXT", nullable = false, columnDefinition = "TEXT")
     private String questionContext;
 
-    @Lob
-    @Column(name = "QUESTION_ANSWER", columnDefinition = "TEXT")
-    private String questionAnswer;
+    @Builder.Default
+    @Column(name = "QUESTION_VIEWS")
+    private Long questionViews = 0L;
 
     @Column(name = "QUESTION_PRIVATE", nullable = false)
     private Boolean questionPrivate;
@@ -47,13 +47,19 @@ public class QuestionBoard {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "STUDENT_ID")
+    @JsonIgnore
     private Student student;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PROFESSOR_ID")
+    @JsonIgnore
     private Professor professor;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "LECTURE_ID")
+    @JsonIgnore
     private Lecture lecture;
+
+    @OneToOne(mappedBy = "question", cascade = CascadeType.ALL)
+    private Answer answer;
 }

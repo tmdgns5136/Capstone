@@ -32,6 +32,8 @@ import com.example.demo.domain.student.lecture.board.repository.NoticeBoardRepos
 import com.example.demo.domain.student.lecture.board.repository.QuestionBoardRepository;
 import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
 import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
+import com.example.demo.domain.student.lecture.board.entity.Answer;
+import com.example.demo.domain.student.lecture.board.repository.AnswerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -71,6 +73,7 @@ public class ProfessorService {
     private final ObjectionRepository objectionRepository;
     private final NoticeBoardRepository noticeBoardRepository;
     private final QuestionBoardRepository questionBoardRepository;
+    private final AnswerRepository answerRepository;
 
 
     public List<ProfessorLectureResponse> getLectures(Long professorId, String semester) {
@@ -101,7 +104,7 @@ public class ProfessorService {
             int studentCount = enrollmentRepository.countByLecture_LectureId(lecture.getLectureId());
             String scheduleText = buildScheduleText(lecture.getLectureId());
             result.add(new ProfessorLectureResponse(
-                    lecture.getLectureId(),
+                    String.valueOf(lecture.getLectureId()),
                     lecture.getLectureName(),
                     scheduleText,
                     lecture.getLectureRoom(),
@@ -129,7 +132,7 @@ public class ProfessorService {
             Long studentCount = (long) enrollmentRepository.countByLecture_LectureId(schedule.getLecture().getLectureId());
 
             result.add(new TodayLectureResponse(
-                    schedule.getLecture().getLectureId(),
+                    String.valueOf(schedule.getLecture().getLectureId()),
                     schedule.getLecture().getLectureCode(),
                     schedule.getLecture().getLectureName(),
                     schedule.getLecture().getLectureRoom(),
@@ -262,7 +265,7 @@ public class ProfessorService {
                 item.put("studentNum", question.getStudent() != null ? question.getStudent().getStudentNum() : "익명");
                 item.put("title", question.getQuestionTitle());
                 item.put("isPrivate", question.getQuestionPrivate());
-                item.put("isAnswered", question.getQuestionAnswer() != null && !question.getQuestionAnswer().trim().isEmpty());
+                item.put("isAnswered", question.getAnswer() != null);
                 item.put("createdDate", question.getQuestionCreated() != null
                         ? question.getQuestionCreated().toLocalDate().toString()
                         : "");
@@ -296,12 +299,20 @@ public class ProfessorService {
                 : null);
         data.put("views", 0);
 
-        if (question.getQuestionAnswer() != null && !question.getQuestionAnswer().trim().isEmpty()) {
+        if (question.getAnswer() != null) {
+            Answer answerEntity = question.getAnswer();
+
             Map<String, Object> answer = new HashMap<>();
-            answer.put("content", question.getQuestionAnswer());
+            answer.put("answerId", answerEntity.getId());
+            answer.put("content", answerEntity.getContent());
             answer.put("professorName",
-                    question.getProfessor() != null ? question.getProfessor().getProfessorName() : null);
-            answer.put("answeredDate", null);
+                    answerEntity.getProfessor() != null
+                            ? answerEntity.getProfessor().getProfessorName()
+                            : null);
+            answer.put("answeredDate", answerEntity.getAnswerCreated() != null
+                    ? answerEntity.getAnswerCreated().toLocalDate().toString()
+                    : null);
+
             data.put("answer", answer);
         } else {
             data.put("answer", null);
@@ -319,7 +330,17 @@ public class ProfessorService {
         QuestionBoard question = questionBoardRepository.findById(questionId)
                 .orElseThrow(() -> new CustomException(404, "답변할 질문 정보를 찾을 수 없습니다."));
 
-        question.setQuestionAnswer(content);
+        if (question.getAnswer() != null) {
+            throw new CustomException(409, "이미 답변이 등록된 질문입니다.");
+        }
+
+        Answer answer = Answer.builder()
+                .content(content)
+                .question(question)
+                .professor(question.getProfessor())
+                .build();
+
+        answerRepository.save(answer);
         questionBoardRepository.save(question);
 
         Long lectureId = question.getLecture().getLectureId();
@@ -340,7 +361,7 @@ public class ProfessorService {
         QuestionBoard question = questionBoardRepository.findById(questionId)
                 .orElseThrow(() -> new CustomException(404, "수정할 답변 정보를 찾을 수 없습니다."));
 
-        question.setQuestionAnswer(content);
+        Answer answer = question.getAnswer();
         questionBoardRepository.save(question);
 
         Long lectureId = question.getLecture().getLectureId();
@@ -357,8 +378,14 @@ public class ProfessorService {
         QuestionBoard question = questionBoardRepository.findById(questionId)
                 .orElseThrow(() -> new CustomException(404, "삭제할 답변 정보를 찾을 수 없습니다."));
 
-        question.setQuestionAnswer(null);
+        Answer answer = question.getAnswer();
         questionBoardRepository.save(question);
+
+        if (answer == null) {
+            throw new CustomException(404, "등록된 답변이 없습니다.");
+        }
+
+        answerRepository.delete(answer);
 
         Long lectureId = question.getLecture().getLectureId();
 
@@ -453,8 +480,8 @@ public class ProfessorService {
         }
 
         AttendanceStatus newStatus = AttendanceStatus.valueOf(request.getStatus());
-        String semester = "2026-1";
-        LocalDate attendanceDate = LocalDate.parse(request.getDate());
+        String semester = lecture.getLectureYear() + "-" + lecture.getLectureSemester();
+        LocalDate attendanceDate = LocalDate.now();
 
         AttendanceRecord record = attendanceRecordRepository
                 .findByStudentAndLectureAndAttendanceDateAndSemester(student, lecture, attendanceDate, semester)
@@ -508,7 +535,6 @@ public class ProfessorService {
             studentResponses.add(new AttendanceStudentResponse(
                     student.getStudentNum(),
                     student.getStudentName(),
-                    currentStatus,
                     presentCount,
                     lateCount,
                     absentCount,

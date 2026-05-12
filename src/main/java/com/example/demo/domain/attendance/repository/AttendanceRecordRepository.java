@@ -24,5 +24,9 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
     List<AttendanceRecord> findByStudentAndLectureAndSemester(Student student, Lecture lecture, String semester);
 
     int countByLecture_Professor_ProfessorId(Long professorId);
-    int countByLecture_Professor_ProfessorIdAndStatusIn(Long professorId, List<AttendanceStatus> statuses);
+
+    int countByLecture_Professor_ProfessorIdAndStatusIn(
+            Long professorId,
+            List<AttendanceStatus> statuses
+    );
 }

@@ -32,8 +32,6 @@ public class ProfessorController {
     private final ProfessorRepository professorRepository;
     private final ProfessorService professorService;
 
-
-
     @GetMapping("/lectures")
     public ApiResponse<List<ProfessorLectureResponse>> getLectures(
             @RequestParam(value = "semester", required = false) String semester,
@@ -71,14 +69,12 @@ public class ProfessorController {
         return professorService.createNotice(lectureId, title, content);
     }
 
-    // ProfessorController.java에 추가
     @PatchMapping("/notices/{noticeId}")
     public ActionResponse updateNotice(
             @PathVariable("noticeId") Long noticeId,
             @RequestParam("title") String title,
             @RequestParam("content") String content
     ) {
-        // 서비스의 수정 로직 호출
         return professorService.updateNotice(noticeId, title, content);
     }
 
@@ -98,24 +94,20 @@ public class ProfessorController {
 
     @GetMapping("/lectures/{lectureId}/questions")
     public ApiResponse<Map<String, Object>> getQuestions(
-            @PathVariable("lectureId") String lectureId, // 프론트의 "1"을 받음
-            @RequestParam(value = "page", defaultValue = "1") int page, // 필수값 에러 방지
-            @RequestParam(value = "size", defaultValue = "10") int size, // 필수값 에러 방지
+            @PathVariable("lectureId") String lectureId,
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
             Authentication authentication
     ) {
-        // 1. 로그인한 교수 정보 가져오기
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
-        // 2. [핵심] lectureId가 숫자인지 확인하고 서비스 호출
         try {
-            // String "1" -> Long 1L로 변환
             Long id = Long.valueOf(lectureId);
 
             return ApiResponse.success(200,
                     professorService.getQuestions(id, page, size));
         } catch (NumberFormatException e) {
-            // 혹시 주소창에 숫자가 아닌 "undefined" 같은 게 들어왔을 때 서버가 안 죽게 방어
             throw new com.example.demo.global.exception.CustomException(400, "유효하지 않은 강의 번호입니다: " + lectureId);
         }
     }
@@ -176,7 +168,7 @@ public class ProfessorController {
     }
 
     @PostMapping("/lectures/{lectureId}/end")
-    public ActionResponse endLecture(@PathVariable("lectureId") String lectureId, Authentication authentication){
+    public ActionResponse endLecture(@PathVariable("lectureId") String lectureId, Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
         return professorService.endLecture(professor.getProfessorId(), lectureId);
@@ -193,14 +185,12 @@ public class ProfessorController {
     public ApiResponse<AttendanceMonitoringResponse> getAttendanceMonitoring(
             @PathVariable("lectureId") String lectureId,
             @RequestParam("semester") String semester,
-            // 1. [추가] 리액트에서 보낸 날짜를 받을 수 있게 파라미터 추가
             @RequestParam(value = "date", required = false) String date,
             Authentication authentication
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
-        // 2. [수정] 서비스 호출 시 마지막에 date를 꼭 넣어줘야 합니다! (4번째 파라미터)
         return ApiResponse.success(200,
                 professorService.getAttendanceMonitoring(professor.getProfessorId(), lectureId, semester, date)
         );

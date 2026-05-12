@@ -2,7 +2,7 @@ package com.example.demo.domain.professor.dto;
 
 public class TodayLectureResponse {
 
-    private final Long lectureId;
+    private final String lectureId;
     private final String lectureCode;
     private final String name;
     private final String location;
@@ -10,7 +10,15 @@ public class TodayLectureResponse {
     private final String status;
     private final Long students;
 
-    public TodayLectureResponse(Long lectureId, String lectureCode, String name, String location, String time, String status, Long students) {
+    public TodayLectureResponse(
+            String lectureId,
+            String lectureCode,
+            String name,
+            String location,
+            String time,
+            String status,
+            Long students
+    ) {
         this.lectureId = lectureId;
         this.lectureCode = lectureCode;
         this.name = name;
@@ -20,11 +28,13 @@ public class TodayLectureResponse {
         this.students = students;
     }
 
-    public Long getLectureId() {
+    public String getLectureId() {
         return lectureId;
     }
 
-    public String getLectureCode() { return lectureCode; }
+    public String getLectureCode() {
+        return lectureCode;
+    }
 
     public String getName() {
         return name;
@@ -42,5 +52,7 @@ public class TodayLectureResponse {
         return status;
     }
 
-    public Long getStudents() { return students; }
+    public Long getStudents() {
+        return students;
+    }
 }

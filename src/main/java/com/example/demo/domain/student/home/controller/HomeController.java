@@ -1,5 +1,7 @@
 package com.example.demo.domain.student.home.controller;
 
+import com.example.demo.domain.student.home.dto.dashboard.CourseData;
+import com.example.demo.domain.student.home.dto.dashboard.CourseStateData;
 import com.example.demo.domain.student.home.dto.login.LoginData;
 import com.example.demo.domain.student.home.dto.user.EditRequest;
 import com.example.demo.domain.student.mypage.dto.PasswordCheck;
@@ -12,6 +14,8 @@ import com.example.demo.domain.professor.repository.ProfessorRepository;
 import com.example.demo.domain.student.home.repository.StudentRepository;
 import com.example.demo.domain.student.home.service.EmailService;
 import com.example.demo.domain.student.home.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,11 +30,13 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/home")
+@Tag(name = "HomeController", description = "This is an Home controller")
 public class HomeController {
     private final StudentRepository studentRepository;
     private final ProfessorRepository professorRepository;
@@ -43,25 +49,27 @@ public class HomeController {
     @Value("${jwt.secret}")
     private String secretKey;
 
+    @Operation(summary = "학생 회원 가입")
     @PostMapping("/signup/student")
     public ResponseEntity<ActionResponse> signupStudent(@Valid @RequestPart JoinRequest joinRequest,
                                                         @RequestPart("leftImage") MultipartFile leftImage,
                                                         @RequestPart("centerImage") MultipartFile centerImage,
                                                         @RequestPart("rightImage") MultipartFile rightImage) throws IOException {
 
-       ActionResponse actionResponse = userService.createStudent(joinRequest, leftImage, centerImage, rightImage);
-       return ResponseEntity.ok(actionResponse);
+        ActionResponse actionResponse = userService.createStudent(joinRequest, leftImage, centerImage, rightImage);
+        return ResponseEntity.ok(actionResponse);
     }
 
+    @Operation(summary = "교수 회원 가입")
     @PostMapping("/signup/professor")
     public ResponseEntity<ActionResponse> signupProfessor(@Valid @RequestBody JoinRequest joinRequest){
         ActionResponse actionResponse = userService.createProfessor(joinRequest);
         return ResponseEntity.ok(actionResponse);
     }
 
+    @Operation(summary = "로그인")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginData>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletResponse response){
-        // 만료시간 1시간
         Date accessExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 60);
         Date refreshExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 60);
 
@@ -70,6 +78,7 @@ public class HomeController {
         return ResponseEntity.status(apiResponse.getStatus()).body(apiResponse);
     }
 
+    @Operation(summary = "토큰 재발급")
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<LoginData>> refresh(@CookieValue("refreshToken") String refreshToken, HttpServletResponse response){
         Date accessExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 10);
@@ -79,6 +88,7 @@ public class HomeController {
 
     }
 
+    @Operation(summary = "로그아웃")
     @PostMapping("/logout")
     public ResponseEntity<ActionResponse> logout(Authentication authentication){
         String userNum = authentication.getName();
@@ -88,6 +98,7 @@ public class HomeController {
         return ResponseEntity.ok(actionResponse);
     }
 
+    @Operation(summary = "이메일 인증 번호 전송")
     @PostMapping("/email-send")
     public ResponseEntity<ActionResponse> sendEmail(@RequestBody Map<String, String> request){
         String email = request.get("email");
@@ -114,10 +125,9 @@ public class HomeController {
         ActionResponse actionResponse = ActionResponse.success(200, "인증번호가 발송되었습니다.");
 
         return ResponseEntity.ok(actionResponse);
-
-
     }
 
+    @Operation(summary = "이메일 인증번호 확인")
     @PostMapping("/email-check")
     public ResponseEntity<ActionResponse> verify(@RequestBody Map<String, String> request){
         String email = request.get("email");
@@ -139,10 +149,9 @@ public class HomeController {
 
         ActionResponse actionResponse = ActionResponse.success(200, "인증이 완료되었습니다.");
         return ResponseEntity.status(actionResponse.getStatus()).body(actionResponse);
-
     }
 
-    // 비밀번호 찾기
+    @Operation(summary = "비밀번호 찾기")
     @PostMapping("/password-email-send")
     public ResponseEntity<ActionResponse> sendPasswordEmail(@RequestBody Map<String, String> request){
         String email = request.get("email");
@@ -167,10 +176,9 @@ public class HomeController {
                 .success(200, "인증번호가 발송되었습니다.");
 
         return ResponseEntity.ok(actionResponse);
-
-
     }
 
+    @Operation(summary = "비밀번호 변경")
     @PatchMapping("/password-change")
     public ResponseEntity<ActionResponse> passwordChange(@Valid @RequestBody EditRequest editRequest){
         userService.findPassword(editRequest);
@@ -182,6 +190,7 @@ public class HomeController {
         return ResponseEntity.ok(actionResponse);
     }
 
+    @Operation(summary = "현재 비밀번호와 일치하는 지 확인")
     @PostMapping("/password-check")
     public ResponseEntity<ActionResponse> passwordChecking(@RequestBody PasswordCheck passwordCheck, Authentication authentication){
         if(userService.passwordCheck(passwordCheck, authentication)){
@@ -192,5 +201,19 @@ public class HomeController {
         else{
             throw new CustomException(401, "비밀번호가 일치하지 않습니다.");
         }
+    }
+
+    @GetMapping("/today-courses")
+    public ResponseEntity<ApiResponse<List<CourseData>>> getCourses(Authentication authentication, @RequestParam("year") String year,
+                                                                    @RequestParam("semester") String semester, @RequestParam("today") String today){
+        ApiResponse<List<CourseData>> apiResponse = userService.getTodayCourses(authentication, year, semester, today);
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    @GetMapping("/current-lecture")
+    public ResponseEntity<ApiResponse<List<CourseStateData>>> getCourseState(Authentication authentication,  @RequestParam("year") String year,
+                                                                             @RequestParam("semester") String semester, @RequestParam("today") String today){
+        ApiResponse<List<CourseStateData>> apiResponse = userService.getCourseState(authentication, year, semester, today);
+        return ResponseEntity.ok(apiResponse);
     }
 }

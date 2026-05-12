@@ -2,18 +2,17 @@ package com.example.demo.domain.student.home.entity.etc;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data
+@Getter
+@Setter
 @Builder
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "USER_REFRESH_TOKEN")
 public class RefreshToken {
+
     @JsonIgnore
     @Id
     @Column(name = "REFRESH_TOKEN_ID")

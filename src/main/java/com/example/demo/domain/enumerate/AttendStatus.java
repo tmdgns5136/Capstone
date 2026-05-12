@@ -10,11 +10,11 @@ import java.util.stream.Collectors;
 
 @Getter
 @AllArgsConstructor
-
 public enum AttendStatus {
-    PRESENT("PRESENT", "출석"),
-    LATE("LATE", "지각"),
-    ABSENT("ABSENT", "결석"),
+
+    ATTEND("ATTEND", "출석"),
+    LATENESS("LATENESS", "지각"),
+    ABSENCE("ABSENCE", "결석"),
     TBD("TBD", "미정");
 
     private final String code;
@@ -24,8 +24,7 @@ public enum AttendStatus {
             Arrays.stream(AttendStatus.values())
                     .collect(Collectors.toMap(AttendStatus::getCode, Function.identity()));
 
-    public static AttendStatus of(String code){
+    public static AttendStatus of(String code) {
         return attendMap.getOrDefault(code, TBD);
-        }
+    }
 }
-

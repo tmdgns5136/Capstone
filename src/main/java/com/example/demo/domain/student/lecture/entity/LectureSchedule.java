@@ -1,11 +1,14 @@
 package com.example.demo.domain.student.lecture.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.Setter;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 
 @Entity
+@Setter
 @Table(name = "lecture_schedules")
 public class LectureSchedule {
 
@@ -25,12 +28,18 @@ public class LectureSchedule {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lecture_id", nullable = false)
+    @JsonIgnore
     private Lecture lecture;
 
     protected LectureSchedule() {
     }
 
-    public LectureSchedule(DayOfWeek dayOfWeek, LocalTime startTime, LocalTime endTime, Lecture lecture) {
+    public LectureSchedule(
+            DayOfWeek dayOfWeek,
+            LocalTime startTime,
+            LocalTime endTime,
+            Lecture lecture
+    ) {
         this.dayOfWeek = dayOfWeek;
         this.startTime = startTime;
         this.endTime = endTime;

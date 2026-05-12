@@ -1,13 +1,13 @@
 package com.example.demo.domain.student.home.entity.etc;
 
 import com.example.demo.domain.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.ImageType;
 import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.student.home.entity.user.Student;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -15,13 +15,15 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "IMAGE")
 public class Image {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "IMAGE_ID", unique = true, nullable = false)
@@ -39,6 +41,7 @@ public class Image {
     @Column(name = "FILE_SIZE", nullable = false)
     private Long fileSize;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "IMAGE_STATUS", length = 20, nullable = false)
     private Status status = Status.PENDING;
@@ -46,6 +49,10 @@ public class Image {
     @Enumerated(EnumType.STRING)
     @Column(name = "IMAGE_POSITION", length = 20, nullable = false)
     private ImagePosition position;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "IMAGE_TYPE", length = 20, nullable = false)
+    private ImageType imageType;
 
     @Column(name = "REQUEST_ID")
     private String requestId;
@@ -63,5 +70,6 @@ public class Image {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "STUDENT_ID")
+    @JsonIgnore
     private Student student;
 }

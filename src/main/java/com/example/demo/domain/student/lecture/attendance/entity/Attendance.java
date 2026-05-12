@@ -1,25 +1,26 @@
 package com.example.demo.domain.student.lecture.attendance.entity;
 
 import com.example.demo.domain.enumerate.AttendStatus;
-import com.example.demo.domain.student.lecture.entity.LectureSession;
 import com.example.demo.domain.student.home.entity.user.Student;
+import com.example.demo.domain.student.lecture.entity.LectureSession;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "ATTENDANCE")
 public class Attendance {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ATTENDANCE_ID", unique = true, nullable = false)
@@ -38,5 +39,6 @@ public class Attendance {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "STUDENT_ID")
+    @JsonIgnore
     private Student student;
 }

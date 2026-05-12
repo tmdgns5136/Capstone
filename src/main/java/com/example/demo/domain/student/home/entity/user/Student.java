@@ -1,28 +1,29 @@
 package com.example.demo.domain.student.home.entity.user;
 
+import com.example.demo.domain.enumerate.RoleType;
+import com.example.demo.domain.enumerate.StudentStatus;
+import com.example.demo.domain.student.home.entity.etc.Image;
 import com.example.demo.domain.student.lecture.attendance.entity.Attendance;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
 import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
-import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.student.lecture.entity.Enrollment;
-import com.example.demo.domain.student.home.entity.etc.Image;
+import com.example.demo.domain.student.notification.entity.Notification;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @Table(name = "STUDENT")
 public class Student {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "STUDENT_ID", unique = true, nullable = false)
@@ -46,6 +47,10 @@ public class Student {
     @Column(name = "ROLE_TYPE", length = 20, nullable = false)
     @Enumerated(EnumType.STRING)
     private RoleType roleType;
+
+    @Column(name = "STUDENT_STATUS", length = 20, nullable = false)
+    @Enumerated(EnumType.STRING)
+    private StudentStatus studentStatus;
 
     @Builder.Default
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -71,4 +76,7 @@ public class Student {
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
     private List<Official> officials = new ArrayList<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
+    private List<Notification> notifications = new ArrayList<>();
 }
