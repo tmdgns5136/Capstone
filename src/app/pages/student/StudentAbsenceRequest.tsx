@@ -58,7 +58,7 @@ export default function StudentAbsenceRequest() {
     setLoadingRequests(true);
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentSemester = now.getMonth() + 1 >= 7 ? "2학기" : "1학기";
+    const currentSemester = now.getMonth() + 1 >= 7 ? "2" : "1";
     getMyLectures(currentYear, currentSemester)
       .then(async (res) => {
         setCourses(res.data);

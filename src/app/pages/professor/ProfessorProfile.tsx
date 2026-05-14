@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { User, Key, X, Eye, EyeOff } from "lucide-react";
+import { User, Key, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "../../api/client"; // API 클라이언트 경로에 맞게 수정
+import { api } from "../../api/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "../../components/ui/dialog";
 
 export default function ProfessorProfile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -265,93 +270,88 @@ export default function ProfessorProfile() {
       </div>
 
       {/* Password Change Modal */}
-      {isPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl w-full max-w-md">
-            <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
-                <Key className="w-5 h-5 text-zinc-400" /> 비밀번호 변경
-              </h2>
-              <button
-                onClick={() => setIsPasswordModalOpen(false)}
-                className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center transition-colors"
-              >
-                <X className="w-5 h-5 text-zinc-400" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">현재 비밀번호</label>
-                <div className="relative">
-                  <input
-                    type={showCurrentPwd ? "text" : "password"}
-                    value={currentPwd}
-                    onChange={(e) => setCurrentPwd(e.target.value)}
-                    placeholder="현재 비밀번호를 입력하세요"
-                    className="w-full rounded-lg border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                  <button
-                    onClick={() => setShowCurrentPwd(!showCurrentPwd)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                  >
-                    {showCurrentPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">새 비밀번호</label>
-                <div className="relative">
-                  <input
-                    type={showNewPwd ? "text" : "password"}
-                    value={newPwd}
-                    onChange={(e) => setNewPwd(e.target.value)}
-                    placeholder="새 비밀번호를 입력하세요"
-                    className="w-full rounded-lg border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                  <button
-                    onClick={() => setShowNewPwd(!showNewPwd)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                  >
-                    {showNewPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-zinc-700 mb-1.5 block">새 비밀번호 확인</label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPwd ? "text" : "password"}
-                    value={confirmNewPwd}
-                    onChange={(e) => setConfirmNewPwd(e.target.value)}
-                    placeholder="새 비밀번호를 다시 입력하세요"
-                    className="w-full rounded-lg border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  />
-                  <button
-                    onClick={() => setShowConfirmPwd(!showConfirmPwd)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                  >
-                    {showConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+      <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+        <DialogContent className="rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] sm:max-w-md">
+          <div className="px-6 py-4 border-b border-zinc-100 bg-white rounded-t-2xl">
+            <DialogTitle className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
+              <Key className="w-5 h-5 text-zinc-400" /> 비밀번호 변경
+            </DialogTitle>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="text-sm font-medium text-zinc-700 mb-1.5 block">현재 비밀번호</label>
+              <div className="relative">
+                <input
+                  type={showCurrentPwd ? "text" : "password"}
+                  value={currentPwd}
+                  onChange={(e) => setCurrentPwd(e.target.value)}
+                  placeholder="현재 비밀번호를 입력하세요"
+                  className="w-full rounded-xl border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                >
+                  {showCurrentPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-zinc-100 flex justify-end gap-3 bg-zinc-50/50 rounded-b-2xl">
-              <button
-                onClick={() => setIsPasswordModalOpen(false)}
-                className="text-sm text-zinc-500 font-medium px-4 py-2 hover:text-zinc-800 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSubmitPasswordChange}
-                className="bg-zinc-900 text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-zinc-800 transition-colors shadow-sm"
-              >
-                비밀번호 변경
-              </button>
+            <div>
+              <label className="text-sm font-medium text-zinc-700 mb-1.5 block">새 비밀번호</label>
+              <div className="relative">
+                <input
+                  type={showNewPwd ? "text" : "password"}
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
+                  placeholder="새 비밀번호를 입력하세요"
+                  className="w-full rounded-xl border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPwd(!showNewPwd)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                >
+                  {showNewPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-zinc-700 mb-1.5 block">새 비밀번호 확인</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPwd ? "text" : "password"}
+                  value={confirmNewPwd}
+                  onChange={(e) => setConfirmNewPwd(e.target.value)}
+                  placeholder="새 비밀번호를 다시 입력하세요"
+                  className="w-full rounded-xl border border-zinc-200 p-3 pr-10 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                >
+                  {showConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+          <div className="px-6 py-4 border-t border-zinc-100 flex justify-end gap-3 bg-zinc-50/50 rounded-b-2xl">
+            <button
+              onClick={() => setIsPasswordModalOpen(false)}
+              className="text-sm text-zinc-500 font-medium px-4 py-2 hover:text-zinc-800 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleSubmitPasswordChange}
+              className="bg-zinc-900 text-white text-sm font-medium px-6 py-2.5 rounded-xl hover:bg-zinc-800 transition-colors shadow-sm"
+            >
+              비밀번호 변경
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

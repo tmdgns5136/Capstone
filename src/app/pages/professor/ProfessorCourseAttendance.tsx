@@ -91,7 +91,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
         }));
         setSavedMap(prev => ({ ...prev, [key]: mapped }));
       }
-    } catch { toast.error("로드 실패"); } finally { setLoading(false); }
+    } catch { toast.error("출석 데이터를 불러오지 못했습니다."); } finally { setLoading(false); }
   }, [lectureId, sessionDate, key]);
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
       setSavedMap({ ...savedMap, [key]: students });
       setPendingMap((prev) => { const n = { ...prev }; delete n[key]; return n; });
       toast.success("저장되었습니다.");
-    } catch { toast.error("저장 실패"); } finally { setLoading(false); }
+    } catch { toast.error("출석 상태 저장에 실패했습니다."); } finally { setLoading(false); }
   };
 
   const handleDiscard = () => {

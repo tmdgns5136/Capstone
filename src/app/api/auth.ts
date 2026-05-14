@@ -35,7 +35,7 @@ export async function signupStudent(
   const formData = new FormData();
   formData.append(
     "joinRequest",
-    new Blob([JSON.stringify({ userNum, userName, userEmail, password, phoneNum: phoneNum.replace(/\D/g, "") })], {
+    new Blob([JSON.stringify({ userNum, userName, userEmail, password, phoneNum, major: "-" })], {
       type: "application/json",
     }),
   );
@@ -62,7 +62,7 @@ export async function signupProfessor(
   return api("/signup/professor", {
     method: "POST",
     skipAuth: true,
-    body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum: phoneNum.replace(/\D/g, ""), major }),
+    body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum, major }),
   });
 }
 

@@ -5,15 +5,9 @@ import { User, Hash, Check, Mail, Eye, EyeOff, Phone, BookOpen } from "lucide-re
 import { OtpInput } from "../../components/OtpInput";
 import { toast } from "sonner";
 import { sendEmailCode, verifyEmailCode, signupProfessor } from "../../api/auth";
+import { formatPhone } from "../../utils/format";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
-
-function formatPhone(value: string) {
-  const nums = value.replace(/\D/g, "").slice(0, 11);
-  if (nums.length <= 3) return nums;
-  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
-  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
-}
 
 export default function ProfessorSignup() {
   const navigate = useNavigate();
@@ -75,7 +69,7 @@ export default function ProfessorSignup() {
       startTimer();
       toast.success("인증번호가 이메일로 전송되었습니다.");
     } catch (err: any) {
-      toast.error(err.message || "인증번호 전송 오류");
+      toast.error(err.message || "인증번호 전송에 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -90,7 +84,7 @@ export default function ProfessorSignup() {
       await verifyEmailCode(email, verificationCode);
       clearTimer();
       setIsEmailVerified(true);
-      toast.success("인증 완료되었습니다");
+      toast.success("인증이 완료되었습니다.");
     } catch (err: any) {
       toast.error(err.message || "인증번호가 일치하지 않습니다");
     }
@@ -133,10 +127,10 @@ export default function ProfessorSignup() {
     try {
       // ✅ api/auth.ts의 signupProfessor 함수에도 major를 받을 수 있도록 파라미터를 추가해 주셔야 합니다!
       await signupProfessor(professorId, name, email, password, phone, major);
-      toast.success("회원가입이 완료되었습니다");
+      toast.success("회원가입이 완료되었습니다.");
       navigate("/login");
     } catch (error: any) {
-      toast.error(error.message || "회원가입 오류");
+      toast.error(error.message || "회원가입에 실패했습니다.");
     } finally {
       setLoading(false);
     }

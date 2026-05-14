@@ -14,6 +14,13 @@ import { toast } from "sonner";
 import { api } from "../../api/client";
 import { CURRENT_YEAR, CURRENT_SEMESTER_NUM } from "../../constants/semester";
 
+const DAY_KO: Record<string, string> = {
+  MONDAY: "월", TUESDAY: "화", WEDNESDAY: "수", THURSDAY: "목",
+  FRIDAY: "금", SATURDAY: "토", SUNDAY: "일",
+};
+const formatDay = (day: string) =>
+  day.split(",").map(d => DAY_KO[d.trim()] || d.trim()).join(",");
+
 interface Lecture {
   lectureId: number;
   lectureCode: string;
@@ -132,7 +139,7 @@ export default function AdminCourseManagement() {
 
       setCourses(allLectures);
     } catch (e: any) {
-      toast.error("강의 목록 로드 실패");
+      toast.error("강의 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -177,7 +184,7 @@ export default function AdminCourseManagement() {
     } catch (e: any) {
       setStudents([]);
       setOriginalStudents([]);
-      toast.error("학생 목록 로드 실패");
+      toast.error("학생 목록을 불러오지 못했습니다.");
     } finally {
       setStudentLoading(false);
     }
@@ -241,7 +248,7 @@ export default function AdminCourseManagement() {
       fetchStudents(selectedCourse.lectureId);
       fetchLectures();
     } catch (e: any) {
-      toast.error(e.message || "저장 실패");
+      toast.error(e.message || "수강생 변경 저장에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -276,7 +283,7 @@ export default function AdminCourseManagement() {
       resetForm();
       fetchLectures();
     } catch (e: any) {
-      toast.error("등록 실패");
+      toast.error("강의 등록에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -314,7 +321,7 @@ export default function AdminCourseManagement() {
       setEditingCourse(null);
       fetchLectures();
     } catch (e: any) {
-      toast.error("수정 실패");
+      toast.error("강의 수정에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -328,7 +335,7 @@ export default function AdminCourseManagement() {
       toast.success("삭제되었습니다.");
       fetchLectures();
     } catch (e: any) {
-      toast.error("삭제 실패");
+      toast.error("강의 삭제에 실패했습니다.");
     } finally {
       setSubmitting(false);
       setDeleteTarget(null);
@@ -486,7 +493,7 @@ export default function AdminCourseManagement() {
                   <td className="px-6 py-4 font-semibold text-zinc-900">{course.lectureName}</td>
                   <td className="px-6 py-4 text-zinc-600">{course.ProfessorName}</td>
                   <td className="px-6 py-4 text-zinc-600">
-                    <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-zinc-400"/> {course.lectureDay} {course.startTime}-{course.endTime}</div>
+                    <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-zinc-400"/> {formatDay(course.lectureDay)} {course.startTime}-{course.endTime}</div>
                   </td>
                   <td className="px-6 py-4 text-zinc-600">
                     <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-zinc-400"/> {course.room || course.classroom}</div>
@@ -530,7 +537,7 @@ export default function AdminCourseManagement() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-3 px-4 bg-zinc-50/80 rounded-2xl border border-zinc-100">
-                <div className="flex items-center gap-1.5 text-xs text-zinc-600"><Clock className="w-3.5 h-3.5 text-zinc-400" /><span className="truncate">{course.lectureDay} {course.startTime}</span></div>
+                <div className="flex items-center gap-1.5 text-xs text-zinc-600"><Clock className="w-3.5 h-3.5 text-zinc-400" /><span className="truncate">{formatDay(course.lectureDay)} {course.startTime}</span></div>
                 <div className="flex items-center gap-1.5 text-xs text-zinc-600"><MapPin className="w-3.5 h-3.5 text-zinc-400" /><span className="truncate">{course.room || course.classroom}</span></div>
                 <div className="flex items-center gap-1.5 text-xs text-zinc-600"><Users className="w-3.5 h-3.5 text-zinc-400" /><span>수강생 {course.studentCount || 0}명</span></div>
               </div>

@@ -60,7 +60,7 @@ export function ProfessorCourseDetail() {
         setRefreshTrigger(prev => prev + 1); // [중요] 목록 컴포넌트에게 새로고침 신호 보냄
       }
     } catch (error) {
-      toast.error("서버 저장에 실패했습니다.");
+      toast.error("공지사항 등록에 실패했습니다.");
     } finally {
       setIsSubmitting(false);
     }
@@ -180,7 +180,7 @@ export function ProfessorCourseDetail() {
         onClose={() => setShowNoticeModal(false)}
         title="공지사항 작성하기"
         titleIcon={<MessageSquare className="w-5 h-5 text-zinc-400" />}
-        maxWidth="max-w-lg"
+        maxWidth="sm:max-w-lg"
         footer={
           <div className="flex justify-end gap-2 w-full">
             <button 

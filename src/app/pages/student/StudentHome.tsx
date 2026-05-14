@@ -26,7 +26,7 @@ function parseHour(time: string) {
 export default function StudentHome() {
   const now = new Date();
   const year = now.getFullYear();
-  const semester = now.getMonth() + 1 >= 7 ? "2학기" : "1학기";
+  const semester = now.getMonth() + 1 >= 7 ? "2" : "1";
 
   const [todayCourses, setTodayCourses] = useState<CourseData[]>([]);
   const [currentLecture, setCurrentLecture] = useState<CourseStateData | null>(null);

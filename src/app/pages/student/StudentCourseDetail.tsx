@@ -337,7 +337,7 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
         onClose={() => setShowQuestionModal(false)}
         title="질문하기"
         titleIcon={<MessageSquare className="w-5 h-5 text-zinc-400" />}
-        maxWidth="max-w-lg"
+        maxWidth="sm:max-w-lg"
         footer={<>
           <button onClick={() => setShowQuestionModal(false)} className="text-sm text-zinc-500 hover:text-zinc-700 px-4 py-2">취소</button>
           <button

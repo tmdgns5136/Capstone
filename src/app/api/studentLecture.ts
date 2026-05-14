@@ -66,6 +66,9 @@ export interface AbsenceRequestData {
   requestDate: string;
 }
 
+/** 이의신청 목록은 공결 신청과 동일한 응답 구조 */
+export type ObjectionRequestData = AbsenceRequestData;
+
 export interface AbsenceDetailData {
   requestId: number;
   title: string;

@@ -22,8 +22,8 @@ import {
   MyLectureData,
   SessionData,
   StatsData,
-  AbsenceRequestData,
   AbsenceDetailData,
+  ObjectionRequestData,
 } from "../../api/studentLecture";
 
 // 백엔드 status 코드를 한글로 변환
@@ -86,7 +86,7 @@ export default function StudentStats() {
   const [selectedAppealSessionId, setSelectedAppealSessionId] = useState("");
 
   // 이의 신청 내역 (API)
-  const [appealRequests, setAppealRequests] = useState<AbsenceRequestData[]>([]);
+  const [appealRequests, setAppealRequests] = useState<ObjectionRequestData[]>([]);
   const [loadingAppeals, setLoadingAppeals] = useState(false);
 
   // 이의 신청 상세 보기
@@ -109,7 +109,7 @@ export default function StudentStats() {
     setLoadingSummary(true);
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentSemester = now.getMonth() + 1 >= 7 ? "2학기" : "1학기";
+    const currentSemester = now.getMonth() + 1 >= 7 ? "2" : "1";
     getMyLectures(currentYear, currentSemester)
       .then(async (res) => {
         const lectureList = res.data;

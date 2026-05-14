@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { Label } from "../../components/ui/label";
 import { api } from "../../api/client";
+import { formatPhone } from "../../utils/format";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
@@ -31,13 +32,6 @@ interface PageResponse {
   number: number;
   size: number;
 }
-
-const formatPhone = (value: string) => {
-  const nums = value.replace(/\D/g, "").slice(0, 11);
-  if (nums.length <= 3) return nums;
-  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
-  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
-};
 
 const statusLabel = (status: string) => {
   switch (status) {
@@ -148,7 +142,7 @@ export default function AdminProfessorManagement() {
         method: "POST",
         body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum: phoneNum.replace(/\D/g, "") }),
       });
-      toast.success("교수가 등록되었습니다");
+      toast.success("교수가 등록되었습니다.");
       resetForm();
       setIsAddDialogOpen(false);
       fetchProfessors(currentPage);
@@ -184,7 +178,7 @@ export default function AdminProfessorManagement() {
         method: "PATCH",
         body: JSON.stringify(body),
       });
-      toast.success("교수 정보가 수정되었습니다");
+      toast.success("교수 정보가 수정되었습니다.");
       setEditingProfessor(null);
       fetchProfessors(currentPage);
     } catch (e: any) {
@@ -201,7 +195,7 @@ export default function AdminProfessorManagement() {
       await api(`/api/admin/professors/${deleteTarget}/delete`, {
         method: "DELETE",
       });
-      toast.success("교수가 삭제되었습니다");
+      toast.success("교수가 삭제되었습니다.");
       fetchProfessors(currentPage);
     } catch (e: any) {
       toast.error(e.message || "교수 삭제에 실패했습니다.");
@@ -322,7 +316,7 @@ export default function AdminProfessorManagement() {
                   disabled={submitting}
                   className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submitting ? "처리 중..." : "추가하기"}
+                  {submitting ? "처리 중..." : "등록하기"}
                 </button>
               </div>
             </DialogContent>

@@ -6,15 +6,9 @@ import { OtpInput } from "../../components/OtpInput";
 import { toast } from "sonner";
 import { useVerificationTimer } from "../../hooks/useVerificationTimer";
 import { sendEmailCode, verifyEmailCode, signupStudent } from "../../api/auth";
+import { formatPhone } from "../../utils/format";
 
 const spring = { type: "spring" as const, stiffness: 100, damping: 20 };
-
-function formatPhone(value: string) {
-  const nums = value.replace(/\D/g, "").slice(0, 11);
-  if (nums.length <= 3) return nums;
-  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
-  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
-}
 
 /* ------------------------------------------------------------------ */
 /*  Face Guideline Images                                              */
@@ -120,7 +114,7 @@ export default function StudentSignup() {
       timer.start();
       toast.success("인증번호가 이메일로 전송되었습니다.");
     } catch (err: any) {
-      toast.error(err.message || "인증번호 전송 오류");
+      toast.error(err.message || "인증번호 전송에 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -135,7 +129,7 @@ export default function StudentSignup() {
       await verifyEmailCode(email, verificationCode);
       timer.clear();
       setIsEmailVerified(true);
-      toast.success("인증 완료되었습니다");
+      toast.success("인증이 완료되었습니다.");
     } catch (err: any) {
       toast.error(err.message || "인증번호가 일치하지 않습니다");
     }
@@ -244,7 +238,7 @@ export default function StudentSignup() {
       toast.success("회원가입이 완료되었습니다. 얼굴 사진은 관리자 승인 후 반영됩니다.");
       navigate("/login");
     } catch (error: any) {
-      toast.error(error.message || "회원가입 오류");
+      toast.error(error.message || "회원가입에 실패했습니다.");
     } finally {
       setLoading(false);
     }

@@ -42,7 +42,7 @@ export default function StudentCourseStats() {
 
     // 강의명 가져오기 + 통계 가져오기
     Promise.all([
-      getMyLectures(new Date().getFullYear(), new Date().getMonth() + 1 >= 7 ? "2학기" : "1학기").catch(() => ({ data: [] as MyLectureData[] })),
+      getMyLectures(new Date().getFullYear(), new Date().getMonth() + 1 >= 7 ? "2" : "1").catch(() => ({ data: [] as MyLectureData[] })),
       getLectureStats(courseId),
     ])
       .then(([lecturesRes, statsRes]) => {

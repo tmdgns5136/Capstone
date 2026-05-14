@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog";
 import { FormInput } from "../../components/FormInput";
+import { formatPhone } from "../../utils/format";
 
 interface Student {
   userId: number;
@@ -39,12 +40,9 @@ interface AdminStudentTableProps {
   onToggleEditPassword: () => void;
 }
 
-const formatPhone = (value: string) => {
+const formatPhoneDisplay = (value: string) => {
   if (!value) return "-";
-  const nums = value.replace(/\D/g, "");
-  if (nums.length <= 3) return nums;
-  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
-  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+  return formatPhone(value);
 };
 
 const statusLabel = (status: string) => {
@@ -150,7 +148,7 @@ export function AdminStudentTable({
                 <td className="px-6 py-4 text-sm text-zinc-600 font-mono">{student.userNum}</td>
                 <td className="px-6 py-4 text-sm font-medium text-zinc-900">{student.userName}</td>
                 <td className="px-6 py-4 text-sm text-zinc-600">{student.userEmail}</td>
-                <td className="px-6 py-4 text-sm text-zinc-600">{formatPhone(student.phoneNum)}</td>
+                <td className="px-6 py-4 text-sm text-zinc-600">{formatPhoneDisplay(student.phoneNum)}</td>
                 <td className="px-6 py-4 text-sm text-center">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
                     {statusLabel(student.status)}
@@ -234,7 +232,7 @@ export function AdminStudentTable({
             </div>
             <p className="text-xs text-zinc-500 truncate">{student.userEmail}</p>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">{formatPhone(student.phoneNum)}</span>
+              <span className="text-xs text-zinc-500">{formatPhoneDisplay(student.phoneNum)}</span>
               <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
                 {statusLabel(student.status)}
               </span>

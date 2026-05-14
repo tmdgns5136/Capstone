@@ -3,14 +3,14 @@ import { motion, AnimatePresence } from "motion/react";
 import { FileCheck, CheckCircle, XCircle, Clock, Download, FileText, X, AlertTriangle, User, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useAbsenceRequests } from "../../hooks/useAbsenceRequests";
-import { downloadAbsenceDocument } from "../../api/absence";
+import { downloadAbsenceDocument, type AbsenceRequest } from "../../api/absence";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
+const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
 export default function ProfessorAbsenceManagement() {
   const { requests, updateStatus } = useAbsenceRequests();
   const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<AbsenceRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -26,7 +26,7 @@ export default function ProfessorAbsenceManagement() {
   const handleApprove = async (officialId: number) => { 
   const success = await updateStatus(officialId, "APPROVED");
   if (success) {
-    toast.success("승인 처리되었습니다");
+    toast.success("승인 처리되었습니다.");
     setSelectedRequest(null);
   }
 };
@@ -38,7 +38,7 @@ export default function ProfessorAbsenceManagement() {
   }
   const success = await updateStatus(officialId, "REJECTED", rejectReason);
   if (success) {
-    toast.success("거절 처리되었습니다");
+    toast.success("거절 처리되었습니다.");
     setSelectedRequest(null);
     setRejectReason("");
   }

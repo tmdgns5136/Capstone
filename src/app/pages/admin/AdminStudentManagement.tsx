@@ -14,15 +14,9 @@ import { SearchInput } from "../../components/SearchInput";
 import { FormInput } from "../../components/FormInput";
 import { AdminStudentTable } from "./AdminStudentTable";
 import { api } from "../../api/client";
+import { formatPhone } from "../../utils/format";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 };
-
-const formatPhone = (value: string) => {
-  const nums = value.replace(/\D/g, "").slice(0, 11);
-  if (nums.length <= 3) return nums;
-  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
-  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
-};
 
 interface Student {
   userId: number;
@@ -142,7 +136,7 @@ export default function AdminStudentManagement() {
         method: "POST",
         body: JSON.stringify({ userNum, userName, userEmail, password, phoneNum: phoneNum.replace(/\D/g, "") }),
       });
-      toast.success("학생이 등록되었습니다");
+      toast.success("학생이 등록되었습니다.");
       resetForm();
       setIsAddDialogOpen(false);
       fetchStudents(currentPage);
@@ -178,7 +172,7 @@ export default function AdminStudentManagement() {
         method: "PATCH",
         body: JSON.stringify(body),
       });
-      toast.success("학생 정보가 수정되었습니다");
+      toast.success("학생 정보가 수정되었습니다.");
       setEditingStudent(null);
       fetchStudents(currentPage);
     } catch (e: any) {
@@ -195,7 +189,7 @@ export default function AdminStudentManagement() {
       await api(`/api/admin/students/${deleteTarget}/delete`, {
         method: "DELETE",
       });
-      toast.success("학생이 삭제되었습니다");
+      toast.success("학생이 삭제되었습니다.");
       fetchStudents(currentPage);
     } catch (e: any) {
       toast.error(e.message || "학생 삭제에 실패했습니다.");
@@ -284,7 +278,7 @@ export default function AdminStudentManagement() {
                   disabled={submitting}
                   className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submitting ? "처리 중..." : "추가하기"}
+                  {submitting ? "처리 중..." : "등록하기"}
                 </button>
               </div>
             </DialogContent>

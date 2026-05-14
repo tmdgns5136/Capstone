@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { ChevronDown, ArrowRight, Loader2 } from "lucide-react";
 import { StudentCourseDetail } from "./StudentCourseDetail";
 import { getMyLectures, MyLectureData } from "../../api/studentLecture";
-import { CURRENT_YEAR, CURRENT_SEMESTER, SEMESTER_OPTIONS } from "../../constants/semester";
+import { CURRENT_YEAR, CURRENT_SEMESTER_NUM, SEMESTER_OPTIONS } from "../../constants/semester";
 
 export default function StudentCourses() {
-  const [semester, setSemester] = useState(CURRENT_SEMESTER);
+  const [semester, setSemester] = useState(CURRENT_SEMESTER_NUM);
   const [year, setYear] = useState(CURRENT_YEAR);
   const [courses, setCourses] = useState<MyLectureData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +60,7 @@ export default function StudentCourses() {
             className="appearance-none cursor-pointer rounded-lg border border-zinc-200 bg-white px-4 py-2.5 pr-9 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
             {SEMESTER_OPTIONS.map((opt) => (
-              <option key={opt.value} value={`${opt.value.split("-")[0]}-${opt.value.split("-")[1] === "1" ? "1학기" : "2학기"}`}>
+              <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
             ))}

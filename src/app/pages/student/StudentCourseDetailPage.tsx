@@ -14,7 +14,7 @@ export default function StudentCourseDetailPage() {
     if (!lectureId) return;
     const now = new Date();
     const year = now.getFullYear();
-    const semester = now.getMonth() + 1 >= 7 ? "2학기" : "1학기";
+    const semester = now.getMonth() + 1 >= 7 ? "2" : "1";
     getMyLectures(year, semester)
       .then((res) => {
         const found = res.data.find((l) => String(l.lectureId) === String(lectureId));

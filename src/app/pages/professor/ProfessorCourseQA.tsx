@@ -3,18 +3,19 @@ import { MessageSquare, Search, ChevronRight, Loader2, Send, Trash2 } from "luci
 import { toast } from "sonner";
 import { api } from "../../api/client";
 import { FormModal } from "../../components/FormModal";
+import type { QuestionData, QuestionDetailData } from "../../api/studentLecture";
 
 interface ProfessorCourseQAProps {
   lectureId: string;
 }
 
 export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  const [selectedQuestion, setSelectedQuestion] = useState<any | null>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<QuestionDetailData | null>(null);
   const [answerContent, setAnswerContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -24,19 +25,16 @@ export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
     setLoading(true);
     try {
       // 1. API 호출 (page와 size 필수)
-      const response: any = await api(
-        `/api/professors/lectures/${lectureId}/questions?page=${page}&size=5`, 
+      const response = await api<{ success: boolean; data: { data: QuestionData[]; totalPages: number } }>(
+        `/api/professors/lectures/${lectureId}/questions?page=${page}&size=5`,
         { method: "GET" }
       );
-      
+
       if (response.success) {
-        // [범인 검거 및 수정] 
-        // response.data는 { data: [...], totalPages: 1 } 형태이므로, 
-        // 진짜 리스트인 response.data.data를 가져와야 합니다.
         setQuestions(response.data.data || []);
       }
-    } catch (error: any) {
-      if (error.status !== 404) {
+    } catch (error: unknown) {
+      if (error instanceof Error && 'status' in error && (error as { status: number }).status !== 404) {
         toast.error("질의응답을 불러오는데 실패했습니다.");
       }
       setQuestions([]);
@@ -52,13 +50,12 @@ export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
   const handleQuestionClick = async (questionId: number) => {
     try {
       setIsDetailLoading(true);
-      const response: any = await api(
+      const response = await api<{ success: boolean; data: QuestionDetailData }>(
         `/api/professors/lectures/${lectureId}/questions/${questionId}`,
         { method: "GET" }
       );
       if (response.success) {
         setSelectedQuestion(response.data);
-        // 이미 답변이 있다면 입력창에 채워줍니다.
         setAnswerContent(response.data.answer?.content || "");
       }
     } catch (error) {
@@ -73,16 +70,16 @@ export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
     
     try {
       setIsSubmitting(true);
-      const isUpdate = !!selectedQuestion.answer;
-      
-      // 백엔드: @RequestBody Map<String, String>이므로 JSON 객체로 보냅니다.
-      const response: any = await api(
-        isUpdate 
-          ? `/api/professors/answers/${selectedQuestion.questionId}` 
+      const isUpdate = !!selectedQuestion?.answer;
+      if (!selectedQuestion) return;
+
+      const response = await api<{ success: boolean }>(
+        isUpdate
+          ? `/api/professors/answers/${selectedQuestion.questionId}`
           : `/api/professors/questions/${selectedQuestion.questionId}/answer`,
         {
           method: isUpdate ? "PATCH" : "POST",
-          body: JSON.stringify({ content: answerContent }), // JSON 형식!!
+          body: JSON.stringify({ content: answerContent }),
           headers: { "Content-Type": "application/json" }
         }
       );
@@ -105,7 +102,8 @@ export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
 
     try {
       setIsSubmitting(true);
-      const response: any = await api(
+      if (!selectedQuestion) return;
+      const response = await api<{ success: boolean }>(
         `/api/professors/answers/${selectedQuestion.questionId}`,
         { method: "DELETE" }
       );

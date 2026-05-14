@@ -44,7 +44,7 @@ export default function ProfessorAttendanceEdit() {
         setStudents(response.data.students || []);
         setPendingChanges({});
       }
-    } catch { toast.error("로드 실패"); } finally { setLoading(false); }
+    } catch { toast.error("출결 데이터를 불러오지 못했습니다."); } finally { setLoading(false); }
   }, [selectedLectureId, currentSession]);
 
   useEffect(() => {
@@ -66,9 +66,9 @@ export default function ProfessorAttendanceEdit() {
       await Promise.all(changeIds.map(id => updateAttendance({ 
         studentId: id, lectureId: selectedLectureId, status: pendingChanges[id], date: currentSession.date 
       })));
-      toast.success("저장 완료");
+      toast.success("출결 수정이 저장되었습니다.");
       fetchAttendance();
-    } catch { toast.error("저장 실패"); } finally { setLoading(false); }
+    } catch { toast.error("출결 수정 저장에 실패했습니다."); } finally { setLoading(false); }
   };
 
   const filteredStudents = students.filter(s => s.name?.includes(searchQuery) || s.studentId?.includes(searchQuery));
