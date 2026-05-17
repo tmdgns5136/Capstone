@@ -1,6 +1,6 @@
 # 1. jwt는 spring 바깥(최상단)에 두는 것이 일반적입니다.
 jwt:
-  secret: 
+  secret: vmfhaltjskqwqpwoeirutyalskdjfhgzmxncbv1234567890
 
 # 2. 모든 spring 관련 설정은 하나의 spring: 아래에 모아야 합니다.
 spring:
@@ -17,9 +17,9 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-    url: jdbc:mysql://127.0.0.1:3306/attendance_db?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://127.0.0.1:3306/demo?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: root
-    password: ''
+    password: '5136'
 
   jpa:
     hibernate:
@@ -33,7 +33,7 @@ spring:
     host: smtp.gmail.com
     port: 587
 
-    username: john200203213@gmail.com
+    username: tmdgns5136@gmail.com
     password: 
 
     properties:
