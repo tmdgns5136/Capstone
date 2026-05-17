@@ -1,6 +1,6 @@
 # 1. jwt는 spring 바깥(최상단)에 두는 것이 일반적입니다.
 jwt:
-  secret: vmfhaltjskqwqpwoeirutyalskdjfhgzmxncbv1234567890
+  secret: 
 
 # 2. 모든 spring 관련 설정은 하나의 spring: 아래에 모아야 합니다.
 spring:
@@ -11,14 +11,15 @@ spring:
   servlet:
     multipart:
       enabled: true
-      max-file-size: 10MB
-      max-request-size: 50MB
+      max-file-size: 30MB
+      max-request-size: 60MB
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/demo?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+
+    url: jdbc:mysql://127.0.0.1:3306/attendance_db?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: root
-    password: '5136'
+    password: ''
 
   jpa:
     hibernate:
@@ -31,8 +32,10 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: tmdgns5136@gmail.com
-    password: taexvvcerjkyggpr
+
+    username: john200203213@gmail.com
+    password: 
+
     properties:
       mail:
         smtp:
@@ -51,3 +54,33 @@ com:
     upload:
       path:
         profileImg: ${UPLOAD_PATH:./uploads}
+
+device:
+  upload:
+    path: ${DEVICE_UPLOAD_PATH:./uploads/device-attendance}
+  default-timezone: Asia/Seoul
+  mqtt:
+    broker-url: ${DEVICE_MQTT_BROKER_URL:tcp://100.68.215.22:1883}
+    username: ${DEVICE_MQTT_USERNAME:}
+    password: ${DEVICE_MQTT_PASSWORD:}
+    tls-enabled: ${DEVICE_MQTT_TLS_ENABLED:false}
+    qos: ${DEVICE_MQTT_QOS:1}
+
+mqtt:
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: ${MQTT_CLIENT_ID:capstone-server}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
+
+aws:
+  reko  gnition:
+    region: ${AWS_REKOGNITION_REGION:ap-northeast-2}
+    similarity-threshold: ${AWS_REKOGNITION_SIMILARITY_THRESHOLD:50}
+
+stream:
+  yolo:
+    worker:
+      enabled: true
+      command: python
+      script: yolo_stream_worker.py
+      directory: C:/Users/yohan/Desktop/yolo-stream

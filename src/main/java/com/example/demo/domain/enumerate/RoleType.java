@@ -14,6 +14,7 @@ public enum RoleType {
     STUDENT("ROLE_STUDENT", "학생 권한"),
     PROFESSOR("ROLE_PROFESSOR", "교수 권한"),
     MASTER("ROLE_MASTER", "관리자 권한"),
+    DEVICE("ROLE_DEVICE", "장치 권한"),
     GUEST("GUEST", "게스트 권한");
 
     private final String code;

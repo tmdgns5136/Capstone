@@ -1,0 +1,171 @@
+package com.example.demo.domain.student.notification.service;
+
+import com.example.demo.domain.master.entity.Master;
+import com.example.demo.domain.master.repository.MasterRepository;
+import com.example.demo.domain.student.home.entity.user.Student;
+import com.example.demo.domain.student.home.repository.StudentRepository;
+import com.example.demo.domain.student.notification.dto.NotificationData;
+import com.example.demo.domain.student.notification.dto.NotificationRead;
+import com.example.demo.domain.student.notification.entity.Notification;
+import com.example.demo.domain.student.notification.repository.NotificationRepository;
+import com.example.demo.global.exception.CustomException;
+import com.example.demo.global.response.ApiResponse;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class NotificationService {
+
+    private final NotificationRepository notificationRepository;
+    private final StudentRepository studentRepository;
+    private final MasterRepository masterRepository;
+
+    public ApiResponse<List<NotificationData>> getNotifications(
+            Authentication authentication
+    ) {
+
+        String userNum = authentication.getName();
+
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        List<Notification> notifications;
+        List<NotificationData> notificationData;
+
+        if (student == null) {
+
+            Master master = masterRepository.findByMasterNum(userNum);
+
+            if (master == null) {
+                throw new CustomException(404, "유저 정보를 찾을 수 없습니다.");
+            }
+
+            notifications = notificationRepository.findByMaster(master);
+
+            notificationData = notifications.stream()
+                    .map(notification ->
+                            NotificationData.builder()
+                                    .id(notification.getNotificationId())
+                                    .type(notification.getNoticeType().getCode())
+                                    .message(notification.getMessage())
+                                    .relatedId(notification.getRelatedId())
+                                    .isRead(notification.isRead())
+                                    .createdAt(notification.getNotificationCreated().toString())
+                                    .build()
+                    ).toList();
+
+        } else {
+
+            notifications = notificationRepository.findByStudent(student);
+
+            notificationData = notifications.stream()
+                    .map(notification ->
+                            NotificationData.builder()
+                                    .id(notification.getNotificationId())
+                                    .type(notification.getNoticeType().getCode())
+                                    .message(notification.getMessage())
+                                    .relatedId(notification.getRelatedId())
+                                    .isRead(notification.isRead())
+                                    .createdAt(notification.getNotificationCreated().toString())
+                                    .lectureName(
+                                            notification.getLecture() != null
+                                                    ? notification.getLecture().getLectureName()
+                                                    : null
+                                    )
+                                    .build()
+                    ).toList();
+        }
+
+        return ApiResponse.success(200, notificationData);
+    }
+
+    @Transactional
+    public ApiResponse<NotificationRead> readNotification(
+            Authentication authentication,
+            Long notificationId
+    ) {
+
+        String userNum = authentication.getName();
+
+        Student student = studentRepository.findByStudentNum(userNum);
+
+        Notification notification;
+
+        if (student == null) {
+
+            Master master = masterRepository.findByMasterNum(userNum);
+
+            if (master == null) {
+                throw new CustomException(404, "유저 정보를 찾을 수 없습니다.");
+            }
+
+            notification = notificationRepository.findById(notificationId)
+                    .orElseThrow(() ->
+                            new CustomException(404, "존재하지 않는 알림입니다.")
+                    );
+
+            if (!notification.getMaster().getMasterId().equals(master.getMasterId())) {
+                throw new CustomException(403, "해당 알림에 대한 접근 권한이 없습니다.");
+            }
+
+        } else {
+
+            notification = notificationRepository.findById(notificationId)
+                    .orElseThrow(() ->
+                            new CustomException(404, "존재하지 않는 알림입니다.")
+                    );
+
+            if (!notification.getStudent().getStudentId().equals(student.getStudentId())) {
+                throw new CustomException(403, "해당 알림에 대한 접근 권한이 없습니다.");
+            }
+        }
+
+        notification.setRead(true);
+
+        String url = "";
+
+        Long lectureId;
+
+        String relatedId = notification.getRelatedId();
+
+        switch (notification.getNoticeType().getCode()) {
+
+            case "NOTICE":
+                lectureId = notification.getLecture().getLectureId();
+                url = "api/mylecture/" + lectureId + "/notices/" + relatedId;
+                break;
+
+            case "ANSWER":
+                lectureId = notification.getLecture().getLectureId();
+                url = "api/mylecture/" + lectureId + "/questions/" + relatedId;
+                break;
+
+            case "ABSENCE_OFFICIAL":
+                lectureId = notification.getLecture().getLectureId();
+                url = "api/mylecture/" + lectureId + "/official-requests/" + relatedId;
+                break;
+
+            case "ABSENCE_OBJECTION":
+                lectureId = notification.getLecture().getLectureId();
+                url = "api/mylecture/" + lectureId + "/objection-requests/" + relatedId;
+                break;
+
+            case "PHOTO_RESULT":
+                url = "api/mypage";
+                break;
+        }
+
+        notificationRepository.save(notification);
+
+        NotificationRead notificationRead = NotificationRead.builder()
+                .isRead(true)
+                .redirectUrl(url)
+                .build();
+
+        return ApiResponse.success(200, notificationRead);
+    }
+}
