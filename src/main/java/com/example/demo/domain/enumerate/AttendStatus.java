@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 public enum AttendStatus {
 
     ATTEND("ATTEND", "출석"),
-    AWAY("AWAY", "자리비움"),
     LATENESS("LATENESS", "지각"),
     ABSENCE("ABSENCE", "결석"),
     TBD("TBD", "미정");

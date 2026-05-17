@@ -1,6 +1,7 @@
 package com.example.demo.domain.student.lecture.attendance.entity;
 
 import com.example.demo.domain.enumerate.AttendStatus;
+import com.example.demo.domain.enumerate.StudentClassStatus;
 import com.example.demo.domain.student.home.entity.user.Student;
 import com.example.demo.domain.student.lecture.entity.LectureSession;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -30,6 +31,9 @@ public class Attendance {
     @Enumerated(EnumType.STRING)
     @Column(name = "ATTEND_STATUS", length = 20, nullable = false)
     private AttendStatus attendStatus = AttendStatus.TBD;
+
+    @Enumerated(EnumType.STRING)
+    private StudentClassStatus studentClassStatus; // 새로운 실시간 상태 (착석 / 자리비움)
 
     @Column(name = "CHECK_TIME")
     private LocalDateTime checkTime;

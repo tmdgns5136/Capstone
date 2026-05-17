@@ -12,8 +12,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public enum StudentClassStatus {
     SIT("SIT", "착석중"),
-    AWAY("AWAY", "자리비움"),
-    ABSENCE("ABSENCE", "결석");
+    AWAY("AWAY", "자리비움");
 
     private final String code;
     private final String displayName;
