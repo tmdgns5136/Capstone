@@ -1,19 +1,25 @@
 package com.example.demo.domain.lecture.service;
 
-import com.example.demo.domain.entity.enumerate.AttendStatus;
-import com.example.demo.domain.entity.enumerate.Status;
+import com.example.demo.domain.enumerate.AttendStatus;
+import com.example.demo.domain.enumerate.Status;
+import com.example.demo.domain.lecture.attendance.dto.*;
+import com.example.demo.domain.lecture.attendance.dto.OfficialDto;
+import com.example.demo.domain.lecture.attendance.repository.AttendanceRepository;
+import com.example.demo.domain.lecture.attendance.repository.ObjectionRepository;
+import com.example.demo.domain.lecture.attendance.repository.OfficialRepository;
+import com.example.demo.domain.lecture.board.repository.QuestionBoardRepository;
 import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.home.entity.user.Student;
 import com.example.demo.domain.home.repository.StudentRepository;
 import com.example.demo.domain.home.service.FileService;
 import com.example.demo.domain.home.util.FileUtil;
 import com.example.demo.domain.lecture.dto.*;
-import com.example.demo.domain.lecture.entity.attendance.Attendance;
-import com.example.demo.domain.lecture.entity.attendance.Objection;
-import com.example.demo.domain.lecture.entity.attendance.Official;
-import com.example.demo.domain.lecture.entity.lecture.Enrollment;
-import com.example.demo.domain.lecture.entity.lecture.Lecture;
-import com.example.demo.domain.lecture.entity.lecture.LectureSession;
+import com.example.demo.domain.lecture.attendance.entity.Attendance;
+import com.example.demo.domain.lecture.attendance.entity.Objection;
+import com.example.demo.domain.lecture.attendance.entity.Official;
+import com.example.demo.domain.lecture.entity.Enrollment;
+import com.example.demo.domain.lecture.entity.Lecture;
+import com.example.demo.domain.lecture.entity.LectureSession;
 import com.example.demo.domain.lecture.repository.*;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
@@ -37,6 +43,7 @@ public class LectureService {
     private final ObjectionRepository objectionRepository;
     private final LectureSessionRepository lectureSessionRepository;
     private final AttendanceRepository attendanceRepository;
+    private final QuestionBoardRepository questionBoardRepository;
     private final FileService fileService;
     private final FileUtil fileUtil;
 
@@ -518,4 +525,6 @@ public class LectureService {
 
         return ApiResponse.success(200, LectureTimeTables);
     }
+
+
 }

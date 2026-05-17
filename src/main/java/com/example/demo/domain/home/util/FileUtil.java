@@ -1,7 +1,7 @@
 package com.example.demo.domain.home.util;
 
 import com.example.demo.domain.home.dto.user.ImgDto;
-import com.example.demo.domain.entity.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.ImagePosition;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

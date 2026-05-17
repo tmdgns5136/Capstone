@@ -1,5 +1,9 @@
 package com.example.demo.domain.lecture.controller;
 
+import com.example.demo.domain.lecture.attendance.dto.AbsenceData;
+import com.example.demo.domain.lecture.attendance.dto.AbsenceDetailData;
+import com.example.demo.domain.lecture.attendance.dto.AbsenceRequest;
+import com.example.demo.domain.lecture.attendance.dto.AbsenceRequestData;
 import com.example.demo.domain.lecture.dto.*;
 import com.example.demo.domain.lecture.service.LectureService;
 import com.example.demo.global.response.ActionResponse;
@@ -41,7 +45,7 @@ public class LectureController {
     // 공결 신청 내역 조회
     @GetMapping("/{lecture_id}/official-requests")
     public ResponseEntity<ApiResponse<List<AbsenceRequestData>>> getOfficialAbsence(@PathVariable("lecture_id")Long lectureId,
-                                                                              Authentication authentication){
+                                                                                    Authentication authentication){
         ApiResponse<List<AbsenceRequestData>> apiResponse = lectureService.getMyOfficialRequests(authentication, lectureId);
         return ResponseEntity.ok(apiResponse);
     }
@@ -49,8 +53,8 @@ public class LectureController {
     // 공결 신청 내역 상세 조회
     @GetMapping("/{lecture_id}/official-requests/{requestId}")
     public ResponseEntity<ApiResponse<AbsenceDetailData>> getDetailOfficialAbsence(@PathVariable("lecture_id")Long lectureId,
-                                                                                    @PathVariable("requestId")Long requestId,
-                                                                                    Authentication authentication){
+                                                                                   @PathVariable("requestId")Long requestId,
+                                                                                   Authentication authentication){
         ApiResponse<AbsenceDetailData> apiResponse = lectureService.getMyDetailOfficialRequests(authentication, lectureId, requestId);
         return ResponseEntity.ok(apiResponse);
     }

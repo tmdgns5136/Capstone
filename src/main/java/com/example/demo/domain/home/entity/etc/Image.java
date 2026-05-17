@@ -1,7 +1,7 @@
 package com.example.demo.domain.home.entity.etc;
 
-import com.example.demo.domain.entity.enumerate.ImagePosition;
-import com.example.demo.domain.entity.enumerate.Status;
+import com.example.demo.domain.enumerate.ImagePosition;
+import com.example.demo.domain.enumerate.Status;
 import com.example.demo.domain.home.entity.user.Student;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

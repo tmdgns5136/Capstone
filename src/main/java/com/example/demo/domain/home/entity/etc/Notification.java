@@ -1,6 +1,6 @@
 package com.example.demo.domain.home.entity.etc;
 
-import com.example.demo.domain.entity.enumerate.NoticeType;
+import com.example.demo.domain.enumerate.NoticeType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
