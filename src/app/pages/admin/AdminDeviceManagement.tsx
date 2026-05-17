@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Server,
@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Webcam from "react-webcam";
+import { checkAdminPassword, getAdminDevices, registerAdminDevice } from "../../api/adminDevice";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
@@ -57,157 +58,11 @@ interface ErrorLog {
   createdAt: string;
 }
 
-// Mock Data (명세서 구조 기반)
-const MOCK_DEVICES: Device[] = [
-  {
-    deviceId: "RPI-G207-001",
-    classroom: "공학관 207호",
-    deviceName: "G207 카메라 1",
-    deviceSecret: "sk_rpi_a3f8e2b1c9d4",
-    isLoggedIn: true,
-    uptime: "14일 2시간",
-    lastHeartbeat: "방금 전",
-    cameraStatus: "OK",
-    networkStatus: "ONLINE",
-    config: {
-      active: true,
-      captureIntervalSec: 60,
-      heartbeatIntervalSec: 30,
-      imageWidth: 4608,
-      imageHeight: 2592,
-      imageQuality: 100,
-      maxUploadSizeMb: 30,
-    },
-    errorLogs: [],
-  },
-  {
-    deviceId: "RPI-G211-001",
-    classroom: "공학관 211호",
-    deviceName: "G211 카메라 1",
-    deviceSecret: "sk_rpi_b7c1d4e5f2a8",
-    isLoggedIn: true,
-    uptime: "5일 11시간",
-    lastHeartbeat: "3초 전",
-    cameraStatus: "OK",
-    networkStatus: "ONLINE",
-    config: {
-      active: true,
-      captureIntervalSec: 60,
-      heartbeatIntervalSec: 30,
-      imageWidth: 4608,
-      imageHeight: 2592,
-      imageQuality: 100,
-      maxUploadSizeMb: 30,
-    },
-    errorLogs: [
-      {
-        id: 1,
-        errorCode: "CAMERA_CAPTURE_FAIL",
-        message: "캡처 타임아웃 발생",
-        createdAt: "2026-05-08 09:12:33",
-      },
-    ],
-  },
-  {
-    deviceId: "RPI-G301-001",
-    classroom: "공학관 301호",
-    deviceName: "G301 카메라 1",
-    deviceSecret: "sk_rpi_c2d3e4f5a6b7",
-    isLoggedIn: false,
-    uptime: "-",
-    lastHeartbeat: "2시간 전",
-    cameraStatus: "DISCONNECTED",
-    networkStatus: "OFFLINE",
-    config: {
-      active: false,
-      captureIntervalSec: 60,
-      heartbeatIntervalSec: 30,
-      imageWidth: 4608,
-      imageHeight: 2592,
-      imageQuality: 100,
-      maxUploadSizeMb: 30,
-    },
-    errorLogs: [
-      {
-        id: 2,
-        errorCode: "NETWORK_TIMEOUT",
-        message: "서버 연결 실패",
-        createdAt: "2026-05-09 07:45:10",
-      },
-      {
-        id: 3,
-        errorCode: "CAMERA_DISCONNECTED",
-        message: "카메라 모듈 연결 끊김",
-        createdAt: "2026-05-09 07:44:58",
-      },
-    ],
-  },
-  {
-    deviceId: "RPI-IT201-001",
-    classroom: "IT관 201호",
-    deviceName: "IT201 카메라 1",
-    deviceSecret: "sk_rpi_d8e9f0a1b2c3",
-    isLoggedIn: true,
-    uptime: "30일 5시간",
-    lastHeartbeat: "1초 전",
-    cameraStatus: "OK",
-    networkStatus: "ONLINE",
-    config: {
-      active: true,
-      captureIntervalSec: 60,
-      heartbeatIntervalSec: 30,
-      imageWidth: 4608,
-      imageHeight: 2592,
-      imageQuality: 100,
-      maxUploadSizeMb: 30,
-    },
-    errorLogs: [],
-  },
-  {
-    deviceId: "RPI-IT301-001",
-    classroom: "IT관 301호",
-    deviceName: "IT301 카메라 1",
-    deviceSecret: "sk_rpi_e4f5a6b7c8d9",
-    isLoggedIn: true,
-    uptime: "2일 1시간",
-    lastHeartbeat: "15초 전",
-    cameraStatus: "CAPTURE_FAIL",
-    networkStatus: "UNSTABLE",
-    config: {
-      active: true,
-      captureIntervalSec: 60,
-      heartbeatIntervalSec: 30,
-      imageWidth: 4608,
-      imageHeight: 2592,
-      imageQuality: 100,
-      maxUploadSizeMb: 30,
-    },
-    errorLogs: [
-      {
-        id: 4,
-        errorCode: "CAMERA_CAPTURE_FAIL",
-        message: "캡처 실패 - 조명 부족",
-        createdAt: "2026-05-09 13:22:05",
-      },
-      {
-        id: 5,
-        errorCode: "NETWORK_UNSTABLE",
-        message: "네트워크 불안정 감지",
-        createdAt: "2026-05-09 13:20:11",
-      },
-      {
-        id: 6,
-        errorCode: "UPLOAD_TIMEOUT",
-        message: "이미지 업로드 타임아웃",
-        createdAt: "2026-05-09 13:18:44",
-      },
-    ],
-  },
-];
-
 export default function AdminDeviceManagement() {
-  const [devices, setDevices] = useState(MOCK_DEVICES);
+  const [devices, setDevices] = useState<Device[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [registering, setRegistering] = useState(false);
 
   // 각 모달용 장치 상태 (각각 독립)
   const [configDevice, setConfigDevice] = useState<Device | null>(null);
@@ -230,10 +85,24 @@ export default function AdminDeviceManagement() {
   const [secretAuthPassword, setSecretAuthPassword] = useState("");
   const [secretAuthError, setSecretAuthError] = useState(false);
   const [secretAuthLoading, setSecretAuthLoading] = useState(false);
-  const ADMIN_PASSWORD = "test1234"; // TODO: 백엔드에 관리자 비밀번호 확인 API 추가 후 교체
-
   // 카메라 테스트
   const [testResult, setTestResult] = useState<any>(null);
+
+  const loadDevices = async () => {
+    try {
+      setLoading(true);
+      const deviceList = await getAdminDevices();
+      setDevices(deviceList);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "장치 목록을 불러오지 못했습니다");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDevices();
+  }, []);
 
   const filteredDevices = devices.filter(
     (d) =>
@@ -278,8 +147,16 @@ export default function AdminDeviceManagement() {
   };
 
   // 비밀번호 인증 확인
-  const handleSecretAuth = () => {
-    if (secretAuthPassword === ADMIN_PASSWORD) {
+  const handleSecretAuth = async () => {
+    if (!secretAuthPassword) {
+      setSecretAuthError(true);
+      return;
+    }
+
+    try {
+      setSecretAuthLoading(true);
+      await checkAdminPassword(secretAuthPassword);
+
       if (secretAuthTarget) {
         const device = devices.find((d) => d.deviceId === secretAuthTarget);
         if (secretAuthAction === "view") {
@@ -291,54 +168,71 @@ export default function AdminDeviceManagement() {
           setTimeout(() => setCopiedId(null), 2000);
         }
       }
+
       setSecretAuthTarget(null);
       setSecretAuthPassword("");
       setSecretAuthError(false);
-    } else {
+    } catch {
       setSecretAuthError(true);
+    } finally {
+      setSecretAuthLoading(false);
     }
   };
 
   // 장치 등록
-  const handleRegister = () => {
-    if (!regDeviceId || !regClassroom || !regDeviceName) {
+  const handleRegister = async () => {
+    const deviceId = regDeviceId.trim();
+    const classroom = regClassroom.trim();
+    const deviceName = regDeviceName.trim();
+
+    if (!deviceId || !classroom || !deviceName) {
       toast.error("모든 필드를 입력해주세요");
       return;
     }
-    if (devices.find((d) => d.deviceId === regDeviceId)) {
+    if (devices.find((d) => d.deviceId === deviceId)) {
       toast.error("이미 존재하는 장치 ID입니다");
       return;
     }
 
-    const newDevice: Device = {
-      deviceId: regDeviceId,
-      classroom: regClassroom,
-      deviceName: regDeviceName,
-      deviceSecret: `sk_rpi_${Math.random().toString(36).slice(2, 14)}`,
-      isLoggedIn: false,
-      uptime: "-",
-      lastHeartbeat: "-",
-      cameraStatus: "DISCONNECTED",
-      networkStatus: "OFFLINE",
-      config: {
-        active: false,
-        captureIntervalSec: 60,
-        heartbeatIntervalSec: 30,
-        imageWidth: 4608,
-        imageHeight: 2592,
-        imageQuality: 100,
-        maxUploadSizeMb: 30,
-      },
-      errorLogs: [],
-    };
+    try {
+      setRegistering(true);
+      const result = await registerAdminDevice(deviceId, classroom, deviceName);
 
-    setDevices((prev) => [...prev, newDevice]);
-    toast.success("장치가 등록되었습니다. 시크릿 키를 확인해주세요.");
-    setShowRegister(false);
-    setRegDeviceId("");
-    setRegClassroom("");
-    setRegDeviceName("");
-    setConfigDevice(newDevice);
+      const newDevice: Device = {
+        deviceId: result.deviceId,
+        classroom: result.classroom,
+        deviceName,
+        deviceSecret: result.deviceSecret,
+        isLoggedIn: false,
+        uptime: "0분",
+        lastHeartbeat: "-",
+        cameraStatus: "DISCONNECTED",
+        networkStatus: "OFFLINE",
+        config: {
+          active: true,
+          captureIntervalSec: 60,
+          heartbeatIntervalSec: 30,
+          imageWidth: 4608,
+          imageHeight: 2592,
+          imageQuality: 100,
+          maxUploadSizeMb: 30,
+        },
+        errorLogs: [],
+      };
+
+      setDevices((prev) => [...prev, newDevice]);
+      toast.success("장치가 등록되었습니다. 시크릿 키를 확인해주세요.");
+      setShowRegister(false);
+      setRegDeviceId("");
+      setRegClassroom("");
+      setRegDeviceName("");
+      setConfigDevice(newDevice);
+      await loadDevices();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "장치 등록에 실패했습니다");
+    } finally {
+      setRegistering(false);
+    }
   };
 
   // 카메라 테스트
@@ -348,17 +242,8 @@ export default function AdminDeviceManagement() {
   };
 
   const simulateFaceRecognition = () => {
-    setTestResult({ status: "scanning" });
-    setTimeout(() => {
-      setTestResult({
-        status: "success",
-        matched: 3,
-        total: 5,
-        latency: "142ms",
-        confidence: "98.5%",
-      });
-      toast.success("얼굴 인식 테스트 완료");
-    }, 2000);
+    setTestResult({ status: "unavailable" });
+    toast.info("카메라 테스트 API가 아직 연결되지 않았습니다.");
   };
 
   const errorCodeLabel: Record<string, string> = {
@@ -420,8 +305,12 @@ export default function AdminDeviceManagement() {
           />
         </div>
         <div className="flex gap-2">
-          <button className="bg-white text-zinc-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-50 transition-colors flex items-center gap-2">
-            <RefreshCw className="w-4 h-4" strokeWidth={1.5} /> 새로고침
+          <button
+            onClick={loadDevices}
+            disabled={loading}
+            className="bg-white text-zinc-700 text-sm font-medium px-5 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} strokeWidth={1.5} /> 새로고침
           </button>
           <button
             onClick={() => {
@@ -588,7 +477,7 @@ export default function AdminDeviceManagement() {
       {filteredDevices.length === 0 && (
         <div className="bg-white rounded-xl border border-zinc-200 p-16 text-center">
           <Server className="w-10 h-10 text-zinc-300 mx-auto mb-3" strokeWidth={1.5} />
-          <p className="text-sm text-zinc-400">검색된 장비가 없습니다</p>
+          <p className="text-sm text-zinc-400">{loading ? "장비 목록을 불러오는 중입니다" : "검색된 장비가 없습니다"}</p>
         </div>
       )}
 
@@ -880,19 +769,7 @@ export default function AdminDeviceManagement() {
                         </div>
                       </div>
                     )}
-                    {testResult?.status === "success" && (
-                      <div className="absolute inset-0 pointer-events-none p-4 rounded-xl">
-                        <div className="absolute top-[20%] left-[30%] w-[100px] h-[100px] border-2 border-primary rounded-lg bg-primary/10">
-                          <span className="bg-primary text-white text-xs font-medium w-fit px-1.5 py-0.5 rounded-br-lg">99%</span>
-                        </div>
-                        <div className="absolute top-[40%] right-[20%] w-[120px] h-[120px] border-2 border-primary rounded-lg bg-primary/10">
-                          <span className="bg-primary text-white text-xs font-medium w-fit px-1.5 py-0.5 rounded-br-lg">97%</span>
-                        </div>
-                        <div className="absolute bottom-[10%] left-[40%] w-[110px] h-[110px] border-2 border-rose-400 rounded-lg bg-rose-400/10">
-                          <span className="bg-rose-500 text-white text-xs font-medium w-fit px-1.5 py-0.5 rounded-br-lg">미등록</span>
-                        </div>
-                      </div>
-                    )}
+
                   </div>
                 </div>
 
@@ -914,10 +791,10 @@ export default function AdminDeviceManagement() {
                       ) : (
                         <PlaySquare className="w-4 h-4" strokeWidth={1.5} />
                       )}
-                      인식 모델 구동
+                      테스트 API 확인
                     </button>
 
-                    {testResult?.status === "success" && (
+                    {testResult?.status === "unavailable" && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -925,33 +802,12 @@ export default function AdminDeviceManagement() {
                         className="bg-zinc-50 rounded-xl p-4 space-y-2.5"
                       >
                         <div className="flex items-center gap-2 pb-2.5 border-b border-zinc-200">
-                          <ShieldCheck className="w-4 h-4 text-primary-dark" strokeWidth={1.5} />
-                          <span className="text-sm font-medium text-zinc-700">테스트 결과</span>
+                          <ShieldCheck className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                          <span className="text-sm font-medium text-zinc-700">테스트 API 미연결</span>
                         </div>
-                        <div className="space-y-1.5 text-sm text-zinc-600">
-                          <div className="flex justify-between">
-                            <span>API 응답 시간</span>
-                            <span className="font-medium text-zinc-900">{testResult.latency}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>감지된 얼굴</span>
-                            <span className="font-medium text-zinc-900">{testResult.total}명</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>DB 매칭 성공</span>
-                            <span className="font-medium text-zinc-900">{testResult.matched}명</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>평균 신뢰도</span>
-                            <span className="font-medium text-zinc-900">{testResult.confidence}</span>
-                          </div>
-                        </div>
-                        <div className="pt-2 border-t border-zinc-200">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                            정상 작동
-                          </span>
-                        </div>
+                        <p className="text-xs text-zinc-500 leading-relaxed">
+                          임시 테스트 결과는 제거했습니다. 실제 카메라 테스트 결과를 표시하려면 백엔드에 테스트 이미지 업로드/분석 API를 연결해야 합니다.
+                        </p>
                       </motion.div>
                     )}
                   </div>
@@ -1021,11 +877,11 @@ export default function AdminDeviceManagement() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-zinc-700">강의실</label>
+                  <label className="text-sm font-medium text-zinc-700">강의실 코드</label>
                   <input
                     value={regClassroom}
                     onChange={(e) => setRegClassroom(e.target.value)}
-                    placeholder="공학관 207호"
+                    placeholder="G207"
                     className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                   />
                 </div>
@@ -1038,12 +894,13 @@ export default function AdminDeviceManagement() {
                     className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                   />
                 </div>
-                <p className="text-xs text-zinc-400">등록 후 시크릿 키가 자동으로 생성됩니다. 장치 로그인에 사용하세요.</p>
+                <p className="text-xs text-zinc-400">등록 후 시크릿 키가 자동으로 생성됩니다. 강의실 코드는 백엔드 강의의 lectureRoom 값과 정확히 같아야 합니다.</p>
                 <button
                   onClick={handleRegister}
-                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2"
+                  disabled={registering}
+                  className="w-full bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors mt-2 disabled:opacity-50"
                 >
-                  등록하기
+                  {registering ? "등록 중..." : "등록하기"}
                 </button>
               </div>
             </motion.div>

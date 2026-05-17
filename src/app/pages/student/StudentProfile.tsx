@@ -86,7 +86,7 @@ export default function StudentProfile() {
       try {
         const reqRes = await getPhotoRequests();
         setMyPhotoRequests(reqRes.data);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -259,14 +259,6 @@ export default function StudentProfile() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-zinc-700 mb-1 block">학과</label>
-            <input
-              value={department}
-              disabled
-              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
-            />
-          </div>
-          <div>
             <label className="text-sm font-medium text-zinc-700 mb-1 block">이메일</label>
             <input
               value={email}
@@ -274,7 +266,7 @@ export default function StudentProfile() {
               className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
             />
           </div>
-          <div className="md:col-span-2">
+          <div>
             <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
               <Phone className="w-3.5 h-3.5 text-zinc-400" /> 전화번호
             </label>
@@ -336,7 +328,7 @@ export default function StudentProfile() {
       {/* 얼굴 인식 데이터 관리 */}
       <div className="bg-white rounded-xl border border-zinc-200 p-6">
         <h2 className="text-base font-semibold text-zinc-900 mb-1">얼굴 인식 데이터 관리</h2>
-        <p className="text-sm text-zinc-400 mb-6">현재 등록된 얼굴 데이터입니다.</p>
+        <p className="text-sm text-zinc-400 mb-6">현재 등록된 얼굴 데이터입니다. <br />*등록된 사진이 없을 경우에 출결이 불가하니 반드시 등록해주세요.</p>
 
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[

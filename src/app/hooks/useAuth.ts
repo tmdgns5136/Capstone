@@ -7,6 +7,7 @@ interface AuthState {
   isAuthenticated: boolean;
   role: Role | null;
   userName: string | null;
+  userNum?: string | null;
   major?: string | null;
 }
 
@@ -17,7 +18,7 @@ function getSnapshot(): AuthState {
     const raw = localStorage.getItem(AUTH_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { isAuthenticated: false, role: null, userName: null, major: null };
+  return { isAuthenticated: false, role: null, userName: null, userNum: null, major: null };
 }
 
 // Track subscribers for useSyncExternalStore
@@ -61,12 +62,13 @@ export function useAuth() {
   const state = useSyncExternalStore(subscribe, getState);
 
   const login = useCallback(
-    (role: string, userName: string, accessToken: string, major?: string) => {
+    (role: string, userName: string, accessToken: string, major?: string, userNum?: string) => {
       setAccessToken(accessToken);
       const newState: AuthState = {
         isAuthenticated: true,
         role: mapRole(role),
         userName,
+        userNum: userNum || null,
         major: major || null,
       };
       localStorage.setItem(AUTH_KEY, JSON.stringify(newState));
@@ -85,6 +87,7 @@ export function useAuth() {
     isAuthenticated: state.isAuthenticated,
     role: state.role,
     userName: state.userName,
+    userNum: state.userNum,
     major: state.major,
     login,
     logout,

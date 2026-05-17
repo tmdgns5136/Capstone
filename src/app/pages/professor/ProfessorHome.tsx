@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { Play, Square, Wifi, Clock, MapPin, Users, CheckCircle, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
-import { useClassSimulator } from "../../hooks/useClassSimulator";
 import { 
   getTodayLectures, 
   getDashboardStats, 
-  startLecture, 
-  endLecture, 
+  startLecture,
+  endLecture,
   TodayLecture, 
   DashboardStats 
 } from "../../api/lecture";
@@ -21,8 +20,6 @@ export default function ProfessorHome() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [pendingRequests, setPendingRequests] = useState<AbsenceRequest[]>([]); // 실데이터 상태 추가
   const [loading, setLoading] = useState(true);
-
-  const { isActive, attendanceData, elapsedTime, selectedCourse: simCourse, startSimulation, stopSimulation } = useClassSimulator();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -70,12 +67,11 @@ export default function ProfessorHome() {
     try {
       const response = await startLecture(lectureId);
       if (response.success) {
-        startSimulation();
         toast.success("강의실이 활성화되었습니다. 출결 측정을 시작합니다.");
         fetchDashboardData();
       }
-    } catch (error) {
-      toast.error("강의 시작에 실패했습니다.");
+    } catch (error: any) {
+      toast.error(error.message || "강의 시작에 실패했습니다.");
     }
   };
 
@@ -83,18 +79,18 @@ export default function ProfessorHome() {
     try {
       const response = await endLecture(lectureId);
       if (response.success) {
-        stopSimulation();
         toast.success("강의가 종료되었습니다. 출결 데이터가 서버에 반영됩니다.");
         fetchDashboardData();
       }
-    } catch (error) {
-      toast.error("강의 종료 처리에 실패했습니다.");
+    } catch (error: any) {
+      toast.error(error.message || "강의 종료 처리에 실패했습니다.");
     }
   };
 
   // 시간표 기반 활성 강의 찾기
   const activeCourse = todayLectures.find(l => l.status === "IN_PROGRESS") || todayLectures[0];
   const currentlyActive = todayLectures.find(l => l.status === "IN_PROGRESS");
+  const isActive = Boolean(currentlyActive);
 
   if (loading) return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-zinc-300" /></div>;
 
@@ -139,7 +135,7 @@ export default function ProfessorHome() {
                 </div>
               )}
               <h1 className="text-2xl sm:text-3xl font-bold">
-                {isActive ? simCourse?.name : activeCourse?.name || "예정된 수업 없음"}
+                {activeCourse?.name || "예정된 수업 없음"}
               </h1>
               {activeCourse && (
                 <p className="text-sm mt-2 flex items-center gap-2 text-zinc-400">
@@ -153,13 +149,13 @@ export default function ProfessorHome() {
 
           {isActive ? (
             <div className="space-y-6">
-              <div className="grid grid-cols-3 gap-3">
-                <AttendanceStat label="출석" value={attendanceData.present} color="text-primary" />
-                <AttendanceStat label="이탈" value={attendanceData.away} color="text-rose-400" />
-                <AttendanceStat label="미출석" value={attendanceData.absent} color="text-zinc-500" />
+              <div className="rounded-xl border border-zinc-800 bg-zinc-800/40 p-4">
+                <p className="text-xs font-medium text-zinc-400">진행 중인 강의</p>
+                <p className="mt-1 text-lg font-bold text-white">{currentlyActive?.name}</p>
+                <p className="mt-1 text-xs text-zinc-500">출결 상세 값은 서버의 출결 조회 화면에서 확인합니다.</p>
               </div>
               <button
-                onClick={() => handleEndLecture(activeCourse?.lectureId || 0)}
+                onClick={() => handleEndLecture(currentlyActive?.lectureId || activeCourse?.lectureId || 0)}
                 className="w-full flex items-center justify-center gap-2 bg-rose-600 text-white font-bold py-4 rounded-xl hover:bg-rose-700 transition-colors"
               >
                 <Square className="w-4 h-4 fill-current" /> 수업 종료 및 저장
@@ -272,11 +268,3 @@ function StatCard({ label, value, unit, icon, isProgress, dark }: any) {
   );
 }
 
-function AttendanceStat({ label, value, color }: any) {
-  return (
-    <div className="bg-zinc-800/50 rounded-xl p-3 text-center border border-zinc-800">
-      <p className={`text-xl font-bold ${color}`}>{value}</p>
-      <p className="text-[10px] text-zinc-500 font-medium mt-0.5">{label}</p>
-    </div>
-  );
-}

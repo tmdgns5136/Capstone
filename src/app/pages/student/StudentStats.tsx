@@ -4,7 +4,7 @@ import { Calendar, MoreHorizontal, ArrowRight, AlertCircle, CheckCircle, XCircle
 import { toast } from "sonner";
 import { ScrollableCardList } from "../../components/ScrollableCardList";
 import { ATTENDANCE_STATUS_COLORS } from "../../constants/attendance";
-import { ProgressBar } from "../../components/ProgressBar";
+
 import { StatusBadge } from "../../components/StatusBadge";
 import { Pagination } from "../../components/Pagination";
 import { FilterTabs } from "../../components/FilterTabs";
@@ -40,6 +40,9 @@ interface CourseSummary {
   name: string;
   professor: string;
   rate: number;
+  attendance: number;
+  late: number;
+  absence: number;
 }
 
 interface DetailedRecord {
@@ -109,7 +112,7 @@ export default function StudentStats() {
     setLoadingSummary(true);
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentSemester = now.getMonth() + 1 >= 7 ? "2" : "1";
+    const currentSemester = now.getMonth() + 1 >= 7 ? "2학기" : "1학기";
     getMyLectures(currentYear, currentSemester)
       .then(async (res) => {
         const lectureList = res.data;
@@ -132,6 +135,9 @@ export default function StudentStats() {
               name: lecture.lectureName,
               professor: lecture.professorName,
               rate: Math.round(s.attendanceRate),
+              attendance: s.attendance,
+              late: s.late,
+              absence: s.absence,
             });
             // 최근 세션들을 상세 기록에 추가 (TBD 제외)
             s.sessions
@@ -151,6 +157,9 @@ export default function StudentStats() {
               name: lecture.lectureName,
               professor: lecture.professorName,
               rate: 0,
+              attendance: 0,
+              late: 0,
+              absence: 0,
             });
           }
         });
@@ -309,14 +318,29 @@ export default function StudentStats() {
               >
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="text-sm font-semibold text-zinc-900">{course.name}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-zinc-900">{course.rate}%</span>
-                    <ArrowRight className="w-4 h-4 text-zinc-300 group-hover:text-primary transition-colors" />
+                  <ArrowRight className="w-4 h-4 text-zinc-300 group-hover:text-primary transition-colors" />
+                </div>
+                <p className="text-xs text-zinc-400 mb-4">{course.professor}</p>
+                <div className="flex items-center justify-around">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-bold text-primary">{course.attendance}</span>
+                    </div>
+                    <span className="text-[11px] text-zinc-500">출석</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
+                      <span className="text-sm font-bold text-amber-600">{course.late}</span>
+                    </div>
+                    <span className="text-[11px] text-zinc-500">지각</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center">
+                      <span className="text-sm font-bold text-rose-600">{course.absence}</span>
+                    </div>
+                    <span className="text-[11px] text-zinc-500">결석</span>
                   </div>
                 </div>
-                <p className="text-xs text-zinc-400 mb-3">{course.professor}</p>
-                <ProgressBar value={course.rate} className="mb-1" />
-                <p className="text-xs text-zinc-400 uppercase tracking-wider mt-1">ATTENDANCE RATE</p>
               </div>
             ))}
           </ScrollableCardList>

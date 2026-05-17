@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Clock, ScanFace, Loader2 } from "lucide-react";
-import { ProgressBar } from "../../components/ProgressBar";
 import {
   getTodayCourses,
   getCurrentLecture,
@@ -10,9 +9,9 @@ import {
   type LectureTimeTable,
 } from "../../api/studentLecture";
 
-const days = ["월요일", "화요일", "수요일", "목요일", "금요일"];
-const dayMap: Record<string, number> = { "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY": 2, "THURSDAY": 3, "FRIDAY": 4, "월": 0, "화": 1, "수": 2, "목": 3, "금": 4 };
-const hours = Array.from({ length: 10 }, (_, i) => i + 9);
+const days = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"];
+const dayMap: Record<string, number> = { "MONDAY": 0, "TUESDAY": 1, "WEDNESDAY": 2, "THURSDAY": 3, "FRIDAY": 4, "SATURDAY": 5, "SUNDAY": 6, "월": 0, "화": 1, "수": 2, "목": 3, "금": 4, "토": 5, "일": 6, "월요일": 0, "화요일": 1, "수요일": 2, "목요일": 3, "금요일": 4, "토요일": 5, "일요일": 6 };
+const hours = Array.from({ length: 14 }, (_, i) => i + 8);
 
 function getTodayString() {
   const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
@@ -26,7 +25,7 @@ function parseHour(time: string) {
 export default function StudentHome() {
   const now = new Date();
   const year = now.getFullYear();
-  const semester = now.getMonth() + 1 >= 7 ? "2" : "1";
+  const semester = now.getMonth() + 1 >= 7 ? "2학기" : "1학기";
 
   const [todayCourses, setTodayCourses] = useState<CourseData[]>([]);
   const [currentLecture, setCurrentLecture] = useState<CourseStateData | null>(null);
@@ -62,7 +61,6 @@ export default function StudentHome() {
   }
 
   const attendancePercent = currentLecture ? parseInt(currentLecture.attendancePercent, 10) || 0 : 0;
-  const retentionColorClass = attendancePercent >= 90 ? "text-primary" : attendancePercent >= 75 ? "text-amber-400" : "text-rose-400";
 
   return (
     <div className="space-y-8">
@@ -92,22 +90,23 @@ export default function StudentHome() {
                 )}
               </div>
             </div>
-            <div className="flex-1 p-6 md:p-8 flex flex-col justify-center">
-              <div className="flex justify-between items-end mb-3">
-                <div>
-                  <span className="text-sm font-medium text-zinc-400 block">실시간 체류율</span>
+            <div className="flex-1 p-6 md:p-8 flex flex-col items-center justify-center">
+              <span className="text-sm font-medium text-zinc-400 block mb-3">현재 착석 상태</span>
+              {attendancePercent >= 75 ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                    <ScanFace className="w-8 h-8 text-primary" />
+                  </div>
+                  <span className="text-primary font-bold text-lg">착석 확인됨</span>
                 </div>
-                <span className={`text-4xl font-bold ${retentionColorClass}`}>
-                  {attendancePercent}%
-                </span>
-              </div>
-              <ProgressBar
-                value={attendancePercent}
-                trackColor="bg-zinc-700"
-                height="h-3"
-                color={attendancePercent >= 90 ? "bg-primary" : attendancePercent >= 75 ? "bg-amber-400" : "bg-rose-400"}
-              />
-              <p className="text-xs text-zinc-500 mt-2 text-right">※ 75% 미만 시 지각/결석 처리</p>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-16 h-16 rounded-full bg-rose-500/20 flex items-center justify-center">
+                    <ScanFace className="w-8 h-8 text-rose-400" />
+                  </div>
+                  <span className="text-rose-400 font-bold text-lg">이탈 감지</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -147,7 +146,7 @@ export default function StudentHome() {
       <section>
         <h2 className="text-lg font-bold text-zinc-900 mb-4">주간 시간표</h2>
         <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-          <div className="grid border-b border-zinc-100" style={{ gridTemplateColumns: "36px repeat(5, 1fr)" }}>
+          <div className="grid border-b border-zinc-100" style={{ gridTemplateColumns: "36px repeat(7, 1fr)" }}>
             <div className="py-2 text-xs font-medium text-zinc-400 text-center">-</div>
             {days.map((day) => (
               <div key={day} className="py-2 text-xs font-medium text-zinc-500 text-center truncate px-0.5">
@@ -159,7 +158,7 @@ export default function StudentHome() {
           <div
             className="relative grid"
             style={{
-              gridTemplateColumns: "36px repeat(5, 1fr)",
+              gridTemplateColumns: "36px repeat(7, 1fr)",
               gridTemplateRows: `repeat(${hours.length}, 72px)`,
             }}
           >

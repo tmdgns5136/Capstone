@@ -42,7 +42,7 @@ export default function StudentCourseStats() {
 
     // 강의명 가져오기 + 통계 가져오기
     Promise.all([
-      getMyLectures(new Date().getFullYear(), new Date().getMonth() + 1 >= 7 ? "2" : "1").catch(() => ({ data: [] as MyLectureData[] })),
+      getMyLectures(new Date().getFullYear(), new Date().getMonth() + 1 >= 7 ? "2학기" : "1학기").catch(() => ({ data: [] as MyLectureData[] })),
       getLectureStats(courseId),
     ])
       .then(([lecturesRes, statsRes]) => {
@@ -186,29 +186,46 @@ export default function StudentCourseStats() {
               <h2 className="text-lg font-semibold text-zinc-900 tracking-tight">회차별 상세 현황</h2>
             </div>
             <div className="divide-y divide-zinc-100">
-              {stats.sessions.map((session, index) => {
-                const type = statusType(session.status);
-                return (
-                  <motion.div
-                    key={session.sessionId}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: "spring", stiffness: 100, damping: 20, delay: index * 0.06 }}
-                    className={`flex items-center justify-between px-6 py-4 ${type === 'none' ? 'opacity-40' : ''}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-zinc-500">{session.sessionNum}</span>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-zinc-900">{session.sessionNum}회차</h3>
-                        <p className="text-xs text-zinc-400">{session.sessionDate} ({session.startTime} ~ {session.endTime})</p>
-                      </div>
-                    </div>
-                    {getStatusBadge(type)}
-                  </motion.div>
+              {(() => {
+                // 같은 날짜끼리 묶어서 주차/교시로 표시
+                const grouped: { date: string; week: number; sessions: StatsSessionData[] }[] = [];
+                let weekNum = 0;
+                let prevDate = "";
+                stats.sessions.forEach((session) => {
+                  if (session.sessionDate !== prevDate) {
+                    weekNum++;
+                    grouped.push({ date: session.sessionDate, week: weekNum, sessions: [session] });
+                    prevDate = session.sessionDate;
+                  } else {
+                    grouped[grouped.length - 1].sessions.push(session);
+                  }
+                });
+                return grouped.map((group) =>
+                  group.sessions.map((session, hIdx) => {
+                    const type = statusType(session.status);
+                    return (
+                      <motion.div
+                        key={session.sessionId}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ type: "spring", stiffness: 100, damping: 20, delay: hIdx * 0.04 }}
+                        className={`flex items-center justify-between px-6 py-4 ${type === 'none' ? 'opacity-40' : ''}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center">
+                            <span className="text-xs font-semibold text-zinc-500">{group.week}주차</span>
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-semibold text-zinc-900">{hIdx + 1}교시</h3>
+                            <p className="text-xs text-zinc-400">{session.sessionDate} ({session.startTime} ~ {session.endTime})</p>
+                          </div>
+                        </div>
+                        {getStatusBadge(type)}
+                      </motion.div>
+                    );
+                  })
                 );
-              })}
+              })()}
               {stats.sessions.length === 0 && (
                 <div className="text-center py-12 text-sm text-zinc-400">세션 데이터가 없습니다.</div>
               )}

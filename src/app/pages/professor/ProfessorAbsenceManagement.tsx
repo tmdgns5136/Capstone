@@ -26,7 +26,7 @@ export default function ProfessorAbsenceManagement() {
   const handleApprove = async (officialId: number) => { 
   const success = await updateStatus(officialId, "APPROVED");
   if (success) {
-    toast.success("승인 처리되었습니다.");
+    toast.success("승인 처리되었습니다");
     setSelectedRequest(null);
   }
 };
@@ -38,7 +38,7 @@ export default function ProfessorAbsenceManagement() {
   }
   const success = await updateStatus(officialId, "REJECTED", rejectReason);
   if (success) {
-    toast.success("거절 처리되었습니다.");
+    toast.success("거절 처리되었습니다");
     setSelectedRequest(null);
     setRejectReason("");
   }

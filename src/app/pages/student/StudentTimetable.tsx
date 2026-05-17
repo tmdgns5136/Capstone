@@ -5,10 +5,10 @@ import { getLectureTimeTable, LectureTimeTable } from "../../api/studentLecture"
 import { CURRENT_YEAR, CURRENT_SEMESTER_NUM, CURRENT_SEMESTER_LABEL } from "../../constants/semester";
 
 const timeSlots = [
-  "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
+  "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"
 ];
 
-const days = ["월", "화", "수", "목", "금"];
+const days = ["월", "화", "수", "목", "금", "토", "일"];
 
 const courseColors = [
   "bg-primary/10 text-primary-dark border-primary",
@@ -56,16 +56,19 @@ export default function StudentTimetable() {
     setLoading(true);
     getLectureTimeTable(CURRENT_YEAR, CURRENT_SEMESTER_NUM)
       .then((res) => {
-        const entries: TimetableEntry[] = res.data.map((item, idx) => ({
-          name: item.lectureName,
-          room: item.room || "",
-          day: parseDayIndex(item.day),
-          startHour: parseHour(item.startTime),
-          endHour: parseHour(item.endTime),
-          color: courseColors[idx % courseColors.length],
-          lectureCode: item.lectureCode,
-        }));
-        setCourses(entries.filter((e) => e.day >= 0 && e.day <= 4));
+        const entries: TimetableEntry[] = [];
+        res.data.forEach((item, idx) => {
+          entries.push({
+            name: item.lectureName,
+            room: item.room || "",
+            day: parseDayIndex(item.day),
+            startHour: parseHour(item.startTime),
+            endHour: parseHour(item.endTime),
+            color: courseColors[idx % courseColors.length],
+            lectureCode: item.lectureCode,
+          });
+        });
+        setCourses(entries.filter((e) => e.day >= 0 && e.day <= 6));
       })
       .catch(() => setCourses([]))
       .finally(() => setLoading(false));
@@ -90,7 +93,7 @@ export default function StudentTimetable() {
 
         {/* Timetable Card */}
         <div className="bg-white rounded-xl border border-zinc-200  overflow-hidden">
-          <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-zinc-900 tracking-tight">{CURRENT_SEMESTER_LABEL}</h2>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
               <Clock strokeWidth={1.5} className="w-3.5 h-3.5" />
@@ -99,7 +102,7 @@ export default function StudentTimetable() {
           </div>
           <div>
             {/* Header Row */}
-            <div className="grid border-b border-zinc-100 bg-zinc-50/50" style={{ gridTemplateColumns: "28px repeat(5, 1fr)" }}>
+            <div className="grid border-b border-zinc-200 bg-zinc-50/50" style={{ gridTemplateColumns: "28px repeat(7, 1fr)" }}>
               <div />
               {days.map((day) => (
                 <div key={day} className="text-center text-xs sm:text-xs font-medium text-zinc-400 py-1.5 sm:py-2.5">
@@ -111,14 +114,14 @@ export default function StudentTimetable() {
             {/* Time grid */}
             <div className="relative">
               {timeSlots.map((time, index) => (
-                <div key={time} className="grid border-b border-zinc-50/80 last:border-b-0" style={{ gridTemplateColumns: "28px repeat(5, 1fr)" }}>
+                <div key={time} className="grid border-b border-zinc-200 last:border-b-0" style={{ gridTemplateColumns: "28px repeat(7, 1fr)" }}>
                   <div className="text-center text-[9px] sm:text-xs font-medium text-zinc-300 flex items-start justify-center pt-0.5 sm:pt-1">
                     {time.slice(0, -3)}
                   </div>
                   {days.map((_, dayIndex) => (
                     <div
                       key={dayIndex}
-                      className="h-[36px] sm:h-[52px] relative border-l border-zinc-50/80"
+                      className="h-[36px] sm:h-[52px] relative border-l border-zinc-200"
                     >
                       {courses
                         .filter((c) => c.day === dayIndex && c.startHour === index + 8)

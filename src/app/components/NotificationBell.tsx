@@ -122,12 +122,37 @@ export function NotificationBell({ role }: NotificationBellProps) {
     setNotifications([]);
   };
 
-  const handleNotificationClick = (id: string, link?: string) => {
-    markAsRead(id);
-    setIsOpen(false);
-    if (link) {
-      navigate(link);
+  const mapRedirectUrl = (url: string): string | null => {
+    if (!url) return null;
+    const lectureMatch = url.match(/mylecture\/(\d+)/);
+    const lectureId = lectureMatch ? lectureMatch[1] : null;
+    if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/official-requests/")) return `/${role}/absence-request`;
+    if (url.includes("/objection-requests/")) return `/${role}/stats`;
+    if (url.includes("mypage")) {
+      if (role === "admin") return "/admin/photo-requests";
+      return `/${role}/profile`;
     }
+    return null;
+  };
+
+  const handleNotificationClick = (id: string, fallbackLink?: string) => {
+    setIsOpen(false);
+    markNotificationRead(Number(id))
+      .then((res: any) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        const redirectUrl = res.data?.redirectUrl;
+        const frontRoute = redirectUrl ? mapRedirectUrl(redirectUrl) : null;
+        if (frontRoute) {
+          navigate(frontRoute);
+        } else if (fallbackLink) {
+          navigate(fallbackLink);
+        }
+      })
+      .catch(() => {
+        if (fallbackLink) navigate(fallbackLink);
+      });
   };
 
   const viewAll = () => {

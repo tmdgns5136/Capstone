@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ArrowRight, MessageSquare, Plus, Trash2, Loader2 } from "lucide-react";
+import { ChevronLeft, ArrowRight, MessageSquare, Plus, Trash2, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Pagination } from "../../components/Pagination";
 import { FormModal } from "../../components/FormModal";
+import { useAuth } from "../../hooks/useAuth";
 import {
   getLectureNotices,
   getLectureNoticeDetail,
@@ -32,6 +33,8 @@ interface StudentCourseDetailProps {
 
 export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps) {
   const lectureId = course.lectureId || String(course.id);
+  const { userNum: authUserNum } = useAuth();
+  const userNum = authUserNum || localStorage.getItem("savedLoginId");
 
   const [activeTab, setActiveTab] = useState<"notices" | "qa">("notices");
   const [showQuestionModal, setShowQuestionModal] = useState(false);
@@ -302,26 +305,38 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
               <div className="py-16 text-center text-sm text-zinc-400">등록된 질문이 없습니다.</div>
             ) : (
               <div className="divide-y divide-zinc-50">
-                {questions.map((q) => (
-                  <div
-                    key={q.questionId}
-                    onClick={() => handleQuestionClick(q.questionId)}
-                    className="px-6 py-5 hover:bg-zinc-50/50 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      {q.isPrivate && (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-zinc-800 text-white">비밀글</span>
-                      )}
-                      {q.isAnswered ? (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/20 text-primary-dark">답변완료</span>
+                {questions.map((q) => {
+                  const isOtherPrivate = q.isPrivate && q.studentNum !== userNum;
+                  return (
+                    <div
+                      key={q.questionId}
+                      onClick={() => !isOtherPrivate && handleQuestionClick(q.questionId)}
+                      className={`px-6 py-5 transition-colors ${isOtherPrivate ? "opacity-60" : "hover:bg-zinc-50/50 cursor-pointer"}`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        {q.isPrivate && (
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-zinc-800 text-white">비밀글</span>
+                        )}
+                        {!isOtherPrivate && (q.isAnswered ? (
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/20 text-primary-dark">답변완료</span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">미답변</span>
+                        ))}
+                        <span className="text-xs text-zinc-400">{q.createdDate}</span>
+                      </div>
+                      {isOtherPrivate ? (
+                        <h3 className="text-base text-zinc-400 flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5" /> 비밀글입니다.
+                        </h3>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">미답변</span>
+                        <h3 className="text-base font-semibold text-zinc-900">
+                          {q.title}
+                          {q.isPrivate && <span className="text-sm font-normal text-zinc-400 ml-2">(비밀글)</span>}
+                        </h3>
                       )}
-                      <span className="text-xs text-zinc-400">{q.createdDate}</span>
                     </div>
-                    <h3 className="text-base font-semibold text-zinc-900">{q.title}</h3>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             {qaTotalPages > 1 && (

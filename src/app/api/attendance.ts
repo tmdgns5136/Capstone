@@ -43,7 +43,7 @@ export async function getAttendanceMonitoring(
   params: { date?: string; semester?: string } = {}
 ) {
   const now = new Date();
-  const defaultSemester = `${now.getFullYear()}-${now.getMonth() + 1 >= 7 ? "2" : "1"}`;
+  const defaultSemester = `${now.getFullYear()}-${now.getMonth() + 1 >= 7 ? "2학기" : "1학기"}`;
   const semester = params.semester || defaultSemester;
   
   // [수정] URL을 더 명확하게 조립합니다. 

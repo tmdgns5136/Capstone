@@ -335,6 +335,15 @@ export async function getLectureNoticeDetail(lectureId: string, noticeId: number
 
 // ── Q&A ──
 
+export interface QuestionDataRaw {
+  questionId: number;
+  studentNum: string;
+  title: string;
+  private: boolean;
+  answered: boolean;
+  createdDate: string;
+}
+
 export interface QuestionData {
   questionId: number;
   studentNum: string;
@@ -369,24 +378,51 @@ export async function createQuestion(
   lectureId: string,
   request: { title: string; content: string; isPrivate: boolean },
 ) {
+  // Jackson deserializes boolean isPrivate field as "private" key
+  const body = { title: request.title, content: request.content, private: request.isPrivate, isPrivate: request.isPrivate };
   return api<ApiResponse<QuestionRequestResponse>>(
     `/api/mylecture/${lectureId}/question`,
-    { method: "POST", body: JSON.stringify(request) },
+    { method: "POST", body: JSON.stringify(body) },
   );
 }
 
 export async function getQuestions(lectureId: string, page = 0, size = 10) {
-  return api<PagedResponse<QuestionData>>(
+  const res = await api<PagedResponse<QuestionDataRaw>>(
     `/api/mylecture/${lectureId}/questions?page=${page}&size=${size}`,
     { method: "GET" },
   );
+  // Jackson serializes boolean isPrivate → "private", isAnswered → "answered"
+  const mapped = {
+    ...res,
+    data: {
+      ...res.data,
+      content: (res.data.content || []).map((q: any) => ({
+        questionId: q.questionId,
+        studentNum: q.studentNum,
+        title: q.title,
+        isPrivate: q.private ?? q.isPrivate ?? false,
+        isAnswered: q.answered ?? q.isAnswered ?? false,
+        createdDate: q.createdDate,
+      })),
+    },
+  };
+  return mapped as unknown as PagedResponse<QuestionData>;
 }
 
 export async function getQuestionDetail(lectureId: string, questionId: number) {
-  return api<ApiResponse<QuestionDetailData>>(
+  const res = await api<ApiResponse<any>>(
     `/api/mylecture/${lectureId}/questions/${questionId}`,
     { method: "GET" },
   );
+  const d = res.data;
+  const mapped = {
+    ...res,
+    data: {
+      ...d,
+      isPrivate: d.private ?? d.isPrivate ?? false,
+    },
+  };
+  return mapped as unknown as ApiResponse<QuestionDetailData>;
 }
 
 export async function deleteQuestion(lectureId: string, questionId: number) {

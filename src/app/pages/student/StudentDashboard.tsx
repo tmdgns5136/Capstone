@@ -42,7 +42,6 @@ export default function StudentDashboard() {
         role="student"
         navItems={navItems}
         userName={userName || "학생"}
-        userDepartment="컴퓨터과학전공"
         profileImage={profileImage}
       />
       <main className="flex-1 pt-14">

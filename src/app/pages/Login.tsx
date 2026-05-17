@@ -32,7 +32,7 @@ export default function Login() {
         localStorage.removeItem("savedLoginId");
       }
 
-      login(role, userName, accessToken);
+      login(role, userName, accessToken, undefined, loginId);
 
       const mappedRole = role.toUpperCase().includes("STUDENT")
         ? "student"

@@ -5,7 +5,7 @@ import { getMyLectures, MyLectureData } from "../../api/studentLecture";
 import { CURRENT_YEAR, CURRENT_SEMESTER_NUM, SEMESTER_OPTIONS } from "../../constants/semester";
 
 export default function StudentCourses() {
-  const [semester, setSemester] = useState(CURRENT_SEMESTER_NUM);
+    const [semester, setSemester] = useState(CURRENT_SEMESTER_NUM);
   const [year, setYear] = useState(CURRENT_YEAR);
   const [courses, setCourses] = useState<MyLectureData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,12 +60,12 @@ export default function StudentCourses() {
             className="appearance-none cursor-pointer rounded-lg border border-zinc-200 bg-white px-4 py-2.5 pr-9 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
             {SEMESTER_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
+                <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
         </div>
       </div>
 

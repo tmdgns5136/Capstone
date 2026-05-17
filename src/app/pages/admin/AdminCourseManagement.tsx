@@ -18,8 +18,12 @@ const DAY_KO: Record<string, string> = {
   MONDAY: "월", TUESDAY: "화", WEDNESDAY: "수", THURSDAY: "목",
   FRIDAY: "금", SATURDAY: "토", SUNDAY: "일",
 };
-const formatDay = (day: string) =>
-  day.split(",").map(d => DAY_KO[d.trim()] || d.trim()).join(",");
+const formatDay = (day: string) => DAY_KO[day.trim()] || day.trim();
+
+const formatSchedule = (day: string, startTime: string, endTime: string) => {
+  const dayLabel = DAY_KO[day.trim()] || day.trim().replace("요일", "");
+  return `${dayLabel} ${startTime.trim()}~${endTime.trim()}`;
+};
 
 interface Lecture {
   lectureId: number;
@@ -99,9 +103,9 @@ export default function AdminCourseManagement() {
   const [name, setName] = useState("");
   const [profNum, setProfNum] = useState(""); // 교수 사번 (실제 전송값)
   const [profDisplayName, setProfDisplayName] = useState(""); // 화면 표시용 이름
-  const [day, setDay] = useState("월요일");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [scheduleDay, setScheduleDay] = useState("월요일");
+  const [scheduleStart, setScheduleStart] = useState("");
+  const [scheduleEnd, setScheduleEnd] = useState("");
   const [room, setRoom] = useState("");
   const [division, setDivision] = useState("");
 
@@ -262,9 +266,10 @@ export default function AdminCourseManagement() {
 
   const resetForm = () => {
     setCode(""); setName(""); setProfNum(""); setProfDisplayName(""); setProfSearch("");
-    setDay("월요일"); setStart(""); setEnd("");
+    setScheduleDay("월요일"); setScheduleStart(""); setScheduleEnd("");
     setRoom(""); setDivision(""); setShowProfDropdown(false);
   };
+
 
   const handleAdd = async () => {
     if (submitting) return;
@@ -274,8 +279,8 @@ export default function AdminCourseManagement() {
         method: "POST",
         body: JSON.stringify({
           lectureName: name, lectureCode: code, professorNum: profNum,
-          startTime: start, endTime: end, room: room,
-          year: CURRENT_YEAR, semester: CURRENT_SEMESTER_NUM, lectureDay: day, division: division
+          startTime: scheduleStart, endTime: scheduleEnd, room: room,
+          year: CURRENT_YEAR, semester: CURRENT_SEMESTER_NUM, lectureDay: scheduleDay, division: division
         }),
       });
       toast.success("등록되었습니다.");
@@ -283,7 +288,8 @@ export default function AdminCourseManagement() {
       resetForm();
       fetchLectures();
     } catch (e: any) {
-      toast.error("강의 등록에 실패했습니다.");
+      console.error("강의 등록 실��:", e);
+      toast.error(e?.message || e?.data?.message || "강의 등록에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -299,9 +305,9 @@ export default function AdminCourseManagement() {
     setProfDisplayName(course.ProfessorName || "");
     setProfSearch("");
     setRoom(course.room || course.classroom || "");
-    setDay(course.lectureDay || "월요일");
-    setStart(course.startTime || "");
-    setEnd(course.endTime || "");
+    setScheduleDay(course.lectureDay || "월요일");
+    setScheduleStart(course.startTime || "");
+    setScheduleEnd(course.endTime || "");
     setDivision(course.division || "");
   };
 
@@ -313,8 +319,8 @@ export default function AdminCourseManagement() {
         method: "PATCH",
         body: JSON.stringify({
           lectureName: name, lectureCode: code, professorNum: profNum,
-          startTime: start, endTime: end, room: room,
-          year: CURRENT_YEAR, semester: CURRENT_SEMESTER_NUM, lectureDay: day, division: division
+          startTime: scheduleStart, endTime: scheduleEnd, room: room,
+          year: CURRENT_YEAR, semester: CURRENT_SEMESTER_NUM, lectureDay: scheduleDay, division: division
         }),
       });
       toast.success("수정되었습니다.");
@@ -405,34 +411,29 @@ export default function AdminCourseManagement() {
                 <div className="space-y-1.5"><Label>강의실</Label><input value={room} onChange={(e) => setRoom(e.target.value)} className="w-full border rounded-xl p-3 text-sm outline-none" /></div>
               </div>
               <div className="p-3 bg-zinc-50 rounded-xl space-y-3">
-                <div className="space-y-1.5">
-                  <Label>강의 요일</Label>
-                  <select value={day} onChange={(e) => setDay(e.target.value)} className="w-full border rounded-lg p-2.5 text-sm bg-white outline-none">
-                    {["월요일", "화요일", "수요일", "목요일", "금요일"].map(d => <option key={d} value={d}>{d}</option>)}
+                <Label>강의 시간</Label>
+                <div className="space-y-2 p-2.5 bg-white rounded-lg border border-zinc-100">
+                  <select value={scheduleDay} onChange={(e) => setScheduleDay(e.target.value)} className="w-full border rounded-lg p-2 text-sm bg-white outline-none">
+                    {["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"].map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>시작 시간</Label>
-                    <div className="flex gap-1.5">
-                      <select value={start.split(":")[0] || ""} onChange={(e) => setStart(`${e.target.value}:${start.split(":")[1] || "00"}`)} className="flex-1 border rounded-lg p-2.5 text-sm bg-white outline-none">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1 flex-1">
+                      <select value={scheduleStart.split(":")[0] || ""} onChange={(e) => setScheduleStart(`${e.target.value}:${scheduleStart.split(":")[1] || "00"}`)} className="flex-1 border rounded-lg p-2 text-sm bg-white outline-none">
                         <option value="">시</option>
                         {hourOptions.map(h => <option key={h} value={h}>{h}시</option>)}
                       </select>
-                      <select value={start.split(":")[1] || ""} onChange={(e) => setStart(`${start.split(":")[0] || "08"}:${e.target.value}`)} className="flex-1 border rounded-lg p-2.5 text-sm bg-white outline-none">
+                      <select value={scheduleStart.split(":")[1] || ""} onChange={(e) => setScheduleStart(`${scheduleStart.split(":")[0] || "08"}:${e.target.value}`)} className="flex-1 border rounded-lg p-2 text-sm bg-white outline-none">
                         <option value="">분</option>
                         {minuteOptions.map(m => <option key={m} value={m}>{m}분</option>)}
                       </select>
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>종료 시간</Label>
-                    <div className="flex gap-1.5">
-                      <select value={end.split(":")[0] || ""} onChange={(e) => setEnd(`${e.target.value}:${end.split(":")[1] || "00"}`)} className="flex-1 border rounded-lg p-2.5 text-sm bg-white outline-none">
+                    <span className="text-sm font-medium text-zinc-400">~</span>
+                    <div className="flex gap-1 flex-1">
+                      <select value={scheduleEnd.split(":")[0] || ""} onChange={(e) => setScheduleEnd(`${e.target.value}:${scheduleEnd.split(":")[1] || "00"}`)} className="flex-1 border rounded-lg p-2 text-sm bg-white outline-none">
                         <option value="">시</option>
                         {hourOptions.map(h => <option key={h} value={h}>{h}시</option>)}
                       </select>
-                      <select value={end.split(":")[1] || ""} onChange={(e) => setEnd(`${end.split(":")[0] || "08"}:${e.target.value}`)} className="flex-1 border rounded-lg p-2.5 text-sm bg-white outline-none">
+                      <select value={scheduleEnd.split(":")[1] || ""} onChange={(e) => setScheduleEnd(`${scheduleEnd.split(":")[0] || "08"}:${e.target.value}`)} className="flex-1 border rounded-lg p-2 text-sm bg-white outline-none">
                         <option value="">분</option>
                         {minuteOptions.map(m => <option key={m} value={m}>{m}분</option>)}
                       </select>
@@ -493,7 +494,7 @@ export default function AdminCourseManagement() {
                   <td className="px-6 py-4 font-semibold text-zinc-900">{course.lectureName}</td>
                   <td className="px-6 py-4 text-zinc-600">{course.ProfessorName}</td>
                   <td className="px-6 py-4 text-zinc-600">
-                    <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-zinc-400"/> {formatDay(course.lectureDay)} {course.startTime}-{course.endTime}</div>
+                    <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-zinc-400"/> {formatSchedule(course.lectureDay, course.startTime, course.endTime)}</div>
                   </td>
                   <td className="px-6 py-4 text-zinc-600">
                     <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-zinc-400"/> {course.room || course.classroom}</div>
@@ -537,7 +538,7 @@ export default function AdminCourseManagement() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-3 px-4 bg-zinc-50/80 rounded-2xl border border-zinc-100">
-                <div className="flex items-center gap-1.5 text-xs text-zinc-600"><Clock className="w-3.5 h-3.5 text-zinc-400" /><span className="truncate">{formatDay(course.lectureDay)} {course.startTime}</span></div>
+                <div className="flex items-center gap-1.5 text-xs text-zinc-600"><Clock className="w-3.5 h-3.5 text-zinc-400" /><span className="truncate">{formatSchedule(course.lectureDay, course.startTime, course.endTime)}</span></div>
                 <div className="flex items-center gap-1.5 text-xs text-zinc-600"><MapPin className="w-3.5 h-3.5 text-zinc-400" /><span className="truncate">{course.room || course.classroom}</span></div>
                 <div className="flex items-center gap-1.5 text-xs text-zinc-600"><Users className="w-3.5 h-3.5 text-zinc-400" /><span>수강생 {course.studentCount || 0}명</span></div>
               </div>
@@ -668,34 +669,29 @@ export default function AdminCourseManagement() {
                 <div className="space-y-1.5"><Label>강의실</Label><input value={room} onChange={(e) => setRoom(e.target.value)} className="w-full border rounded-xl p-3 text-sm outline-none" /></div>
               </div>
               <div className="p-3 bg-zinc-50 rounded-xl space-y-3">
-                <div className="space-y-1.5">
-                  <Label>강의 요일</Label>
-                  <select value={day} onChange={(e) => setDay(e.target.value)} className="w-full border rounded-lg p-2.5 text-sm bg-white outline-none">
-                    {["월요일", "화요일", "수요일", "목요일", "금요일"].map(d => <option key={d} value={d}>{d}</option>)}
+                <Label>강의 시간</Label>
+                <div className="space-y-2 p-2.5 bg-white rounded-lg border border-zinc-100">
+                  <select value={scheduleDay} onChange={(e) => setScheduleDay(e.target.value)} className="w-full border rounded-lg p-2 text-sm bg-white outline-none">
+                    {["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"].map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>시작 시간</Label>
-                    <div className="flex gap-1.5">
-                      <select value={start.split(":")[0] || ""} onChange={(e) => setStart(`${e.target.value}:${start.split(":")[1] || "00"}`)} className="flex-1 border rounded-lg p-2.5 text-sm bg-white outline-none">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1 flex-1">
+                      <select value={scheduleStart.split(":")[0] || ""} onChange={(e) => setScheduleStart(`${e.target.value}:${scheduleStart.split(":")[1] || "00"}`)} className="flex-1 border rounded-lg p-2 text-sm bg-white outline-none">
                         <option value="">시</option>
                         {hourOptions.map(h => <option key={h} value={h}>{h}시</option>)}
                       </select>
-                      <select value={start.split(":")[1] || ""} onChange={(e) => setStart(`${start.split(":")[0] || "08"}:${e.target.value}`)} className="flex-1 border rounded-lg p-2.5 text-sm bg-white outline-none">
+                      <select value={scheduleStart.split(":")[1] || ""} onChange={(e) => setScheduleStart(`${scheduleStart.split(":")[0] || "08"}:${e.target.value}`)} className="flex-1 border rounded-lg p-2 text-sm bg-white outline-none">
                         <option value="">분</option>
                         {minuteOptions.map(m => <option key={m} value={m}>{m}분</option>)}
                       </select>
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>종료 시간</Label>
-                    <div className="flex gap-1.5">
-                      <select value={end.split(":")[0] || ""} onChange={(e) => setEnd(`${e.target.value}:${end.split(":")[1] || "00"}`)} className="flex-1 border rounded-lg p-2.5 text-sm bg-white outline-none">
+                    <span className="text-sm font-medium text-zinc-400">~</span>
+                    <div className="flex gap-1 flex-1">
+                      <select value={scheduleEnd.split(":")[0] || ""} onChange={(e) => setScheduleEnd(`${e.target.value}:${scheduleEnd.split(":")[1] || "00"}`)} className="flex-1 border rounded-lg p-2 text-sm bg-white outline-none">
                         <option value="">시</option>
                         {hourOptions.map(h => <option key={h} value={h}>{h}시</option>)}
                       </select>
-                      <select value={end.split(":")[1] || ""} onChange={(e) => setEnd(`${end.split(":")[0] || "08"}:${e.target.value}`)} className="flex-1 border rounded-lg p-2.5 text-sm bg-white outline-none">
+                      <select value={scheduleEnd.split(":")[1] || ""} onChange={(e) => setScheduleEnd(`${scheduleEnd.split(":")[0] || "08"}:${e.target.value}`)} className="flex-1 border rounded-lg p-2 text-sm bg-white outline-none">
                         <option value="">분</option>
                         {minuteOptions.map(m => <option key={m} value={m}>{m}분</option>)}
                       </select>

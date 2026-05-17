@@ -9,15 +9,17 @@ export default function ProfessorCourses() {
   const [semester, setSemester] = useState(CURRENT_SEMESTER_LABEL);
   const [courses, setCourses] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     getLectures(semester)
       .then(res => {
-        if (res.success) setCourses(res.data ?? []);
-        else setCourses([]);
+        if (res.success) setCourses(res.data);
+        else setError("강의 목록을 불러오지 못했습니다.");
       })
-      .catch(() => setCourses([]))
+      .catch(() => setError("강의 목록을 불러오지 못했습니다."))
       .finally(() => setLoading(false));
   }, [semester]);
 
@@ -26,6 +28,8 @@ export default function ProfessorCourses() {
       <Loader2 className="w-8 h-8 animate-spin text-zinc-300" />
     </div>
   );
+
+  if (error) return <div className="p-10 text-center text-rose-500">{error}</div>;
 
   return (
     <div className="space-y-6">
