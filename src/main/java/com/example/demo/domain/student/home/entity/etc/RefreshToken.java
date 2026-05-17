@@ -12,6 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @Table(name = "USER_REFRESH_TOKEN")
 public class RefreshToken {
+
     @JsonIgnore
     @Id
     @Column(name = "REFRESH_TOKEN_ID")

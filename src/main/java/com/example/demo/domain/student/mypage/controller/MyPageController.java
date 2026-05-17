@@ -28,27 +28,30 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/api/mypage")
 public class MyPageController {
+
     private final MyPageService myPageService;
     private final UserService userService;
+
     @Value("${com.example.upload.path.profileImg}")
     private String uploadPath;
 
     @GetMapping("/image/{fileName}")
     public ResponseEntity<Resource> serveImage(@PathVariable String fileName) {
         try {
-            // 1. 파일의 실제 물리적 경로 찾기
-            Path filePath = Paths.get(uploadPath).resolve("photo").resolve(fileName).normalize();
+            Path filePath = Paths.get(uploadPath)
+                    .resolve("photo")
+                    .resolve(fileName)
+                    .normalize();
+
             Resource resource = new UrlResource(filePath.toUri());
 
-            // 2. 파일이 존재하는지 확인
             if (resource.exists() && resource.isReadable()) {
-                // 3. 브라우저가 이미지로 인식하도록 헤더를 설정하여 반환
                 return ResponseEntity.ok()
-                        .contentType(MediaType.IMAGE_JPEG) // 필요 시 파일 확장자에 따라 동적 처리 가능
+                        .contentType(MediaType.IMAGE_JPEG)
                         .body(resource);
-            } else {
-                return ResponseEntity.notFound().build();
             }
+
+            return ResponseEntity.notFound().build();
 
         } catch (MalformedURLException e) {
             return ResponseEntity.badRequest().build();
@@ -56,45 +59,68 @@ public class MyPageController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<InquiryData>> getMyPage(Authentication authentication){
+    public ResponseEntity<ApiResponse<InquiryData>> getMyPage(Authentication authentication) {
         ApiResponse<InquiryData> apiResponse = myPageService.inquiry(authentication);
         return ResponseEntity.ok(apiResponse);
     }
 
     @PatchMapping("/info-change")
-    public ResponseEntity<ActionResponse> edit(@Valid @RequestBody EditRequest editRequest, Authentication authentication){
+    public ResponseEntity<ActionResponse> edit(
+            @Valid @RequestBody EditRequest editRequest,
+            Authentication authentication
+    ) {
         myPageService.edit(editRequest, authentication);
-        ActionResponse actionResponse = ActionResponse.success(200, "프로필 정보 변경이 완료되었습니다.",
-                "api/mypage");
+
+        ActionResponse actionResponse = ActionResponse.success(
+                200,
+                "프로필 정보 변경이 완료되었습니다.",
+                "api/mypage"
+        );
+
         return ResponseEntity.ok(actionResponse);
     }
 
     @PatchMapping("/password-change")
-    public ResponseEntity<ActionResponse> passwordChange(@Valid @RequestBody EditRequest editRequest, Authentication authentication){
+    public ResponseEntity<ActionResponse> passwordChange(
+            @Valid @RequestBody EditRequest editRequest,
+            Authentication authentication
+    ) {
         myPageService.edit(editRequest, authentication);
-        ActionResponse actionResponse = ActionResponse.success(200, "비밀번호 변경이 완료되었습니다.",
-                "api/home/login");
+
+        ActionResponse actionResponse = ActionResponse.success(
+                200,
+                "비밀번호 변경이 완료되었습니다.",
+                "api/home/login"
+        );
+
         return ResponseEntity.ok(actionResponse);
     }
 
     @PostMapping("/withdraw")
-    public ResponseEntity<ActionResponse> withdraw(Authentication authentication){
+    public ResponseEntity<ActionResponse> withdraw(Authentication authentication) {
         ActionResponse actionResponse = myPageService.withDraw(authentication);
         return ResponseEntity.ok(actionResponse);
-
     }
 
     @PatchMapping("/profileimg-request")
-    public ResponseEntity<ActionResponse> imgRequest(@RequestPart MultipartFile leftImage,
-                                                     @RequestPart MultipartFile centerImage,
-                                                     @RequestPart MultipartFile rightImage, Authentication authentication) throws IOException {
-        ActionResponse actionResponse = myPageService.imgRequest(leftImage, centerImage, rightImage, authentication);
+    public ResponseEntity<ActionResponse> imgRequest(
+            @RequestPart MultipartFile leftImage,
+            @RequestPart MultipartFile centerImage,
+            @RequestPart MultipartFile rightImage,
+            Authentication authentication
+    ) throws IOException {
+        ActionResponse actionResponse = myPageService.imgRequest(
+                leftImage,
+                centerImage,
+                rightImage,
+                authentication
+        );
 
         return ResponseEntity.status(actionResponse.getStatus()).body(actionResponse);
     }
 
     @GetMapping("/profileimg-requests-list")
-    public ResponseEntity<ApiResponse<List<ListData>>> requestList(Authentication authentication){
+    public ResponseEntity<ApiResponse<List<ListData>>> requestList(Authentication authentication) {
         ApiResponse<List<ListData>> apiResponse = myPageService.getList(authentication);
         return ResponseEntity.ok(apiResponse);
     }

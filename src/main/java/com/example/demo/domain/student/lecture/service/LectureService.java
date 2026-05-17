@@ -7,8 +7,8 @@ import com.example.demo.domain.student.lecture.attendance.dto.AbsenceData;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceDetailData;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceRequest;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceRequestData;
-import com.example.demo.domain.student.lecture.attendance.dto.dto.ObjectionDto;
-import com.example.demo.domain.student.lecture.attendance.dto.dto.OfficialDto;
+import com.example.demo.domain.student.lecture.attendance.dto.ObjectionDto;
+import com.example.demo.domain.student.lecture.attendance.dto.OfficialDto;
 import com.example.demo.domain.student.lecture.attendance.repository.AttendanceRepository;
 import com.example.demo.domain.student.lecture.attendance.repository.ObjectionRepository;
 import com.example.demo.domain.student.lecture.attendance.repository.OfficialRepository;
@@ -81,7 +81,7 @@ public class LectureService {
         List<LectureData>lectureDataList = enrollments.stream()
                 .map(Enrollment::getLecture)
                 .filter(lecture -> lecture.getLectureYear().equals(year))
-                .filter(lecture -> lecture.getLectureSemester().equals(semester))
+                .filter(lecture -> isSameSemester(lecture.getLectureSemester(), semester))
                 .map(lecture -> {
                     Professor professor = lecture.getProfessor();
 
@@ -592,7 +592,7 @@ public class LectureService {
         List<LectureTimeTable> LectureTimeTables = enrollments.stream()
                 .map(Enrollment::getLecture)
                 .filter(lecture -> lecture.getLectureYear().equals(year))
-                .filter(lecture -> lecture.getLectureSemester().equals(semester))
+                .filter(lecture -> isSameSemester(lecture.getLectureSemester(), semester))
                 .map(lecture -> {
 
                     return LectureTimeTable.builder()
@@ -769,5 +769,23 @@ public class LectureService {
         questionBoardRepository.delete(question);
 
         return ActionResponse.success(200, "질문이 삭제되었습니다.");
+    }
+
+    private boolean isSameSemester(String savedSemester, String requestSemester) {
+        return normalizeSemester(savedSemester).equals(normalizeSemester(requestSemester));
+    }
+
+    private String normalizeSemester(String semester) {
+        if (semester == null) {
+            return "";
+        }
+
+        String value = semester.trim();
+
+        if (value.endsWith("학기")) {
+            value = value.substring(0, value.length() - 2);
+        }
+
+        return value;
     }
 }

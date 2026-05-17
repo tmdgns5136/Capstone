@@ -7,6 +7,7 @@ import com.example.demo.domain.student.home.entity.user.Student;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "IMAGE")
 public class Image {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "IMAGE_ID", unique = true, nullable = false)
@@ -39,6 +41,7 @@ public class Image {
     @Column(name = "FILE_SIZE", nullable = false)
     private Long fileSize;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "IMAGE_STATUS", length = 20, nullable = false)
     private Status status = Status.PENDING;

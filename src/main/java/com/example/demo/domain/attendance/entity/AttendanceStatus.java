@@ -4,5 +4,6 @@ public enum AttendanceStatus {
     PRESENT,
     LATE,
     ABSENT,
-    EXCUSED
+    EXCUSED,
+    TBD
 }

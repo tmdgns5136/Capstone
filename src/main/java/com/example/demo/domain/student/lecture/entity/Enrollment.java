@@ -13,6 +13,7 @@ import lombok.*;
 @Builder
 @Table(name = "ENROLLMENT")
 public class Enrollment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ENROLLMENT_ID", unique = true, nullable = false)

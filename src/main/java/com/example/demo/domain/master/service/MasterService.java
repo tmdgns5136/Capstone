@@ -95,6 +95,7 @@ public class MasterService {
                 .lectureDivision(courseRequest.getDivision()).build();
 
         lectureRepository.save(lecture);
+        createLectureSessions(lecture);
 
         return ActionResponse.success(201, "강의가 등록되었습니다.", "/api/home");
     }

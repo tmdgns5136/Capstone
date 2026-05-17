@@ -1,6 +1,5 @@
 package com.example.demo.domain.master.entity;
 
-
 import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.student.notification.entity.Notification;
 import jakarta.persistence.*;
@@ -19,6 +18,7 @@ import java.util.List;
 @Builder
 @Table(name = "MASTER")
 public class Master {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "MASTER_ID", unique = true, nullable = false)
@@ -37,5 +37,4 @@ public class Master {
     @Builder.Default
     @OneToMany(mappedBy = "master", cascade = CascadeType.ALL)
     private List<Notification> notifications = new ArrayList<>();
-
 }

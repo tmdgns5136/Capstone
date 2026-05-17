@@ -7,6 +7,7 @@ import com.example.demo.domain.student.lecture.attendance.entity.Official;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ import java.util.List;
 @Builder
 @Table(name = "LECTURE_SESSION")
 public class LectureSession {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "SESSION_ID", unique = true, nullable = false)

@@ -1,10 +1,11 @@
 package com.example.demo.domain.student.lecture.board.entity;
 
-import com.example.demo.domain.student.lecture.entity.Lecture;
 import com.example.demo.domain.professor.entity.Professor;
+import com.example.demo.domain.student.lecture.entity.Lecture;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "NOTICE_BOARD")
 public class NoticeBoard {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "NOTICE_ID", unique = true, nullable = false)

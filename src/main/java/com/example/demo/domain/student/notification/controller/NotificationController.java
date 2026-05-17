@@ -18,21 +18,29 @@ import java.util.List;
 @RequestMapping("/api/notifications")
 @Tag(name = "NotificationController", description = "This is an Notification controller")
 public class NotificationController {
+
     private final NotificationService notificationService;
 
-    // 알림 조회
     @Operation(summary = "알림 조회")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<NotificationData>>> getNotifications(Authentication authentication){
-        ApiResponse<List<NotificationData>> apiResponse = notificationService.getNotifications(authentication);
+    public ResponseEntity<ApiResponse<List<NotificationData>>> getNotifications(
+            Authentication authentication
+    ) {
+        ApiResponse<List<NotificationData>> apiResponse =
+                notificationService.getNotifications(authentication);
+
         return ResponseEntity.ok(apiResponse);
     }
 
-    // 알림 읽기
     @Operation(summary = "알림 읽기")
     @PatchMapping("/{notification_id}/read")
-    public ResponseEntity<ApiResponse<NotificationRead>> readNotification(Authentication authentication,@PathVariable("notification_id") Long notificationId){
-        ApiResponse<NotificationRead> apiResponse = notificationService.readNotification(authentication, notificationId);
+    public ResponseEntity<ApiResponse<NotificationRead>> readNotification(
+            Authentication authentication,
+            @PathVariable("notification_id") Long notificationId
+    ) {
+        ApiResponse<NotificationRead> apiResponse =
+                notificationService.readNotification(authentication, notificationId);
+
         return ResponseEntity.ok(apiResponse);
     }
 }

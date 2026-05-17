@@ -8,6 +8,7 @@ import com.example.demo.domain.student.lecture.entity.LectureSession;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "ATTENDANCE_OFFICIAL")
 public class Official {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "OFFICIAL_ID", unique = true, nullable = false)
@@ -67,7 +69,7 @@ public class Official {
     @JsonIgnore
     private Lecture lecture;
 
-    @ManyToOne(fetch = FetchType.LAZY) // 여러 공결 신청이 하나의 수업 세션에 해당할 수 있음
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "SESSION_ID")
     @JsonIgnore
     private LectureSession lectureSession;

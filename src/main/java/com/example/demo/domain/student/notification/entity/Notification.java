@@ -2,9 +2,9 @@ package com.example.demo.domain.student.notification.entity;
 
 import com.example.demo.domain.enumerate.NoticeType;
 import com.example.demo.domain.master.entity.Master;
+import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.student.home.entity.user.Student;
 import com.example.demo.domain.student.lecture.entity.Lecture;
-import com.example.demo.domain.professor.entity.Professor;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,7 +20,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
+@Table(name = "NOTIFICATION")
 public class Notification {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "NOTIFICATION_ID", unique = true, nullable = false)

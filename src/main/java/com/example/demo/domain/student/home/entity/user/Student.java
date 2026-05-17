@@ -1,13 +1,13 @@
 package com.example.demo.domain.student.home.entity.user;
 
+import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.enumerate.StudentStatus;
+import com.example.demo.domain.student.home.entity.etc.Image;
 import com.example.demo.domain.student.lecture.attendance.entity.Attendance;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
-import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
 import com.example.demo.domain.student.lecture.entity.Enrollment;
-import com.example.demo.domain.student.home.entity.etc.Image;
 import com.example.demo.domain.student.notification.entity.Notification;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,6 +23,7 @@ import java.util.List;
 @Builder
 @Table(name = "STUDENT")
 public class Student {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "STUDENT_ID", unique = true, nullable = false)
@@ -77,10 +78,5 @@ public class Student {
 
     @Builder.Default
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
-    private List<QuestionBoard> questionBoards = new ArrayList<>();
-
-    @Builder.Default
-    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL)
     private List<Notification> notifications = new ArrayList<>();
-
 }

@@ -56,8 +56,8 @@ public class HomeController {
                                                         @RequestPart("centerImage") MultipartFile centerImage,
                                                         @RequestPart("rightImage") MultipartFile rightImage) throws IOException {
 
-       ActionResponse actionResponse = userService.createStudent(joinRequest, leftImage, centerImage, rightImage);
-       return ResponseEntity.ok(actionResponse);
+        ActionResponse actionResponse = userService.createStudent(joinRequest, leftImage, centerImage, rightImage);
+        return ResponseEntity.ok(actionResponse);
     }
 
     @Operation(summary = "교수 회원 가입")
@@ -70,7 +70,6 @@ public class HomeController {
     @Operation(summary = "로그인")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginData>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletResponse response){
-        // 만료시간 1시간
         Date accessExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 60);
         Date refreshExpiry = new Date(System.currentTimeMillis() + 1000 * 60 * 60);
 
@@ -126,8 +125,6 @@ public class HomeController {
         ActionResponse actionResponse = ActionResponse.success(200, "인증번호가 발송되었습니다.");
 
         return ResponseEntity.ok(actionResponse);
-
-
     }
 
     @Operation(summary = "이메일 인증번호 확인")
@@ -152,10 +149,8 @@ public class HomeController {
 
         ActionResponse actionResponse = ActionResponse.success(200, "인증이 완료되었습니다.");
         return ResponseEntity.status(actionResponse.getStatus()).body(actionResponse);
-
     }
 
-    // 비밀번호 찾기
     @Operation(summary = "비밀번호 찾기")
     @PostMapping("/password-email-send")
     public ResponseEntity<ActionResponse> sendPasswordEmail(@RequestBody Map<String, String> request){
@@ -181,8 +176,6 @@ public class HomeController {
                 .success(200, "인증번호가 발송되었습니다.");
 
         return ResponseEntity.ok(actionResponse);
-
-
     }
 
     @Operation(summary = "비밀번호 변경")

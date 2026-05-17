@@ -8,7 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
-    public List<Notification> findByStudent(Student student);
-    public List<Notification> findByMaster(Master master);
-    public List<Notification> findByRelatedId(String relatedId);
+
+    List<Notification> findByStudent(Student student);
+
+    List<Notification> findByMaster(Master master);
+
+    List<Notification> findByRelatedId(String relatedId);
 }

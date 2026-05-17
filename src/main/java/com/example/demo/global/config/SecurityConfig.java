@@ -16,21 +16,29 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 @EnableWebSecurity
 public class SecurityConfig {
+
     private final TokenProvider tokenProvider;
 
-    private String secretKey;
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity)throws Exception{
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity.httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/api/home/**").permitAll()
+                                .requestMatchers("/api/device/register", "/api/device/login").permitAll()
                                 .requestMatchers("/api/mypage/image/**").permitAll()
                                 .requestMatchers("/api/admin/image/**").permitAll()
-                                .requestMatchers(("/api/mylecture/image/**")).permitAll()
-                                .anyRequest().authenticated())
-                .addFilterBefore(new JwtTokenFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class).build();
+                                .requestMatchers("/api/mylecture/image/**").permitAll()
+                                .anyRequest().authenticated()
+                )
+                .addFilterBefore(
+                        new JwtTokenFilter(tokenProvider),
+                        UsernamePasswordAuthenticationFilter.class
+                )
+                .build();
     }
 }
