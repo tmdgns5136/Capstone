@@ -375,8 +375,8 @@ public class UserService {
         List<CourseData> courseData = enrollments.stream()
                 .map(Enrollment::getLecture)
                 .filter(lecture -> String.valueOf(lecture.getLectureYear()).equals(year))
-                .filter(lecture -> lecture.getLectureSemester().equals(semester))
-                .filter(lecture -> lecture.getLectureDay().equalsIgnoreCase(today))
+                .filter(lecture -> isSameSemester(lecture.getLectureSemester(), semester))
+                .filter(lecture -> hasLectureDay(lecture.getLectureDay(), today))
                 .map(lecture -> CourseData.builder()
                         .lectureId(lecture.getLectureId())
                         .lectureName(lecture.getLectureName())
@@ -407,8 +407,8 @@ public class UserService {
         List<CourseStateData> courseStateData = enrollments.stream()
                 .map(Enrollment::getLecture)
                 .filter(lecture -> String.valueOf(lecture.getLectureYear()).equals(year))
-                .filter(lecture -> lecture.getLectureSemester().equals(semester))
-                .filter(lecture -> lecture.getLectureDay().equalsIgnoreCase(today))
+                .filter(lecture -> isSameSemester(lecture.getLectureSemester(), semester))
+                .filter(lecture -> hasLectureDay(lecture.getLectureDay(), today))
                 .filter(lecture ->
                         lecture.getLectureStart().compareTo(LocalTime.now().toString()) <= 0
                                 && LocalTime.now().toString().compareTo(lecture.getLectureEnd()) <= 0
@@ -419,10 +419,42 @@ public class UserService {
                         .startTime(lecture.getLectureStart())
                         .endTime(lecture.getLectureEnd())
                         .room(lecture.getLectureRoom())
-                        .attendancePercent("0%")
+                        .status(student.getStudentClassStatus().getCode())
                         .build())
                 .toList();
 
         return ApiResponse.success(200, courseStateData);
+    }
+
+    private boolean hasLectureDay(String savedLectureDay, String today) {
+        if (savedLectureDay == null || today == null) {
+            return false;
+        }
+
+        for (String day : savedLectureDay.split(",")) {
+            if (day.trim().equalsIgnoreCase(today.trim())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isSameSemester(String savedSemester, String requestSemester) {
+        return normalizeSemester(savedSemester).equals(normalizeSemester(requestSemester));
+    }
+
+    private String normalizeSemester(String semester) {
+        if (semester == null) {
+            return "";
+        }
+
+        String value = semester.trim();
+
+        if (value.endsWith("학기")) {
+            value = value.substring(0, value.length() - 2);
+        }
+
+        return value;
     }
 }

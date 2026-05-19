@@ -198,10 +198,14 @@ public class ProfessorController {
 
     @GetMapping("/absences")
     public ApiResponse<OfficialListResponse> getAbsences(
+            Authentication authentication,
             @RequestParam("page") int page,
             @RequestParam("size") int size
     ) {
-        return ApiResponse.success(200, professorService.getAbsences(page, size));
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        return ApiResponse.success(200, professorService.getAbsences(professor.getProfessorId(), page, size));
     }
 
     @PatchMapping("/absences/{absenceId}")
@@ -224,10 +228,14 @@ public class ProfessorController {
 
     @GetMapping("/appeals")
     public ApiResponse<ObjectionListResponse> getAppeals(
+            Authentication authentication,
             @RequestParam("page") int page,
             @RequestParam("size") int size
     ) {
-        return ApiResponse.success(200, professorService.getAppeals(page, size));
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        return ApiResponse.success(200, professorService.getAppeals(professor.getProfessorId(), page, size));
     }
 
     @PatchMapping("/appeals/{appealId}")

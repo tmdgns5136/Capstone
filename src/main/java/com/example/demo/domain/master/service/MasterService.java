@@ -95,6 +95,7 @@ public class MasterService {
                 .lectureDivision(courseRequest.getDivision()).build();
 
         lectureRepository.save(lecture);
+        createLectureSessions(lecture);
 
         return ActionResponse.success(201, "강의가 등록되었습니다.", "/api/home");
     }
@@ -258,7 +259,7 @@ public class MasterService {
 
         return ActionResponse.success(200, "강의가 삭제되었습니다.", "/api/admin/lectures/" + lecture.getProfessor().getProfessorNum());
     }
-    
+
     // 강의별 학생 추가
     @Transactional
     public ActionResponse addStudent(Authentication authentication, Long lectureId, AddRequest addRequest){
@@ -661,13 +662,13 @@ public class MasterService {
         );
 
         Page<PhotoComplete> photoCompletes = completedCenterImages.map(image -> {
-                Student student = image.getStudent();
-                return PhotoComplete.builder()
-                        .studentNum(student.getStudentNum())
-                        .studentName(student.getStudentName())
-                        .accessDate(image.getImageModified().toString())
-                        .status(image.getStatus().toString())
-                        .rejectReason(image.getRejectReason() != null ? image.getRejectReason() : "").build();
+            Student student = image.getStudent();
+            return PhotoComplete.builder()
+                    .studentNum(student.getStudentNum())
+                    .studentName(student.getStudentName())
+                    .accessDate(image.getImageModified().toString())
+                    .status(image.getStatus().toString())
+                    .rejectReason(image.getRejectReason() != null ? image.getRejectReason() : "").build();
         });
 
         return ApiResponse.success(200, photoCompletes);

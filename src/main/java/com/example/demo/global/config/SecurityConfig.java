@@ -29,6 +29,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/api/home/**").permitAll()
+                                .requestMatchers("/api/device/register", "/api/device/login").permitAll()
                                 .requestMatchers("/api/mypage/image/**").permitAll()
                                 .requestMatchers("/api/admin/image/**").permitAll()
                                 .requestMatchers("/api/mylecture/image/**").permitAll()

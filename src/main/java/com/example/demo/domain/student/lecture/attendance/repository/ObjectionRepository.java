@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface ObjectionRepository extends JpaRepository<Objection, Long> {
-    public List<Objection> findByStudentAndLecture(Student student, Lecture lecture);
+    List<Objection> findByStudentAndLecture(Student student, Lecture lecture);
 
-    public Page<Objection> findAll(Pageable pageable);
+    Page<Objection> findByProfessor_ProfessorId(Long professorId, Pageable pageable);
 }
