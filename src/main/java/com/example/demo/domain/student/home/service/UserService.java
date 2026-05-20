@@ -419,7 +419,7 @@ public class UserService {
                         .startTime(lecture.getLectureStart())
                         .endTime(lecture.getLectureEnd())
                         .room(lecture.getLectureRoom())
-                        .attendancePercent("0%")
+                        .status(student.getStudentClassStatus().getCode())
                         .build())
                 .toList();
 

@@ -16,5 +16,5 @@ public interface OfficialRepository extends JpaRepository<Official, Long> {
 
     int countByLecture_Professor_ProfessorIdAndStatus(Long professorId, Status status);
 
-    Page<Official> Professor_ProfessorId(Long professorId, Pageable pageable);
+    Page<Official> findByProfessor_ProfessorId(Long professorId, Pageable pageable);
 }

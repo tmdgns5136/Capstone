@@ -43,7 +43,8 @@ import com.example.demo.domain.student.lecture.attendance.repository.AttendanceR
 import com.example.demo.domain.device.entity.Device;
 import com.example.demo.domain.device.repository.DeviceRepository;
 import com.example.demo.domain.device.service.DeviceService;
-import com.example.demo.domain.stream.service.YoloWorkerProcessService;
+//import com.example.demo.domain.stream.service.YoloWorkerProcessService;
+import com.example.demo.domain.enumerate.StudentClassStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -90,14 +91,14 @@ public class ProfessorService {
     private final AttendanceRepository attendanceRepository;
     private final DeviceRepository deviceRepository;
     private final DeviceService deviceService;
-    private final YoloWorkerProcessService yoloWorkerProcessService;
+    //private final YoloWorkerProcessService yoloWorkerProcessService;
 
 
     public List<ProfessorLectureResponse> getLectures(Long professorId, String semester) {
         List<Lecture> lectures = lectureRepository.findByProfessor_ProfessorId(professorId);
 
         if (lectures.isEmpty()) {
-            throw new CustomException(404, "담당 강의 정보가 없습니다.");
+            return new ArrayList<>();
         }
 
         // "2026학년도 1학기" → year=2026L, sem="1" 파싱
@@ -119,7 +120,7 @@ public class ProfessorService {
             if (fSem != null && !lecture.getLectureSemester().equals(fSem)) continue;
 
             int studentCount = enrollmentRepository.countByLecture_LectureId(lecture.getLectureId());
-            String scheduleText = buildScheduleText(lecture.getLectureId());
+            String scheduleText = buildScheduleText(lecture);
             result.add(new ProfessorLectureResponse(
                     String.valueOf(lecture.getLectureId()),
                     lecture.getLectureName(),
@@ -135,39 +136,45 @@ public class ProfessorService {
         DayOfWeek today = LocalDate.now().getDayOfWeek();
         LocalTime now = LocalTime.now();
 
-        List<LectureSchedule> schedules =
-                lectureScheduleRepository.findByLecture_Professor_ProfessorIdAndDayOfWeekOrderByStartTimeAsc(professorId, today);
+        List<Lecture> lectures = lectureRepository.findByProfessor_ProfessorId(professorId);
 
-        if (schedules.isEmpty()) {
-            throw new CustomException(404, "오늘 예정된 강의가 없습니다.");
+        if (lectures.isEmpty()) {
+            return new ArrayList<>();
         }
 
         List<TodayLectureResponse> result = new ArrayList<>();
 
-        for (LectureSchedule schedule : schedules) {
-            String status = lectureSessionRepository
-                    .findByLectureAndScheduledAt(schedule.getLecture(), LocalDate.now())
-                    .map(session -> {
-                        if (session.getStatus() == SessionStatus.IN_PROGRESS) {
-                            return "IN_PROGRESS";
-                        }
-                        if (session.getStatus() == SessionStatus.ENDED) {
-                            return "DONE";
-                        }
-                        return "WAIT";
-                    })
-                    .orElse("WAIT");
-            Long studentCount = (long) enrollmentRepository.countByLecture_LectureId(schedule.getLecture().getLectureId());
+        for (Lecture lecture : lectures) {
+            if (!isLectureDay(lecture.getLectureDay(), today)) {
+                continue;
+            }
+
+            List<LectureSession> todaySessions =
+                    lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(
+                            lecture,
+                            LocalDate.now()
+                    );
+
+            String status;
+
+            if (todaySessions.stream().anyMatch(s -> s.getStatus() == SessionStatus.IN_PROGRESS)) {
+                status = "IN_PROGRESS";
+            } else if (todaySessions.stream().anyMatch(s -> s.getStatus() == SessionStatus.ENDED)) {
+                status = "DONE";
+            } else {
+                status = "WAIT";
+            }
+
+            Long studentCount = (long) enrollmentRepository.countByLecture_LectureId(lecture.getLectureId());
 
             result.add(new TodayLectureResponse(
-                    String.valueOf(schedule.getLecture().getLectureId()),
-                    schedule.getLecture().getLectureCode(),
-                    schedule.getLecture().getLectureName(),
-                    schedule.getLecture().getLectureRoom(),
-                    formatTimeRange(schedule.getStartTime(), schedule.getEndTime()),
+                    String.valueOf(lecture.getLectureId()),
+                    lecture.getLectureCode(),
+                    lecture.getLectureName(),
+                    lecture.getLectureRoom(),
+                    lecture.getLectureStart() + "-" + lecture.getLectureEnd(),
                     status,
                     studentCount
-
             ));
         }
 
@@ -182,9 +189,14 @@ public class ProfessorService {
             totalStudents += enrollmentRepository.countByLecture_LectureId(lecture.getLectureId());
         }
 
-        int todayClasses = lectureScheduleRepository
-                .findByLecture_Professor_ProfessorIdAndDayOfWeekOrderByStartTimeAsc(professorId, LocalDate.now().getDayOfWeek())
-                .size();
+        DayOfWeek today = LocalDate.now().getDayOfWeek();
+
+        int todayClasses = 0;
+        for (Lecture lecture : lectures) {
+            if (isLectureDay(lecture.getLectureDay(), today)) {
+                todayClasses++;
+            }
+        }
 
         List<AttendanceStatus> presentStatuses = List.of(AttendanceStatus.PRESENT, AttendanceStatus.EXCUSED);
         int totalRecords = attendanceRecordRepository.countByLecture_Professor_ProfessorId(professorId);
@@ -232,10 +244,6 @@ public class ProfessorService {
     public Map<String, Object> getNotices(Long lectureId, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
         Page<NoticeBoard> noticePage = noticeBoardRepository.findByLecture_LectureId(lectureId, pageable);
-
-        if (noticePage.isEmpty()) {
-            throw new CustomException(404, "등록된 공지사항이 없습니다.");
-        }
 
         List<Map<String, Object>> data = new ArrayList<>();
 
@@ -362,16 +370,21 @@ public class ProfessorService {
             throw new CustomException(409, "이미 답변이 등록된 질문입니다.");
         }
 
+        if (question.getLecture() == null) {
+            throw new CustomException(400, "질문에 연결된 강의 정보가 없습니다.");
+        }
+
+        if (question.getLecture().getProfessor() == null) {
+            throw new CustomException(400, "강의에 연결된 교수 정보가 없습니다.");
+        }
+
         Answer answer = Answer.builder()
                 .content(content)
                 .question(question)
-                .professor(question.getProfessor())
+                .professor(question.getLecture().getProfessor())
                 .build();
 
         answerRepository.save(answer);
-        questionBoardRepository.save(question);
-
-        Answer savedAnswer = answerRepository.save(answer);
 
         Notification notification = Notification.builder()
                 .message(question.getLecture().getLectureName() + " 강의 질문에 답변이 등록되었습니다.")
@@ -403,7 +416,13 @@ public class ProfessorService {
                 .orElseThrow(() -> new CustomException(404, "수정할 답변 정보를 찾을 수 없습니다."));
 
         Answer answer = question.getAnswer();
-        questionBoardRepository.save(question);
+
+        if (answer == null) {
+            throw new CustomException(404, "등록된 답변이 없습니다.");
+        }
+
+        answer.setContent(content);
+        answerRepository.save(answer);
 
         Long lectureId = question.getLecture().getLectureId();
 
@@ -446,50 +465,54 @@ public class ProfessorService {
         LocalDate today = LocalDate.now();
         LocalTime now = LocalTime.now();
 
-        List<LectureSchedule> schedules = lectureScheduleRepository.findByLecture_LectureId(lecture.getLectureId());
-        if (!isWithinAnySchedule(now, today.getDayOfWeek(), schedules)) {
+        if (!isWithinLectureSchedule(now, today.getDayOfWeek(), lecture)) {
             throw new CustomException(400, "정규 수업 시간이 아닙니다. 계속 하시겠습니까?");
         }
 
-        // ✅ orElseGet에서 IN_PROGRESS로 만들지 않고, 기존 세션 유무만 확인
-        LectureSession session = lectureSessionRepository.findByLectureAndScheduledAt(lecture, today)
-                .orElse(null);
+        // ✅ 오늘 해당 강의의 모든 세션 조회
+        List<LectureSession> todaySessions =
+                lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(
+                        lecture,
+                        today
+                );
 
-        if (session != null) {
-            // 기존 세션이 있을 때만 상태 체크
-            if (session.getStatus() == SessionStatus.IN_PROGRESS) {
-                throw new CustomException(400, "이미 시작된 강의입니다.");
-            }
-//            if (session.getStatus() == SessionStatus.ENDED) {
-//                throw new CustomException(400, "이미 종료된 강의는 다시 시작할 수 없습니다.");
-//            }
-            session.setStatus(SessionStatus.IN_PROGRESS);
-            session.setSessionStart(LocalDateTime.now());
-            session.setSessionEnd(null);
-            lectureSessionRepository.save(session);
-        } else {
-            // ✅ 세션이 없을 때만 새로 생성
-            LectureSession newSession = LectureSession.builder()
-                    .lecture(lecture)
-                    .scheduledAt(today)
-                    .sessionNum(1L)
-                    .status(SessionStatus.IN_PROGRESS)
-                    .sessionStart(LocalDateTime.now())
-                    .build();
-            lectureSessionRepository.save(newSession);
+        // ✅ 이미 진행 중인 세션이 있으면 중복 시작 금지
+        boolean hasInProgressSession = todaySessions.stream()
+                .anyMatch(s -> s.getStatus() == SessionStatus.IN_PROGRESS);
+
+        if (hasInProgressSession) {
+            throw new CustomException(400, "이미 시작된 강의입니다.");
         }
 
-        Device device = deviceRepository.findFirstByClassroomAndActiveTrue(lecture.getLectureRoom())
-                .orElseThrow(() -> new CustomException(404, "해당 강의실에 연결된 활성 장치를 찾을 수 없습니다."));
+        // ✅ 오늘 생성된 세션 중 가장 큰 sessionNum + 1
+        Long nextSessionNum = todaySessions.stream()
+                .map(LectureSession::getSessionNum)
+                .filter(num -> num != null)
+                .max(Long::compareTo)
+                .orElse(0L) + 1L;
 
-        deviceService.sendStartCaptureCommand(
-                device.getDeviceId(),
-                lecture.getLectureId(),
-                lecture.getLectureRoom(),
-                device.getCaptureIntervalSec()
-        );
+        // ✅ 기존 종료 세션을 재사용하지 않고 새 세션 생성
+        LectureSession newSession = LectureSession.builder()
+                .lecture(lecture)
+                .scheduledAt(today)
+                .sessionNum(nextSessionNum)
+                .status(SessionStatus.IN_PROGRESS)
+                .sessionStart(LocalDateTime.now())
+                .build();
 
-        yoloWorkerProcessService.startWorker(device.getDeviceId());
+        lectureSessionRepository.save(newSession);
+
+//        Device device = deviceRepository.findFirstByClassroomAndActiveTrue(lecture.getLectureRoom())
+//                .orElseThrow(() -> new CustomException(404, "해당 강의실에 연결된 활성 장치를 찾을 수 없습니다."));
+
+//        deviceService.sendStartCaptureCommand(
+//        device.getDeviceId(),
+//                lecture.getLectureId(),
+//                lecture.getLectureRoom(),
+//                device.getCaptureIntervalSec()
+//        );
+
+        //yoloWorkerProcessService.startWorker(device.getDeviceId());
 
         return ActionResponse.success(200,
                 "출석 체크가 시작되었습니다.",
@@ -504,34 +527,39 @@ public class ProfessorService {
                 .filter(l -> l.getProfessor().getProfessorId().equals(professorId))
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
-        LectureSession session = lectureSessionRepository.findByLectureAndScheduledAt(lecture, LocalDate.now())
-                .orElseThrow(() -> new CustomException(400, "시작되지 않은 강의는 종료할 수 없습니다."));
+        LocalDate today = LocalDate.now();
 
-        if (session.getStatus() == SessionStatus.ENDED) {
-            throw new CustomException(400, "이미 종료된 강의입니다.");
+        List<LectureSession> todaySessions =
+                lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(
+                        lecture,
+                        today
+                );
+
+        List<LectureSession> inProgressSessions = todaySessions.stream()
+                .filter(s -> s.getStatus() == SessionStatus.IN_PROGRESS)
+                .toList();
+
+        if (inProgressSessions.isEmpty()) {
+            throw new CustomException(400, "시작되지 않은 강의는 종료할 수 없습니다.");
         }
+
+        // ✅ 진행 중인 세션 중 가장 최근 세션 종료
+        LectureSession session = inProgressSessions.get(inProgressSessions.size() - 1);
 
         session.setStatus(SessionStatus.ENDED);
         session.setSessionEnd(LocalDateTime.now());
         lectureSessionRepository.save(session);
 
-        Device device = deviceRepository.findFirstByClassroomAndActiveTrue(lecture.getLectureRoom())
-                .orElseThrow(() -> new CustomException(404, "해당 강의실에 연결된 활성 장치를 찾을 수 없습니다."));
+//        Device device = deviceRepository.findFirstByClassroomAndActiveTrue(lecture.getLectureRoom())
+//                .orElseThrow(() -> new CustomException(404, "해당 강의실에 연결된 활성 장치를 찾을 수 없습니다."));
 
-        deviceService.sendStopCaptureCommand(
-                device.getDeviceId(),
-                lecture.getLectureId(),
-                lecture.getLectureRoom()
-        );
+//        deviceService.sendStopCaptureCommand(
+//                device.getDeviceId(),
+//                lecture.getLectureId(),
+//                lecture.getLectureRoom()
+//        );
 
-        yoloWorkerProcessService.stopWorker(device.getDeviceId());
-
-        // 오늘 해당 강의의 전체 세션 조회
-        List<LectureSession> todaySessions =
-                lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(
-                        lecture,
-                        LocalDate.now()
-                );
+        //yoloWorkerProcessService.stopWorker(device.getDeviceId());
 
         if (!todaySessions.isEmpty()) {
 
@@ -634,25 +662,113 @@ public class ProfessorService {
 
     @Transactional
     public ActionResponse updateAttendance(Long professorId, UpdateAttendanceRequest request) {
-        // [수정] findByLectureCode 대신 findById를 사용합니다.
         Lecture lecture = lectureRepository.findById(Long.valueOf(request.getLectureId()))
                 .filter(l -> l.getProfessor().getProfessorId().equals(professorId))
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
         Student student = studentRepository.findByStudentNum(request.getStudentId());
-        if(student == null){
+        if (student == null) {
             throw new CustomException(404, "출결을 수정할 학생 정보를 찾을 수 없습니다.");
         }
 
-        AttendanceStatus newStatus = AttendanceStatus.valueOf(request.getStatus());
+        LocalDate attendanceDate = request.getDate() != null && !request.getDate().trim().isEmpty()
+                ? LocalDate.parse(request.getDate())
+                : LocalDate.now();
+
+        List<LectureSession> sessions =
+                lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(
+                        lecture,
+                        attendanceDate
+                );
+
+        LectureSession session;
+
+        if (request.getSessionNum() != null) {
+            session = sessions.stream()
+                    .filter(s -> request.getSessionNum().equals(s.getSessionNum()))
+                    .findFirst()
+                    .orElseThrow(() -> new CustomException(404, "해당 회차의 강의 세션을 찾을 수 없습니다."));
+        } else {
+            session = sessions.isEmpty()
+                    ? null
+                    : sessions.get(sessions.size() - 1);
+
+            if (session == null) {
+                throw new CustomException(404, "해당 날짜의 강의 세션을 찾을 수 없습니다.");
+            }
+        }
+
+        String status = request.getStatus();
+
+        if (status == null || status.trim().isEmpty()) {
+            throw new CustomException(400, "출결 상태값은 필수입니다.");
+        }
+
+        status = status.trim().toUpperCase();
+
+        AttendStatus newAttendStatus;
+        AttendanceStatus newRecordStatus;
+
+        switch (status) {
+            case "PRESENT":
+            case "ATTEND":
+                newAttendStatus = AttendStatus.ATTEND;
+                newRecordStatus = AttendanceStatus.PRESENT;
+                break;
+
+            case "LATE":
+            case "LATENESS":
+                newAttendStatus = AttendStatus.LATENESS;
+                newRecordStatus = AttendanceStatus.LATE;
+                break;
+
+            case "ABSENT":
+            case "ABSENCE":
+                newAttendStatus = AttendStatus.ABSENCE;
+                newRecordStatus = AttendanceStatus.ABSENT;
+                break;
+
+            default:
+                throw new CustomException(400, "유효하지 않은 출결 상태입니다.");
+        }
+
+        Attendance attendance = attendanceRepository
+                .findByLectureSessionAndStudent(session, student)
+                .orElseGet(() -> {
+                    Attendance newAttendance = new Attendance();
+                    newAttendance.setLectureSession(session);
+                    newAttendance.setStudent(student);
+                    return newAttendance;
+                });
+
+        attendance.setAttendStatus(newAttendStatus);
+
+        if (newAttendStatus == AttendStatus.ATTEND) {
+            attendance.setStudentClassStatus(StudentClassStatus.SIT);
+            attendance.setStayRate(100.0);
+        } else if (newAttendStatus == AttendStatus.LATENESS) {
+            attendance.setStudentClassStatus(StudentClassStatus.SIT);
+            attendance.setStayRate(50.0);
+        } else {
+            attendance.setStudentClassStatus(StudentClassStatus.AWAY);
+            attendance.setStayRate(0.0);
+        }
+
+        attendanceRepository.save(attendance);
+
         String semester = lecture.getLectureYear() + "-" + lecture.getLectureSemester();
-        LocalDate attendanceDate = LocalDate.now();
 
         AttendanceRecord record = attendanceRecordRepository
                 .findByStudentAndLectureAndAttendanceDateAndSemester(student, lecture, attendanceDate, semester)
-                .orElseGet(() -> new AttendanceRecord(attendanceDate, semester, AttendanceStatus.TBD, student, lecture));
+                .orElseGet(() -> new AttendanceRecord(
+                        attendanceDate,
+                        semester,
+                        AttendanceStatus.TBD,
+                        student,
+                        lecture
+                ));
 
-        record.updateStatus(newStatus);
+        record.updateStatus(newRecordStatus);
         attendanceRecordRepository.save(record);
 
         return ActionResponse.success(200, "출결 상태가 변경되었습니다.", null);
@@ -669,9 +785,15 @@ public class ProfessorService {
                 ? LocalDate.parse(dateStr)
                 : LocalDate.now();
 
-        LectureSession targetSession = lectureSessionRepository
-                .findByLectureAndScheduledAt(lecture, targetDate)
-                .orElse(null);
+        List<LectureSession> targetSessions =
+                lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(
+                        lecture,
+                        targetDate
+                );
+
+        LectureSession targetSession = targetSessions.isEmpty()
+                ? null
+                : targetSessions.get(targetSessions.size() - 1);
 
         List<AttendanceStudentResponse> studentResponses = new ArrayList<>();
 
@@ -702,20 +824,25 @@ public class ProfessorService {
                 }
             }
 
-            AttendStatus currentStatus = AttendStatus.ABSENCE;
+            AttendStatus currentAttendStatus = AttendStatus.ABSENCE;
+            StudentClassStatus currentClassStatus = StudentClassStatus.AWAY;
 
             if (targetSession != null) {
-                currentStatus = attendanceRepository
+                Attendance currentAttendance = attendanceRepository
                         .findByLectureSessionAndStudent(targetSession, student)
-                        .map(Attendance::getAttendStatus)
-                        .orElse(AttendStatus.ABSENCE);
+                        .orElse(null);
+
+                if (currentAttendance != null) {
+                    currentAttendStatus = currentAttendance.getAttendStatus();
+                    currentClassStatus = currentAttendance.getStudentClassStatus();
+                }
             }
 
-            if (currentStatus == AttendStatus.ATTEND) {
-                totalAttendance++;
-            } else if (currentStatus == AttendStatus.AWAY) {
+            if (currentClassStatus == StudentClassStatus.AWAY) {
                 totalAway++;
-            } else if (currentStatus == AttendStatus.LATENESS) {
+            } else if (currentAttendStatus == AttendStatus.ATTEND) {
+                totalAttendance++;
+            } else if (currentAttendStatus == AttendStatus.LATENESS) {
                 totalLate++;
             } else {
                 totalAbsent++;
@@ -737,8 +864,14 @@ public class ProfessorService {
             ));
         }
 
+        int totalStudents = enrollments.size();
+
+        int attendanceRate = totalStudents == 0
+                ? 0
+                : (int) Math.round(totalAttendance * 100.0 / totalStudents);
+
         return new AttendanceMonitoringResponse(
-                totalAttendance,
+                attendanceRate,
                 totalLate,
                 totalAway,
                 totalAbsent,
@@ -746,9 +879,9 @@ public class ProfessorService {
         );
     }
 
-    public OfficialListResponse getAbsences(int page, int size) {
+    public OfficialListResponse getAbsences(Long professorId, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Official> officialPage = officialRepository.findAll(pageable);
+        Page<Official> officialPage = officialRepository.findByProfessor_ProfessorId(professorId, pageable);
 
         if (officialPage.isEmpty()) {
             return OfficialListResponse.builder()
@@ -807,15 +940,21 @@ public class ProfessorService {
         }
 
         official.setStatus(newStatus);
+        officialRepository.save(official);
+
         return ActionResponse.success(200, "공결 신청이 처리되었습니다.", "/api/professors/absences");
     }
 
-    public ObjectionListResponse getAppeals(int page, int size) {
+    public ObjectionListResponse getAppeals(Long professorId, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Objection> objectionPage = objectionRepository.findAll(pageable);
+        Page<Objection> objectionPage = objectionRepository.findByProfessor_ProfessorId(professorId, pageable);
 
         if (objectionPage.isEmpty()) {
-            throw new CustomException(404, "이의 신청 내역이 없습니다.");
+            return ObjectionListResponse.builder()
+                    .data(new ArrayList<>())
+                    .totalElements(0L)
+                    .totalPages(0)
+                    .build();
         }
 
         List<ObjectionItemResponse> items = new ArrayList<>();
@@ -823,13 +962,26 @@ public class ProfessorService {
         for (Objection objection : objectionPage.getContent()) {
             items.add(ObjectionItemResponse.builder()
                     .objectionId(objection.getObjectionId())
-                    .studentId(objection.getStudent().getStudentNum())
-                    .studentName(objection.getStudent().getStudentName())
-                    .course(objection.getLecture().getLectureName())
-                    .sessionId(objection.getLectureSession().getSessionId())
+                    .studentId(objection.getStudent() != null
+                            ? objection.getStudent().getStudentNum()
+                            : "00000000")
+                    .studentName(objection.getStudent() != null
+                            ? objection.getStudent().getStudentName()
+                            : "이름없음")
+                    .course(objection.getLecture() != null
+                            ? objection.getLecture().getLectureName()
+                            : "강의명없음")
+                    .sessionId(objection.getLectureSession() != null
+                            ? objection.getLectureSession().getSessionId()
+                            : null)
                     .reason(objection.getObjectionReason())
-                    .date(objection.getObjectionCreated().toLocalDate().toString())
-                    .status(objection.getStatus().getCode()).build());
+                    .date(objection.getObjectionCreated() != null
+                            ? objection.getObjectionCreated().toLocalDate().toString()
+                            : "")
+                    .status(objection.getStatus() != null
+                            ? objection.getStatus().getCode()
+                            : "PENDING")
+                    .build());
         }
 
         return ObjectionListResponse.builder()
@@ -873,14 +1025,12 @@ public class ProfessorService {
         return resource;
     }
 
-    private String buildScheduleText(Long lectureId) {
-        List<LectureSchedule> schedules = lectureScheduleRepository.findByLecture_LectureId(lectureId);
-        if (schedules.isEmpty()) return "";
-        List<String> parts = new ArrayList<>();
-        for (LectureSchedule schedule : schedules) {
-            parts.add(convertDayToKorean(schedule.getDayOfWeek()) + " " + formatTimeRange(schedule.getStartTime(), schedule.getEndTime()));
+    private String buildScheduleText(Lecture lecture) {
+        if (lecture.getLectureDay() == null || lecture.getLectureStart() == null || lecture.getLectureEnd() == null) {
+            return "";
         }
-        return String.join(", ", parts);
+
+        return lecture.getLectureDay() + " " + lecture.getLectureStart() + "-" + lecture.getLectureEnd();
     }
 
     private String calculateLectureStatus(LocalTime now, LocalTime startTime, LocalTime endTime) {
@@ -889,13 +1039,30 @@ public class ProfessorService {
         return "IN_PROGRESS";
     }
 
-    private boolean isWithinAnySchedule(LocalTime now, DayOfWeek today, List<LectureSchedule> schedules) {
-        for (LectureSchedule schedule : schedules) {
-            if (schedule.getDayOfWeek() == today) {
-                if (!now.isBefore(schedule.getStartTime()) && !now.isAfter(schedule.getEndTime())) return true;
-            }
+    private boolean isLectureDay(String lectureDay, DayOfWeek today) {
+        if (lectureDay == null || lectureDay.trim().isEmpty()) {
+            return false;
         }
-        return false;
+
+        String todayKor = convertDayToKorean(today);
+        String todayEng = today.name();
+
+        return lectureDay.contains(todayKor) || lectureDay.contains(todayEng);
+    }
+
+    private boolean isWithinLectureSchedule(LocalTime now, DayOfWeek today, Lecture lecture) {
+        if (!isLectureDay(lecture.getLectureDay(), today)) {
+            return false;
+        }
+
+        if (lecture.getLectureStart() == null || lecture.getLectureEnd() == null) {
+            return false;
+        }
+
+        LocalTime startTime = LocalTime.parse(lecture.getLectureStart().trim());
+        LocalTime endTime = LocalTime.parse(lecture.getLectureEnd().trim());
+
+        return !now.isBefore(startTime) && !now.isAfter(endTime);
     }
 
     private String convertDayToKorean(DayOfWeek dayOfWeek) {
