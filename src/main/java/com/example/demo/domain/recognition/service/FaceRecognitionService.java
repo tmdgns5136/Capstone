@@ -20,6 +20,7 @@ import com.example.demo.domain.student.lecture.attendance.repository.AttendanceR
 import com.example.demo.domain.student.lecture.repository.EnrollmentRepository;
 import com.example.demo.domain.recognition.entity.FaceRecognitionResult;
 import com.example.demo.domain.recognition.repository.FaceRecognitionResultRepository;
+import com.example.demo.domain.enumerate.StudentClassStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -176,6 +177,7 @@ public class FaceRecognitionService {
                         .build());
 
         attendance.setAttendStatus(AttendStatus.ATTEND);
+        attendance.setStudentClassStatus(StudentClassStatus.SIT);
         attendance.setCheckTime(now);
 
         // 최초 인식 시 입장 시간 기록
@@ -204,7 +206,7 @@ public class FaceRecognitionService {
                     .findByLectureSessionAndStudent(capture.getLectureSession(), student)
                     .ifPresent(attendance -> {
                         if (attendance.getAttendStatus() == AttendStatus.ATTEND) {
-                            attendance.setAttendStatus(AttendStatus.AWAY);
+                            attendance.setStudentClassStatus(StudentClassStatus.AWAY);
                             attendance.setExitTime(now);
                             attendanceRepository.save(attendance);
 

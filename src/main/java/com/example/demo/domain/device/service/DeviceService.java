@@ -16,7 +16,7 @@ import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.student.lecture.entity.LectureSession;
 import com.example.demo.domain.student.lecture.repository.LectureSessionRepository;
 import com.example.demo.domain.recognition.service.FaceRecognitionService;
-import com.example.demo.domain.stream.repository.StreamEventRepository;
+//import com.example.demo.domain.stream.repository.StreamEventRepository;
 import com.example.demo.global.jwt.Token;
 import com.example.demo.global.jwt.TokenProvider;
 import com.example.demo.global.response.ActionResponse;
@@ -56,7 +56,7 @@ public class DeviceService {
     private final DeviceCommandAckRepository deviceCommandAckRepository;
     private final DeviceCommandPublisher deviceCommandPublisher;
     private final FaceRecognitionService faceRecognitionService;
-    private final StreamEventRepository streamEventRepository;
+    //private final StreamEventRepository streamEventRepository;
 
     @Value("${device.upload.path:./uploads/device-attendance}")
     private String deviceUploadPath;
@@ -230,7 +230,7 @@ public class DeviceService {
                 .fileSize(imageFile.getSize())
                 .capturedAt(localCapturedAt)
                 .build();
-
+/*
         deviceCaptureRepository.save(capture);
 
         boolean inInitialTenMinutes = isInInitialTenMinutes(lectureSession, localCapturedAt);
@@ -263,6 +263,17 @@ public class DeviceService {
             capture.setUnrecognizedCount(0);
             capture.setProcessedAt(LocalDateTime.now());
         }
+
+ */
+
+        deviceCaptureRepository.save(capture);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                faceRecognitionService.recognizeAsync(capture.getCaptureId());
+            }
+        });
 
         return ApiResponse.success(
                 201,
@@ -437,6 +448,7 @@ public class DeviceService {
         return filename.substring(filename.lastIndexOf('.') + 1);
     }
 
+    /*
     private boolean isInInitialTenMinutes(LectureSession lectureSession, LocalDateTime capturedAt) {
         LocalDateTime sessionStart = lectureSession.getSessionStart();
 
@@ -448,6 +460,8 @@ public class DeviceService {
 
         return !capturedAt.isBefore(sessionStart) && !capturedAt.isAfter(initialEnd);
     }
+
+     */
 
     private String generateDeviceSecret() {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

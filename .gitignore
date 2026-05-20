@@ -24,23 +24,36 @@ target/
 *.log
 *.tmp
 
-# Local Spring settings / secrets
-application-local.yml
-application-local.yaml
-application-dev.yml
-application-dev.yaml
+# =========================
+# Spring Boot local config / secrets
+# application.yaml은 환경변수 방식으로 바꿔서 Git에 올리고,
+# 실제 비밀번호는 application-local.yaml 또는 환경변수로 관리
+# =========================
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-secret.yml
+src/main/resources/application-secret.yaml
+src/main/resources/application-private.yml
+src/main/resources/application-private.yaml
+
 .env
 .env.*
 !.env.example
 
 # =========================
-# IntelliJ / Eclipse / STS
+# Credentials / Keys
 # =========================
-.project
-.classpath
-.settings/
-.springBeans
-.sts4-cache/
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.crt
+*.cer
+
+aws-credentials.json
+service-account.json
+secrets/
 
 # =========================
 # Database / local runtime
@@ -104,15 +117,3 @@ coverage/
 # =========================
 logs/
 *.log
-
-# =========================
-# Credentials / Keys
-# =========================
-*.pem
-*.key
-*.p12
-*.jks
-*.keystore
-aws-credentials.json
-service-account.json
-secrets/
