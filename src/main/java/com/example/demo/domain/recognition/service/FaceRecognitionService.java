@@ -204,7 +204,7 @@ public class FaceRecognitionService {
                     .findByLectureSessionAndStudent(capture.getLectureSession(), student)
                     .ifPresent(attendance -> {
                         if (attendance.getAttendStatus() == AttendStatus.ATTEND) {
-                            attendance.setAttendStatus(AttendStatus.AWAY);
+                            //attendance.setAttendStatus(AttendStatus.AWAY);
                             attendance.setExitTime(now);
                             attendanceRepository.save(attendance);
 

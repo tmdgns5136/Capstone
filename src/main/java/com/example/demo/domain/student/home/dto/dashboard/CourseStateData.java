@@ -15,5 +15,6 @@ public class CourseStateData {
     private String startTime;
     private String endTime;
     private String room;
+    private String sessionStartTime;
     private String status;
 }

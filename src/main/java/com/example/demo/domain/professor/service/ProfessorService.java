@@ -713,9 +713,11 @@ public class ProfessorService {
 
             if (currentStatus == AttendStatus.ATTEND) {
                 totalAttendance++;
-            } else if (currentStatus == AttendStatus.AWAY) {
-                totalAway++;
-            } else if (currentStatus == AttendStatus.LATENESS) {
+            }
+//            else if (currentStatus == AttendStatus.AWAY) {
+//                totalAway++;
+//            }
+            else if (currentStatus == AttendStatus.LATENESS) {
                 totalLate++;
             } else {
                 totalAbsent++;

@@ -53,7 +53,7 @@ public class Student {
     @Enumerated(EnumType.STRING)
     private StudentStatus studentStatus;
 
-    @Column(name = "STUDENT_CLASS_STATUS", length = 20, nullable = false)
+    @Column(name = "STUDENT_CLASS_STATUS", length = 20)
     @Enumerated(EnumType.STRING)
     private StudentClassStatus studentClassStatus;
 
