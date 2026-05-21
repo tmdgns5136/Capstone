@@ -1,11 +1,14 @@
 import { api } from "./client";
 
 export interface NotificationData {
-  notificationId: number; // 🌟 백엔드 필드명 일치
-  type: string;           // ABSENCE_REQUEST, APPEAL_REQUEST, ANSWER_REGISTER
+  id: number;
+  notificationId?: number;
+  type: string;           // ABSENCE_REQUEST, APPEAL_REQUEST, ANSWER_REGISTER, PHOTO_RESULT
   message: string;
-  relatedId: number;
-  isRead: boolean;
+  lectureName?: string | null;
+  relatedId: number | string;
+  read: boolean;
+  isRead?: boolean;
   createdAt: string;      // "yyyy-MM-dd HH:mm"
 }
 

@@ -35,7 +35,7 @@ export async function signupStudent(
   const formData = new FormData();
   formData.append(
     "joinRequest",
-    new Blob([JSON.stringify({ userNum, userName, userEmail, password, phoneNum })], {
+    new Blob([JSON.stringify({ userNum, userName, userEmail, password, phoneNum, major: "-" })], {
       type: "application/json",
     }),
   );

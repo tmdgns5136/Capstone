@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Search, RotateCcw, Save, Check, X, AlarmClock, Loader2, RefreshCw, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 import { getAttendanceMonitoring, updateAttendance } from "../../api/attendance";
+import { getSemesterStartDate } from "../../constants/semester";
 
 export default function ProfessorAttendanceEdit() {
   const { courses, loading: coursesLoading } = useProfessorCourses();
@@ -19,7 +20,7 @@ export default function ProfessorAttendanceEdit() {
     const currentCourse = courses.find(c => String(c.lectureId) === selectedLectureId);
     const dayMap: Record<string, number> = { MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5 };
     const targetDay = dayMap[(currentCourse as any)?.lecture_day || "WEDNESDAY"] || 3;
-    const startDate = new Date(2026, 2, 2);
+    const startDate = getSemesterStartDate();
 
     return Array.from({ length: 15 }, (_, i) => {
       const d = new Date(startDate);
@@ -43,7 +44,7 @@ export default function ProfessorAttendanceEdit() {
         setStudents(response.data.students || []);
         setPendingChanges({});
       }
-    } catch { toast.error("로드 실패"); } finally { setLoading(false); }
+    } catch { toast.error("출결 데이터를 불러오지 못했습니다."); } finally { setLoading(false); }
   }, [selectedLectureId, currentSession]);
 
   useEffect(() => {
@@ -65,9 +66,9 @@ export default function ProfessorAttendanceEdit() {
       await Promise.all(changeIds.map(id => updateAttendance({ 
         studentId: id, lectureId: selectedLectureId, status: pendingChanges[id], date: currentSession.date 
       })));
-      toast.success("저장 완료");
+      toast.success("출결 수정이 저장되었습니다.");
       fetchAttendance();
-    } catch { toast.error("저장 실패"); } finally { setLoading(false); }
+    } catch { toast.error("출결 수정 저장에 실패했습니다."); } finally { setLoading(false); }
   };
 
   const filteredStudents = students.filter(s => s.name?.includes(searchQuery) || s.studentId?.includes(searchQuery));

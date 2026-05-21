@@ -16,7 +16,6 @@ export function useAppealRequests() {
         setRequests(response.data.data || []);
       }
     } catch (error) {
-      console.error("이의 신청 로드 실패:", error);
       toast.error("이의 신청 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
@@ -29,7 +28,7 @@ export function useAppealRequests() {
   }, [fetchAppeals]);
 
   // 2. 이의 신청 처리 (Update - 승인/반려)
-  const updateStatus = async (appealId: string, status: AppealStatus, rejectReason: string = "") => {
+  const updateStatus = async (appealId: number, status: AppealStatus, rejectReason: string = "") => {
     try {
       const response = await processAppeal(appealId, status, rejectReason);
       if (response.success) {
@@ -38,7 +37,6 @@ export function useAppealRequests() {
         return true;
       }
     } catch (error) {
-      console.error("이의 신청 처리 실패:", error);
       toast.error("상태 변경에 실패했습니다.");
       return false;
     }

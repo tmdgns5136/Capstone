@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ChevronDown, ArrowRight, Loader2 } from "lucide-react";
 import { getLectures, Lecture } from "../../api/lecture";
+import { CURRENT_SEMESTER_LABEL, SEMESTER_OPTIONS } from "../../constants/semester";
 
 export default function ProfessorCourses() {
   const navigate = useNavigate();
-  const [semester, setSemester] = useState("2026학년도 1학기");
+  const [semester, setSemester] = useState(CURRENT_SEMESTER_LABEL);
   const [courses, setCourses] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +44,9 @@ export default function ProfessorCourses() {
             onChange={(e) => setSemester(e.target.value)}
             className="appearance-none cursor-pointer rounded-lg border border-zinc-200 bg-white px-4 py-2.5 pr-9 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
-            <option>2026학년도 1학기</option>
-            <option>2025학년도 2학기</option>
+            {SEMESTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.label}>{opt.label}</option>
+            ))}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
         </div>

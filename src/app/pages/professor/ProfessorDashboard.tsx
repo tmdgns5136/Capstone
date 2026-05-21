@@ -1,4 +1,4 @@
-import { useState, useEffect, use, useDebugValue } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route } from "react-router";
 import ProfessorHome from "./ProfessorHome";
 import ProfessorClassControl from "./ProfessorClassControl";
@@ -14,8 +14,6 @@ import TopNav from "../../components/layout/TopNav";
 import Footer from "../../components/layout/Footer";
 import { ClassSimulatorProvider } from "../../hooks/useClassSimulator";
 import { useAuth } from "../../hooks/useAuth";
-import { useDragControls } from "motion/react";
-
 
 const navItems = [
   { name: "홈", href: "/professor" },

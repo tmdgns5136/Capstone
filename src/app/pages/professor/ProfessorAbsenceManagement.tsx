@@ -3,14 +3,14 @@ import { motion, AnimatePresence } from "motion/react";
 import { FileCheck, CheckCircle, XCircle, Clock, Download, FileText, X, AlertTriangle, User, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useAbsenceRequests } from "../../hooks/useAbsenceRequests";
-import { downloadAbsenceDocument } from "../../api/absence";
+import { downloadAbsenceDocument, type AbsenceRequest } from "../../api/absence";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
+const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
 export default function ProfessorAbsenceManagement() {
   const { requests, updateStatus } = useAbsenceRequests();
   const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<AbsenceRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 

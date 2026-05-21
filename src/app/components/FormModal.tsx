@@ -1,5 +1,9 @@
 import { type ReactNode } from "react";
-import { X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "./ui/dialog";
 
 interface FormModalProps {
   open: boolean;
@@ -18,24 +22,16 @@ export function FormModal({
   titleIcon,
   children,
   footer,
-  maxWidth = "max-w-md",
+  maxWidth = "sm:max-w-md",
 }: FormModalProps) {
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/30 backdrop-blur-sm px-4">
-      <div className={`bg-white rounded-2xl border border-zinc-200 shadow-xl w-full ${maxWidth}`}>
-        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className={`rounded-2xl border border-zinc-200 shadow-xl p-0 w-[calc(100%-2rem)] ${maxWidth}`}>
+        <div className="px-6 py-4 border-b border-zinc-100 bg-white rounded-t-2xl">
+          <DialogTitle className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
             {titleIcon}
             {title}
-          </h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-zinc-100 flex items-center justify-center"
-          >
-            <X className="w-5 h-5 text-zinc-400" />
-          </button>
+          </DialogTitle>
         </div>
         <div className="p-6 space-y-4">{children}</div>
         {footer && (
@@ -43,7 +39,7 @@ export function FormModal({
             {footer}
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

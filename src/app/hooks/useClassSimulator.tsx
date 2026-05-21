@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { toast } from "sonner";
 import { useProfessorCourses, Course } from "./useProfessorCourses";
+import { startLecture, endLecture, getTodayLectures } from "../api/lecture";
+import { getAttendanceMonitoring } from "../api/attendance";
 
 interface AttendanceData {
   present: number;
@@ -19,9 +21,9 @@ interface ClassSimulatorState {
   elapsedTime: number;
   lastCaptureTime: Date | null;
   attendanceData: AttendanceData;
-  startSimulation: () => void;
-  stopSimulation: () => void;
-  triggerSensorPing: () => void;
+  startSimulation: () => Promise<void>;
+  stopSimulation: () => Promise<void>;
+  triggerSensorPing: () => Promise<void>;
 }
 
 const ClassSimulatorContext = createContext<ClassSimulatorState | null>(null);
@@ -29,7 +31,6 @@ const ClassSimulatorContext = createContext<ClassSimulatorState | null>(null);
 const DAY_MAP: Record<string, number> = { "일": 0, "월": 1, "화": 2, "수": 3, "목": 4, "금": 5, "토": 6 };
 
 function parseSchedule(schedule: string): { day: number; startH: number; startM: number; endH: number; endM: number } | null {
-  // "월 09:00-10:30" 형태 파싱
   const match = schedule.match(/^([\uAC00-\uD7AF])\s*(\d{1,2}):(\d{2})\s*[-~]\s*(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   const day = DAY_MAP[match[1]];
@@ -54,6 +55,19 @@ function findCurrentCourse(courses: Course[]): Course | null {
   return null;
 }
 
+function toNumberId(lectureId: string | number): number {
+  return typeof lectureId === "number" ? lectureId : Number(lectureId);
+}
+
+function getTodayString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
   const { courses, loading: coursesLoading } = useProfessorCourses();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -61,18 +75,8 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
   const [isActive, setIsActive] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [lastCaptureTime, setLastCaptureTime] = useState<Date | null>(null);
+  const [attendanceData, setAttendanceData] = useState<AttendanceData>({ present: 0, away: 0, absent: 0, total: 0 });
 
-  const totalStudents = selectedCourse?.students || 40;
-  const intervalMs = 5000;
-
-  const [attendanceData, setAttendanceData] = useState<AttendanceData>({
-    present: 0,
-    away: 0,
-    absent: totalStudents,
-    total: totalStudents,
-  });
-
-  // 시간표 기반 자동 매칭 (1분마다 갱신)
   useEffect(() => {
     if (courses.length === 0) return;
     const check = () => {
@@ -84,7 +88,6 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [courses]);
 
-  // 초기 선택: 시간표 매칭 강의가 있으면 그것, 없으면 첫 번째
   useEffect(() => {
     if (courses.length > 0 && !selectedCourse) {
       const current = findCurrentCourse(courses);
@@ -92,51 +95,148 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
     }
   }, [courses, selectedCourse]);
 
-  const triggerSensorPing = useCallback(() => {
-    setLastCaptureTime(new Date());
-    setAttendanceData((prev) => {
-      const presentToAway = Math.floor(Math.random() * (prev.present * 0.1));
-      const awayToPresent = Math.floor(Math.random() * (prev.away * 0.3 + 1));
-      return {
-        ...prev,
-        present: prev.present - presentToAway + awayToPresent,
-        away: prev.away + presentToAway - awayToPresent,
-      };
-    });
-  }, []);
+  useEffect(() => {
+    if (!selectedCourse || isActive) return;
+    const total = selectedCourse.students || 0;
+    setAttendanceData({ present: 0, away: 0, absent: total, total });
+  }, [selectedCourse, isActive]);
 
-  const startSimulation = useCallback(() => {
+  const refreshAttendanceData = useCallback(async () => {
     if (!selectedCourse) return;
-    setIsActive(true);
-    setElapsedTime(0);
-    const initialPresent = Math.floor(totalStudents * 0.9);
-    setAttendanceData({
-      present: initialPresent,
-      away: 0,
-      absent: totalStudents - initialPresent,
-      total: totalStudents,
-    });
-    setLastCaptureTime(new Date());
-    toast.success(`${selectedCourse.name} 실시간 모니터링이 시작되었습니다.`);
-    toast.info("라즈베리파이 센서와 연동 대기 중...");
-  }, [selectedCourse, totalStudents]);
 
-  const stopSimulation = useCallback(() => {
-    setIsActive(false);
-    toast.success("강의가 종료되었습니다. 전체 체류율 기반 출결이 산정됩니다.");
-  }, []);
+    try {
+      const response = await getAttendanceMonitoring(String(selectedCourse.lectureId), {
+        date: getTodayString(),
+      });
+
+      const data = response.data;
+      const total = data.students?.length || selectedCourse.students || 0;
+      const present = Number(data.attendance ?? 0);
+      const away = Number((data as any).away ?? 0);
+      const absent = Number(data.absent ?? Math.max(total - present - away, 0));
+
+      setAttendanceData({
+        present,
+        away,
+        absent,
+        total,
+      });
+
+      setLastCaptureTime(new Date());
+    } catch {
+      const total = selectedCourse.students || 0;
+
+      setAttendanceData((prev) => ({
+        ...prev,
+        total,
+        absent: prev.present > 0 ? prev.absent : total,
+      }));
+
+      setLastCaptureTime(new Date());
+    }
+  }, [selectedCourse]);
+
+  const syncLectureRuntimeState = useCallback(async () => {
+    if (!selectedCourse) return;
+
+    try {
+      const response = await getTodayLectures();
+
+      if (!response.success) return;
+
+      const todayLecture = response.data.find(
+          (lecture) => String(lecture.lectureId) === String(selectedCourse.lectureId)
+      );
+
+      const active = todayLecture?.status === "IN_PROGRESS";
+
+      setIsActive(active);
+
+      if (active) {
+        setLastCaptureTime((prev) => prev ?? new Date());
+        await refreshAttendanceData();
+      }
+    } catch {
+      // 오늘 강의 조회 실패는 화면 전체를 막지 않음
+    }
+  }, [selectedCourse, refreshAttendanceData]);
+
+  const startSimulation = useCallback(async () => {
+    if (!selectedCourse) return;
+    const lectureId = toNumberId(selectedCourse.lectureId);
+    if (!lectureId) {
+      toast.error("강의 ID를 확인할 수 없습니다.");
+      return;
+    }
+
+    try {
+      await startLecture(lectureId);
+      setIsActive(true);
+      setElapsedTime(0);
+      setLastCaptureTime(new Date());
+      setAttendanceData({
+        present: 0,
+        away: 0,
+        absent: selectedCourse.students || 0,
+        total: selectedCourse.students || 0,
+      });
+      await refreshAttendanceData();
+      toast.success(`${selectedCourse.name} 강의가 시작되었습니다.`);
+    } catch (error: any) {
+      toast.error(error.message || "강의 시작에 실패했습니다.");
+    }
+  }, [selectedCourse, refreshAttendanceData]);
+
+  const stopSimulation = useCallback(async () => {
+    if (!selectedCourse) return;
+    const lectureId = toNumberId(selectedCourse.lectureId);
+    if (!lectureId) {
+      toast.error("강의 ID를 확인할 수 없습니다.");
+      return;
+    }
+
+    try {
+      await endLecture(lectureId);
+      setIsActive(false);
+      await refreshAttendanceData();
+      toast.success("강의가 종료되었습니다. 출결 데이터가 서버에 반영됩니다.");
+    } catch (error: any) {
+      toast.error(error.message || "강의 종료 처리에 실패했습니다.");
+    }
+  }, [selectedCourse, refreshAttendanceData]);
+
+  const triggerSensorPing = useCallback(async () => {
+    await refreshAttendanceData();
+  }, [refreshAttendanceData]);
 
   useEffect(() => {
     if (!isActive) return;
     const timer = setInterval(() => {
-      setElapsedTime((prev) => {
-        const next = prev + 1;
-        if (next % (intervalMs / 1000) === 0) triggerSensorPing();
-        return next;
-      });
+      setElapsedTime((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [isActive, intervalMs, triggerSensorPing]);
+  }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    refreshAttendanceData();
+    const timer = setInterval(() => {
+      refreshAttendanceData();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [isActive, refreshAttendanceData]);
+
+  useEffect(() => {
+    if (!selectedCourse) return;
+
+    syncLectureRuntimeState();
+
+    const timer = setInterval(() => {
+      syncLectureRuntimeState();
+    }, 10000);
+
+    return () => clearInterval(timer);
+  }, [selectedCourse, syncLectureRuntimeState]);
 
   return (
     <ClassSimulatorContext.Provider

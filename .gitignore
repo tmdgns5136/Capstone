@@ -3,3 +3,8 @@ dist/
 .env
 .env.*
 .claude/
+
+# 테스트/문서 파일
+test_data.sql
+테스트_가이드라인.md
+백엔드-프론트 API 연동 점검.md

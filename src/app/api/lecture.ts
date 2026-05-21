@@ -37,7 +37,7 @@ export interface LectureSession {
 // 5. 오늘 강의 일정 타입
 export interface TodayLecture {
   lectureId: number;
-  lecturCode: string;
+  lectureCode: string;
   name: string;
   location: string;
   time: string;
@@ -57,7 +57,21 @@ export interface DashboardStats {
 
 // 4. 담당 강의 목록 조회
 export async function getLectures(semester?: string) {
-  const params = semester ? `?semester=${encodeURIComponent(semester)}` : "";
+  let processedSemester = semester;
+
+  if (semester) {
+    if (semester.includes("학년도 ")) {
+      processedSemester = semester.split("학년도 ")[1]; // "1학기"
+    }
+    else if (semester.includes(" ")) {
+      const parts = semester.split(" ");
+      processedSemester = parts[parts.length - 1]; // 맨 마지막 요소 ("1학기")
+    }
+  }
+
+  // 가공된 "1학기" 문자열을 인코딩하여 쿼리 파라미터로 붙입니다.
+  const params = processedSemester ? `?semester=${encodeURIComponent(processedSemester)}` : "";
+  
   return api<ApiResponse<Lecture[]>>(`/api/professors/lectures${params}`, {
     method: "GET",
   });

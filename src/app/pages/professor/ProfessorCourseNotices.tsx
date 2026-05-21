@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
-import { Eye, MessageSquare, Megaphone, Loader2, ArrowRight, Edit3 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Eye, MessageSquare, Megaphone, Loader2, ArrowRight, Edit3, Plus } from "lucide-react"; // 🌟 Plus 아이콘 추가
 import { Pagination } from "../../components/Pagination";
-import { api } from "../../api/client"; // 기존에 사용하던 api 클라이언트
+import { api } from "../../api/client"; 
 import { FormModal } from "../../components/FormModal";
 import { toast } from "sonner";
 
-// 백엔드 데이터 구조에 맞춘 타입 정의
 interface Notice {
   noticeId: number;
   title: string;
@@ -21,16 +20,23 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 수정(Update) 관련 상태
   const [isUpdating, setIsUpdating] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
 
+  // 🌟 [추가] 작성(Create) 관련 상태 
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createContent, setCreateContent] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+
   // 공지사항 데이터 불러오기
-  const fetchNotices = async () => {
+  const fetchNotices = useCallback(async () => {
     try {
       setIsLoading(true);
-      // 백엔드 ProfessorService.getNotices API 호출
       const response = await api<any>(`/api/professors/lectures/${lectureId}/notices?page=${page}&size=5`);
       
       if (response.success) {
@@ -39,29 +45,66 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
         setTotalPages(response.data.totalPages);
       }
     } catch (error) {
-      console.error("공지사항을 불러오는데 실패했습니다.", error);
+      toast.error("공지사항을 불러오는데 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
+  }, [lectureId, page]);
+
+  useEffect(() => {
+    if (lectureId) {
+      fetchNotices();
+    } else {
+      setIsLoading(false);
+    }
+  }, [lectureId, fetchNotices]);
+
+  useEffect(() => {
+    if (selectedNotice) {
+      setEditTitle(selectedNotice.title);    
+      setEditContent(selectedNotice.content); 
+    }
+  }, [selectedNotice]);
+
+  // 🌟 [추가] 공지사항 신규 등록 함수
+  const handleCreate = async () => {
+    if (!createTitle.trim() || !createContent.trim()) {
+      toast.error("제목과 내용을 모두 입력해 주세요.");
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      
+      // 백엔드 createNotice API 규격에 맞춰 호출 (JSON Body 형태)
+      const response = await api<any>(`/api/professors/lectures/${lectureId}/notices`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: createTitle,
+          content: createContent,
+        }),
+      });
+
+      if (response.success) {
+        toast.success("공지사항이 등록되었습니다.");
+        
+        // 폼 초기화 및 모달 닫기
+        setCreateTitle("");
+        setCreateContent("");
+        setIsCreateModalOpen(false);
+        
+        // 🔥 자동으로 목록 새로고침!
+        fetchNotices(); 
+      }
+    } catch (error) {
+      toast.error("공지사항 등록에 실패했습니다.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  useEffect(() => {
-  // lectureId가 존재할 때만 데이터를 불러오도록 가드(Guard)를 칩니다.
-  if (lectureId) {
-    fetchNotices();
-  } else {
-    console.warn("강의 ID(lectureId)가 아직 정의되지 않았습니다.");
-    setIsLoading(false);
-  }
-}, [page, lectureId]);
-
-  useEffect(() => {
-  if (selectedNotice) {
-    setEditTitle(selectedNotice.title);    // 기존 제목 세팅
-    setEditContent(selectedNotice.content); // 기존 내용 세팅
-  }
-}, [selectedNotice]); // selectedNotice가 바뀔 때마다 이 코드가 실행됩니다.
-
+  // 공지사항 수정 함수
   const handleUpdate = async () => {
     if (!selectedNotice) return;
     
@@ -71,16 +114,15 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
       params.append("title", editTitle);
       params.append("content", editContent);
 
-      // 백엔드에 수정용 API(/api/professors/notices/{id})가 있다고 가정합니다.
       const response = await api<any>(
         `/api/professors/notices/${selectedNotice.noticeId}?${params.toString()}`,
-        { method: 'PATCH' } // 또는 'POST', 백엔드 설정에 맞추세요
+        { method: 'PATCH' }
       );
 
       if (response.success) {
         toast.success("공지사항이 수정되었습니다.");
-        setSelectedNotice(null); // 모달 닫기
-        fetchNotices(); // 목록 새로고침
+        setSelectedNotice(null); 
+        fetchNotices(); // 🔥 수정 후에도 자동으로 목록 새로고침!
       }
     } catch (error) {
       toast.error("수정에 실패했습니다.");
@@ -93,10 +135,19 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
 
   return (
     <div>
+      {/* 상단 바: 작성 버튼 추가 */}
       <div className="px-6 py-3 text-sm text-zinc-400 border-b border-zinc-50 flex items-center justify-between">
         <span>총 {totalElements}개의 게시물</span>
+        {/* 🌟 공지사항 작성 모달을 여는 버튼 */}
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="bg-zinc-900 text-white text-xs font-medium px-3.5 py-2 rounded-xl flex items-center gap-1.5 hover:bg-zinc-800 transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" /> 공지 작성
+        </button>
       </div>
       
+      {/* 공지사항 목록 리스트 */}
       <div className="divide-y divide-zinc-50">
         {notices.length > 0 ? (
           notices.map((notice) => (
@@ -142,7 +193,48 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
         className="py-6 border-t border-zinc-100" 
       />
 
-      {/* --- [추가] 2번 보기: 상세 보기 및 수정 모달 --- */}
+      {/* 🌟 [추가] 공지사항 신규 작성용 모달 */}
+      <FormModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="새 공지사항 작성"
+        titleIcon={<Plus className="w-5 h-5 text-zinc-400" />}
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <button onClick={() => setIsCreateModalOpen(false)} className="text-sm text-zinc-500 px-4 py-2">취소</button>
+            <button 
+              onClick={handleCreate}
+              disabled={isCreating}
+              className="bg-zinc-900 text-white text-sm font-medium px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-50"
+            >
+              {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : "공지 등록"} <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 py-4">
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-2 block">제목</label>
+            <input 
+              placeholder="공지사항 제목을 입력하세요"
+              value={createTitle}
+              onChange={(e) => setCreateTitle(e.target.value)}
+              className="w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10" 
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-2 block">내용</label>
+            <textarea 
+              placeholder="공지사항 내용을 입력하세요"
+              value={createContent}
+              onChange={(e) => setCreateContent(e.target.value)}
+              className="w-full p-3 text-sm border border-zinc-200 rounded-lg h-48 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900/10" 
+            />
+          </div>
+        </div>
+      </FormModal>
+
+      {/* 상세 보기 및 수정 모달 */}
       <FormModal
         open={!!selectedNotice}
         onClose={() => setSelectedNotice(null)}
@@ -180,7 +272,6 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
           </div>
         </div>
       </FormModal>
-      
     </div>
   );
 }

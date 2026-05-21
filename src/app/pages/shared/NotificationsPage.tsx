@@ -4,68 +4,60 @@ import { Bell, Check, Trash2, ArrowLeft, Info, AlertTriangle, CheckCircle2, Load
 import { useNavigate } from "react-router";
 import { getNotifications, markNotificationRead, type NotificationData } from "../../api/notification";
 import { Notification } from "../../components/NotificationBell";
+import { toast } from "sonner"; // 🌟 토스트 알림 추가
 
-const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
+const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
 
-/** 🌟 1. API 타입별 UI 제목 및 경로 설정 함수 (역할별 구분) */
-function getNotificationUIConfig(type: string, role: "student" | "professor") {
-  const isProfessor = role === "professor";
-
+// 🌟 [수정 1] 백엔드 실제 ENUM DB 코드 규격과 완벽하게 매칭하여 타이틀 정의
+function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
   switch (type) {
     case "ABSENCE_OFFICIAL":
-      return {
-        title: "공결 신청",
-        uiType: "info" as const,
-        link: isProfessor ? "/professor/appeal-management" : "/student/absence-request"
-      };
+      return { title: "공결 신청", uiType: "info" };
     case "ABSENCE_OBJECTION":
-      return {
-        title: "이의 신청",
-        uiType: "warning" as const,
-        link: isProfessor ? "/professor/absence-management" : "/student/absence-objection"
-      };
+      return { title: "출결 이의신청", uiType: "warning" };
+    case "NOTICE":
+      return { title: "공지사항", uiType: "info" };
     case "ANSWER":
-      return {
-        title: "답변 등록",
-        uiType: "success" as const,
-        link: isProfessor ? "/professor/appeal-management" : "/student"
-      };
+      return { title: "답변 등록", uiType: "success" };
+    case "PHOTO_RESULT":
+      return { title: "사진 변경 요청", uiType: "info" };
     default:
-      return {
-        title: "시스템 알림",
-        uiType: "info" as const,
-        link: `/${role}`
-      };
+      return { title: "시스템 알림", uiType: "info" };
   }
 }
 
-/** 🌟 2. 백엔드 데이터를 UI 객체로 변환 (ID 매핑 및 Link 추가) */
-function toNotification(n: NotificationData, role: "student" | "professor"): Notification {
-  const config = getNotificationUIConfig(n.type, role);
+function toNotification(n: NotificationData): Notification {
+  const { title, uiType } = mapTypeToUI(n.type);
+  const notifId = n.id ?? n.notificationId ?? 0;
+  const isRead = n.isRead ?? n.read ?? false;
 
   return {
-    id: String(n.notificationId), // 백엔드 필드명(notificationId) 매핑
-    title: config.title,
+    id: String(notifId),
+    title: title,
     message: n.message,
-    isRead: n.isRead,
+    isRead: isRead,
     createdAt: n.createdAt,
-    type: config.uiType,
-    link: config.link, // handleNotificationClick에서 사용
+    type: uiType,
   };
 }
 
-export default function NotificationsPage({ role }: { role: "student" | "professor" }) {
+export default function NotificationsPage({ role }: { role: "student" | "professor" | "admin" }) {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🌟 3. 데이터 로딩 로직 (role 전달)
   useEffect(() => {
     setLoading(true);
     getNotifications()
       .then((res) => {
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-        setNotifications(list.map((n: NotificationData) => toNotification(n, role)));
+        
+        // 🌟 [수정 2] 새로고침(F5) 시 이미 읽은 알림은 히스토리창에 다시 안 나오도록 필터링 처리
+        const unreadList = list
+          .map(toNotification)
+          .filter((n: Notification) => !n.isRead);
+          
+        setNotifications(unreadList);
       })
       .catch(() => setNotifications([]))
       .finally(() => setLoading(false));
@@ -74,35 +66,78 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
   const markAsRead = (id: string) => {
     markNotificationRead(Number(id))
       .then(() => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        // 읽은 알림은 목록에서 즉시 지워줍니다.
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      })
+      .catch(() => { });
+  };
+
+  // 🌟 [수정 3] 모두 읽음 버튼 클릭 시 백엔드 DB 상태도 전부 업데이트
+  const markAllAsRead = () => {
+    if (notifications.length === 0) return;
+    
+    notifications.forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => { });
+    });
+    setNotifications([]);
+    toast.success("모든 알림을 읽음 처리했습니다.");
+  };
+
+  // 🌟 [수정 4] 단일 삭제(휴지통) 버튼 클릭 시 백엔드 DB 상태도 '읽음'으로 동기화하여 F5 버그 차단
+  const deleteNotification = (id: string) => {
+    markNotificationRead(Number(id))
+      .then(() => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      })
+      .catch(() => {
+        // API 에러가 나더라도 화면에서는 우선 삭제 처리
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      });
+  };
+
+  // 🌟 [수정 5] 전체 삭제 버튼 클릭 시 백엔드 DB 상태 전체 연동
+  const clearAll = () => {
+    if (notifications.length === 0) return;
+
+    notifications.forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => { });
+    });
+    setNotifications([]);
+    toast.success("알림 히스토리를 모두 비웠습니다.");
+  };
+
+  // 🌟 [수정 6] 백엔드가 리다이렉트해 준 깔끔한 프론트엔드용 주소를 그대로 통과시킵니다.
+  const mapRedirectUrl = (url: string): string | null => {
+    if (!url) return null;
+    
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/master") || url.startsWith("/admin")) {
+      return url;
+    }
+
+    const lectureMatch = url.match(/mylecture\/(\d+)/);
+    const lectureId = lectureMatch ? lectureMatch[1] : null;
+    if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/official-requests/")) return `/${role}/absence-request`;
+    if (url.includes("/objection-requests/")) return `/${role}/stats`;
+    if (url.includes("mypage")) return `/${role}/profile`;
+    return null;
+  };
+
+  const handleNotificationClick = (id: string) => {
+    markNotificationRead(Number(id))
+      .then((res) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        const url = res.data?.redirectUrl;
+        const frontRoute = url ? mapRedirectUrl(url) : null;
+        if (frontRoute) {
+          navigate(frontRoute);
+        }
       })
       .catch(() => {});
   };
 
-  const markAllAsRead = () => {
-    notifications.filter(n => !n.isRead).forEach(n => {
-      markNotificationRead(Number(n.id)).catch(() => {});
-    });
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  };
-
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-  };
-
-  const handleNotificationClick = (id: string, link?: string) => {
-    console.log("이동하려는 주소:", link);
-    markAsRead(id);
-    if (link) {
-      navigate(link); // 👈 이제 알림 클릭 시 해당 관리/조회 페이지로 이동합니다.
-    }
-  };
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.length;
 
   const typeConfig = {
     info: { icon: Info, bg: "bg-sky-50", text: "text-sky-600", border: "border-l-sky-400" },
@@ -118,7 +153,6 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
     );
   }
 
-  // 이 아래 렌더링(JSX) 부분은 기존 디자인을 그대로 유지합니다.
   return (
     <div className="max-w-3xl mx-auto pb-12 px-3 sm:px-4">
       {/* Header */}
@@ -190,7 +224,7 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                 className="flex flex-col items-center justify-center py-24 text-zinc-300"
               >
                 <Bell className="w-12 h-12 mb-3" strokeWidth={1} />
-                <p className="text-sm text-zinc-400">수신된 알림이 없습니다.</p>
+                <p className="text-sm text-zinc-400">새로운 알림이 없습니다.</p>
               </motion.div>
             ) : (
               notifications.map((notification, index) => {
@@ -205,12 +239,10 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -40 }}
                     transition={{ ...spring, delay: index * 0.04 }}
-                    onClick={() => handleNotificationClick(notification.id, notification.link)}
-                    className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${config.border} ${
-                      notification.isRead
-                        ? "bg-white hover:bg-zinc-50/80 opacity-70"
-                        : "bg-zinc-50/40 hover:bg-zinc-50"
-                    } ${index < notifications.length - 1 ? "border-b border-zinc-100" : ""}`}
+                    onClick={() => handleNotificationClick(notification.id)}
+                    className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${config.border} bg-white hover:bg-zinc-50/80 ${
+                      index < notifications.length - 1 ? "border-b border-zinc-100" : ""
+                    }`}
                   >
                     <div className="flex gap-3 sm:gap-4 items-start">
                       {/* Icon */}
@@ -222,9 +254,7 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <h3 className="text-sm font-semibold text-zinc-800 truncate">{notification.title}</h3>
-                          {!notification.isRead && (
-                            <span className="flex-shrink-0 w-2 h-2 bg-primary rounded-full" />
-                          )}
+                          <span className="flex-shrink-0 w-2 h-2 bg-primary rounded-full" />
                         </div>
                         <p className="text-sm text-zinc-500 leading-relaxed">{notification.message}</p>
                         <span className="text-xs text-zinc-300 mt-1 block">{notification.createdAt}</span>

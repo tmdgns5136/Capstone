@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from "motion/react";
 import { FileCheck, CheckCircle, XCircle, Clock, FileText, X, AlertTriangle, User, Search, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAppealRequests } from "../../hooks/useAppealRequests";
+import type { AppealRequest } from "../../api/appeal";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
 export default function ProfessorAppealManagement() {
   const { requests, loading, updateStatus } = useAppealRequests();
   const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<AppealRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 

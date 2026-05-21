@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Bell, Check, Trash2, ArrowRight, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getNotifications, markNotificationRead, type NotificationData } from "../api/notification";
+import { toast } from "sonner";
 
 export interface Notification {
   id: string;
@@ -15,39 +16,50 @@ export interface Notification {
 }
 
 interface NotificationBellProps {
-  role: "student" | "professor";
+  role: "student" | "professor" | "admin";
 }
 
-// 🌟 디자인은 유지하되, 백엔드 타입에 맞춰 아이콘/타입 결정
 function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
   switch (type) {
-    case "ABSENCE_REQUEST":
+    case "ABSENCE_OFFICIAL":
       return { title: "공결 신청", uiType: "info" };
-    case "APPEAL_REQUEST":
-      return { title: "이의 신청", uiType: "warning" };
-    case "ANSWER_REGISTER":
+    case "ABSENCE_OBJECTION":
+      return { title: "출결 이의신청", uiType: "warning" };
+    case "NOTICE":
+      return { title: "공지사항", uiType: "info" };
+    case "ANSWER":
       return { title: "답변 등록", uiType: "success" };
+    case "PHOTO_RESULT":
+      return { title: "사진 변경 요청", uiType: "info" };
     default:
       return { title: "시스템 알림", uiType: "info" };
   }
 }
 
-// 🌟 백엔드 데이터를 UI용 객체로 변환 (ID와 Link 매핑 추가)
 function toNotification(n: NotificationData, role: string): Notification {
   const { title, uiType } = mapTypeToUI(n.type);
   const isProfessor = role === "professor";
-  
-  // 역할에 따른 이동 경로 설정
+  const isAdmin = role === "admin";
+
   let link = `/${role}`;
-  if (n.type === "ABSENCE_REQUEST") link = isProfessor ? "/professor/absence-management" : "/student/absence-request";
-  else if (n.type === "APPEAL_REQUEST") link = isProfessor ? "/professor/appeal-management" : "/student/stats";
-  else if (n.type === "ANSWER_REGISTER") link = isProfessor ? "/professor/appeal-management" : "/student";
+  if (n.type === "ABSENCE_OFFICIAL") {
+    link = isAdmin ? "/admin" : isProfessor ? "/professor/absence-management" : "/student/absence-request";
+  } else if (n.type === "ABSENCE_OBJECTION") {
+    link = isAdmin ? "/admin" : isProfessor ? "/professor/appeal-management" : "/student/stats";
+  } else if (n.type === "NOTICE" || n.type === "ANSWER") {
+    link = isProfessor ? "/professor/courses" : "/student/courses";
+  } else if (n.type === "PHOTO_RESULT") {
+    link = isAdmin ? "/admin/photo-requests" : `/${role}/profile`;
+  }
+
+  const notifId = n.id ?? n.notificationId ?? 0;
+  const isRead = n.read ?? n.isRead ?? false;
 
   return {
-    id: String(n.notificationId), // 백엔드 필드명(notificationId) 매핑
+    id: String(notifId),
     title: title,
     message: n.message,
-    isRead: n.isRead,
+    isRead: isRead,
     createdAt: n.createdAt,
     type: uiType,
     link: link
@@ -65,9 +77,15 @@ export function NotificationBell({ role }: NotificationBellProps) {
   const fetchNotifications = useCallback(() => {
     getNotifications()
       .then((res) => {
-        // ApiResponse<List<NotificationResponse>> 구조에서 데이터 추출
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-        setNotifications(list.map((n: NotificationData) => toNotification(n, role)));
+        
+        // 🌟 [수정 1] 백엔드에서 받아온 알림 중 '안 읽은 알림'만 남기고 필터링합니다.
+        // 이렇게 하면 이미 읽은 알림은 F5를 눌러도 리스트에 다시 나타나지 않습니다.
+        const unreadList = list
+          .map((n: NotificationData) => toNotification(n, role))
+          .filter((n: Notification) => !n.isRead);
+          
+        setNotifications(unreadList);
       })
       .catch(() => {});
   }, [role]);
@@ -78,7 +96,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.length; // 🌟 필터링되므로 리스트 개수가 곧 안읽은 개수
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -90,31 +108,71 @@ export function NotificationBell({ role }: NotificationBellProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 개별 읽음 처리 시 리스트에서 즉시 제거
   const markAsRead = (id: string) => {
     markNotificationRead(Number(id))
       .then(() => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        setNotifications(prev => prev.filter(n => n.id !== id));
       })
       .catch(() => {});
   };
 
+  // 🌟 [수정 2] 모두 읽음 버튼 클릭 시 백엔드 연동 및 화면에서 즉시 제거
   const markAllAsRead = () => {
-    notifications.filter(n => !n.isRead).forEach(n => {
+    notifications.forEach(n => {
       markNotificationRead(Number(n.id)).catch(() => {});
     });
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  };
-
-  const clearAll = () => {
     setNotifications([]);
+    toast.success("모든 알림을 읽음 처리했습니다.");
   };
 
-  const handleNotificationClick = (id: string, link?: string) => {
-    markAsRead(id);
-    setIsOpen(false);
-    if (link) {
-      navigate(link);
+  // 🌟 [수정 3] 모두 지우기(휴지통) 버튼 클릭 시 백엔드 DB 상태도 '읽음'으로 동기화
+  // DB 상태를 바꿔버리기 때문에 F5를 눌러도 절대 다시 나오지 않습니다.
+  const clearAll = () => {
+    notifications.forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => {});
+    });
+    setNotifications([]);
+    toast.success("알림창을 비웠습니다.");
+  };
+
+  const mapRedirectUrl = (url: string): string | null => {
+    if (!url) return null;
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/master") || url.startsWith("/admin")) {
+      return url;
     }
+    const lectureMatch = url.match(/mylecture\/(\d+)/);
+    const lectureId = lectureMatch ? lectureMatch[1] : null;
+    if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/official-requests/")) return `/${role}/absence-request`;
+    if (url.includes("/objection-requests/")) return `/${role}/stats`;
+    if (url.includes("mypage")) {
+      if (role === "admin") return "/admin/photo-requests";
+      return `/${role}/profile`;
+    }
+    return null;
+  };
+
+  const handleNotificationClick = (id: string, fallbackLink?: string) => {
+    setIsOpen(false);
+    markNotificationRead(Number(id))
+      .then((res: any) => {
+        // 읽었으므로 리스트에서 즉시 제외
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        
+        const redirectUrl = res.data?.redirectUrl;
+        const frontRoute = redirectUrl ? mapRedirectUrl(redirectUrl) : null;
+        
+        if (frontRoute) {
+          navigate(frontRoute);
+        } else if (fallbackLink) {
+          navigate(fallbackLink);
+        }
+      })
+      .catch(() => {
+        if (fallbackLink) navigate(fallbackLink);
+      });
   };
 
   const viewAll = () => {
@@ -170,7 +228,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
           >
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-800">알림</h3>
+              <h3 className="text-sm font-semibold text-zinc-800">새로운 알림</h3>
               <div className="flex items-center gap-1">
                 {unreadCount > 0 && (
                   <button
@@ -204,9 +262,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
                     <div
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification.id, notification.link)}
-                      className={`px-5 py-3.5 cursor-pointer transition-colors hover:bg-zinc-50/80 ${
-                        notification.isRead ? "opacity-50" : ""
-                      }`}
+                      className="px-5 py-3.5 cursor-pointer transition-colors hover:bg-zinc-50/80"
                     >
                       <div className="flex gap-3">
                         {typeIcon(notification.type)}
@@ -219,9 +275,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
                             {notification.message}
                           </p>
                         </div>
-                        {!notification.isRead && (
-                          <div className="w-2 h-2 rounded-full bg-primary self-center shrink-0" />
-                        )}
+                        <div className="w-2 h-2 rounded-full bg-primary self-center shrink-0" />
                       </div>
                     </div>
                   ))}
