@@ -6,7 +6,7 @@ import { Pagination } from "../../components/Pagination";
 import { useProfessorCourses } from "../../hooks/useProfessorCourses";
 import { getAttendanceMonitoring, updateAttendance } from "../../api/attendance";
 import { getSemesterStartDate } from "../../constants/semester";
-import { AnimatePresence, motion } from "motion/react"; // ✨ Framer Motion 추가
+import { AnimatePresence, motion } from "motion/react";
 
 interface ProfessorCourseAttendanceProps {
   lectureId: string;
@@ -15,6 +15,22 @@ interface ProfessorCourseAttendanceProps {
 export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendanceProps) {
   const { courses } = useProfessorCourses();
   
+  // 🌟 [수정 1] 강의 시간표를 분석하여 해당 강의가 총 몇 교시짜리 수업인지 동적으로 계산합니다.
+  const maxPeriods = useMemo(() => {
+    const currentCourse = courses.find(c => String(c.lectureId) === String(lectureId));
+    if (!currentCourse) return 2; // 기본값
+
+    // schedule 예시: "화 13:00-15:00" 또는 "월 09:00-12:00"
+    const timeMatch = currentCourse.schedule?.match(/(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
+    if (timeMatch) {
+      const startHour = parseInt(timeMatch[1], 10);
+      const endHour = parseInt(timeMatch[3], 10);
+      const diff = endHour - startHour;
+      return diff > 0 ? diff : 2; // 시간 차이가 곧 총 교시 수
+    }
+    return 2;
+  }, [courses, lectureId]);
+
   const SCHEDULE = useMemo(() => {
     const currentCourse = courses.find(c => String(c.lectureId) === String(lectureId));
     if (!currentCourse) return [];
@@ -32,10 +48,10 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
     } else if (currentCourse.schedule) {
       const foundDays = currentCourse.schedule.match(/월요일|화요일|수요일|목요일|금요일|토요일|일요일|[월화수목금토]/g);
       if (foundDays) {
-          lectureDays = [...new Set(
-            foundDays.map(d => d.length > 1 ? d[0] : d)
-          )];
-        }
+        lectureDays = [...new Set(
+          foundDays.map(d => d.length > 1 ? d[0] : d)
+        )];
+      }
     }
 
     const startDate = getSemesterStartDate();
@@ -64,7 +80,6 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
     });
   }, [courses, lectureId]);
 
-  // 1️⃣ [적용] SessionStorage를 활용한 상태 기억 (새로고침해도 보던 곳 유지)
   const [selectedWeek, setSelectedWeek] = useState(() => {
     const saved = sessionStorage.getItem(`prof_${lectureId}_week`);
     return saved ? parseInt(saved, 10) : 1;
@@ -77,7 +92,13 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
     return sessionStorage.getItem(`prof_${lectureId}_sessionId`) || "w1-1";
   });
 
-  // 상태 변경 시 sessionStorage 자동 업데이트
+  // 🌟 [수정 2] 교시 수가 다른 강의로 변경되었을 때, 선택된 교시가 범위를 벗어나면 1교시로 안전하게 맞춰줍니다.
+  useEffect(() => {
+    if (selectedPeriod > maxPeriods) {
+      setSelectedPeriod(1);
+    }
+  }, [maxPeriods, selectedPeriod]);
+
   useEffect(() => { sessionStorage.setItem(`prof_${lectureId}_week`, String(selectedWeek)); }, [selectedWeek, lectureId]);
   useEffect(() => { sessionStorage.setItem(`prof_${lectureId}_period`, String(selectedPeriod)); }, [selectedPeriod, lectureId]);
   useEffect(() => { sessionStorage.setItem(`prof_${lectureId}_sessionId`, selectedSessionId); }, [selectedSessionId, lectureId]);
@@ -92,8 +113,9 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
   const selectedSession = currentWeekData?.sessions?.find((s: { sessionId: string }) => s.sessionId === selectedSessionId) ?? currentWeekData?.sessions?.[0];
   const sessionDate = selectedSession?.date ?? "";
 
-  // 🌟 (이전 에러 해결) 서버 통신용 누적 교시 번호
-  const absoluteSessionNum = (selectedWeek - 1) * 14 + selectedPeriod;
+  // 🌟 [수정 3] 백엔드는 주차와 무관하게 당일 '1교시, 2교시' 순으로 세션을 판정하므로 복잡한 누적 곱셈을 지우고 선택된 교시를 그대로 매핑합니다.
+  const absoluteSessionNum = selectedPeriod;
+  
   const key = useMemo(() => {
     return `${selectedSessionId || "initial"}-p${absoluteSessionNum}`;
   }, [selectedSessionId, absoluteSessionNum]);
@@ -132,7 +154,6 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
     fetchAttendance();
   }, [key, fetchAttendance]);
 
-  // 2️⃣ [적용] Promise.allSettled를 활용한 안정적인 대량 저장
   const handleSave = async () => {
     if (!hasPending) return;
     setLoading(true);
@@ -244,11 +265,11 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
           </div>
         </div>
           
-        {/* [적용] 교시 선택 UI (칩 스타일로 개선) */}
+        {/* 🌟 [수정 4] 하드코딩을 없애고 위에서 계산한 maxPeriods 만큼 동적으로 교시 버튼 생성 */}
         <div>
           <p className="text-xs font-bold text-zinc-400 mb-2 uppercase tracking-tighter">교시 선택</p>
           <div className="flex flex-wrap gap-1.5">
-            {Array.from({ length: 14 }, (_, i) => i + 1).map((num) => (
+            {Array.from({ length: maxPeriods }, (_, i) => i + 1).map((num) => (
               <button 
                 key={num} 
                 onClick={() => { setSelectedPeriod(num); setPage(1); }}
@@ -280,7 +301,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
         ))}
       </div>
 
-      {/* 3️⃣ [적용] Framer Motion을 활용한 수정 안내 팝업 바 */}
+      {/* 수정 안내 팝업 바 */}
       <div className="min-h-[60px]">
         <AnimatePresence>
           {hasPending ? (
@@ -320,10 +341,9 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
         </div>
       </div>
 
-      {/* 4️⃣ [적용] 완벽한 모바일 대응 (화면이 작을 땐 카드형태, 클 땐 테이블) */}
+      {/* 학생 목록 메인 뷰 */}
       <div className="px-4 sm:px-6 pb-6 mt-4">
-        
-        {/* 모바일 뷰 (lg:hidden) */}
+        {/* 모바일 뷰 */}
         <div className="lg:hidden space-y-3">
           {loading && students.length === 0 ? (
             <div className="py-20 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-300" /></div>
@@ -347,7 +367,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
           ))}
         </div>
 
-        {/* 데스크탑 테이블 뷰 (hidden lg:block) */}
+        {/* 데스크탑 테이블 뷰 */}
         <div className="hidden lg:block overflow-x-auto rounded-xl border border-zinc-200">
           <table className="w-full min-w-[600px]">
             <thead>
