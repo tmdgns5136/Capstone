@@ -8,7 +8,7 @@ export interface UpdateAttendancePayload {
   lectureId: string;
   status: "ATTEND" | "LATENESS" | "ABSENCE" | "TBD";
   date: string;
-  sessionNum: number; 
+  sessionNum?: number; 
 }
 
 export interface StudentAttendanceDetail {

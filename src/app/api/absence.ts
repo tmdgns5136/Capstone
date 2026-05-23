@@ -39,10 +39,18 @@ export async function processAbsenceRequest(
   });
 }
 
-// 10-2. 공결 증빙서류 다운로드 (Blob 처리)
-export async function downloadAbsenceDocument(officialId: number) {
-  return api<Blob>(`/api/professors/absences/${officialId}/document`, {
+// 10-2. 공결 증빙서류 다운로드 (인증 토큰 주입 헤더 보완)
+export async function downloadAbsenceDocument(officialId: number): Promise<Blob> {
+  // 🌟 [핵심] 스토리지에 저장된 토큰명을 확인해서 가져옵니다 (필요시 'token' 등으로 변경)
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token") || "";
+
+  const response = await fetch(`/api/professors/absences/${officialId}/document`, {
     method: "GET",
-    // 주의: client.ts의 api 함수가 blob 응답을 처리할 수 있어야 합니다.
+    headers: {
+      // 백엔드 Spring Security가 검증할 수 있도록 Bearer 토큰 주입
+      "Authorization": token ? `Bearer ${token}` : "",
+      "Accept": "*/*"
+    }
   });
+  return await response.blob(); 
 }

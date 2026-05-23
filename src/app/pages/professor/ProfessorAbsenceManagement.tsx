@@ -24,41 +24,41 @@ export default function ProfessorAbsenceManagement() {
   const processedRequests = filteredRequests.filter(r => r.status !== "PENDING");
 
   const handleApprove = async (officialId: number) => { 
-  const success = await updateStatus(officialId, "APPROVED");
-  if (success) {
-    toast.success("승인 처리되었습니다");
-    setSelectedRequest(null);
-  }
-};
+    const success = await updateStatus(officialId, "APPROVED");
+    if (success) {
+      toast.success("승인 처리되었습니다. 출결 상태가 정상 출석으로 변경됩니다.");
+      setSelectedRequest(null);
+    }
+  };
 
-  const handleReject = async (officialId: number) => { // id: string -> absenceId: number
-  if (!rejectReason.trim()) {
-    toast.error("거절 사유를 입력해주세요");
-    return;
-  }
-  const success = await updateStatus(officialId, "REJECTED", rejectReason);
-  if (success) {
-    toast.success("거절 처리되었습니다");
-    setSelectedRequest(null);
-    setRejectReason("");
-  }
-};
+  const handleReject = async (officialId: number) => {
+    if (!rejectReason.trim()) {
+      toast.error("거절 사유를 입력해주세요");
+      return;
+    }
+    const success = await updateStatus(officialId, "REJECTED", rejectReason);
+    if (success) {
+      toast.success("거절 처리되었습니다");
+      setSelectedRequest(null);
+      setRejectReason("");
+    }
+  };
 
   const handleFileDownload = async (officialId: number, fileName: string) => {
-  try {
-    const blob = await downloadAbsenceDocument(officialId);
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName || "증빙서류.pdf";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    toast.error("파일 다운로드에 실패했습니다.");
-  }
-};
+    try {
+      const blob = await downloadAbsenceDocument(officialId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || "공결증빙서류.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error("파일 다운로드에 실패했습니다.");
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -85,7 +85,6 @@ export default function ProfessorAbsenceManagement() {
 
   return (
     <div className="max-w-7xl mx-auto pb-10 space-y-6">
-
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">공결 신청 관리</h1>
@@ -125,16 +124,13 @@ export default function ProfessorAbsenceManagement() {
 
       {/* Main Dashboard */}
       <div className="bg-white rounded-xl border border-zinc-200  overflow-hidden">
-
         {/* Tabs & Search */}
         <div className="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab("pending")}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === "pending"
-                  ? "bg-primary text-white"
-                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                activeTab === "pending" ? "bg-primary text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
               }`}
             >
               대기 중 ({pendingRequests.length})
@@ -142,9 +138,7 @@ export default function ProfessorAbsenceManagement() {
             <button
               onClick={() => setActiveTab("processed")}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === "processed"
-                  ? "bg-primary text-white"
-                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                activeTab === "processed" ? "bg-primary text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
               }`}
             >
               처리 완료 ({processedRequests.length})
@@ -302,17 +296,21 @@ export default function ProfessorAbsenceManagement() {
                   <p className="text-sm text-zinc-800 whitespace-pre-wrap">{selectedRequest.reason}</p>
                 </div>
 
-                {selectedRequest.hasDocument ? (
+                {/* 🌟 [핵심 수정 위치] hasDocument 대신 백엔드가 전달하는 fileName 변수로 유무 체크 우회 */}
+                {selectedRequest.fileName ? (
                   <div className="flex items-center gap-3 p-4 bg-primary/10 rounded-xl border border-primary/30">
                     <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
                       <Download className="w-4 h-4 text-primary-dark" strokeWidth={1.5} />
                     </div>
-                    <span className="text-sm font-medium text-primary-dark flex-1">증빙서류_첨부됨.pdf</span>
+                    {/* 하드코딩된 이름 대신 실제 업로드된 파일명이 보이도록 바인딩 */}
+                    <span className="text-sm font-medium text-primary-dark flex-1 truncate">
+                      {selectedRequest.fileName}
+                    </span>
                     <button 
                       onClick={() => handleFileDownload(selectedRequest.officialId, selectedRequest.fileName)}
-                      className="text-sm font-medium text-primary-dark bg-primary/20 hover:bg-primary/30 px-3 py-1.5 rounded-lg transition-colors"
+                      className="text-sm font-medium text-primary-dark bg-primary/20 hover:bg-primary/30 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
                     >
-                    다운로드
+                      다운로드
                     </button>
                   </div>
                 ) : (
