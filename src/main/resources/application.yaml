@@ -34,8 +34,7 @@ spring:
     port: 587
 
     username: shinwoo1a@gmail.com
-    password: qfta sbbi xcvl lomw
-
+    password: 
     properties:
       mail:
         smtp:
