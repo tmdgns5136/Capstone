@@ -1,8 +1,13 @@
 package com.example.demo.domain.professor.service;
 
+import org.springframework.core.io.UrlResource; // 🌟 파일 상단에 import 가 없다면 추가해 주세요!
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import com.example.demo.domain.enumerate.AttendStatus;
 import com.example.demo.domain.enumerate.SessionStatus;
 import com.example.demo.domain.enumerate.Status;
+import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.student.home.entity.user.Student;
 import com.example.demo.domain.student.home.repository.StudentRepository;
 import com.example.demo.domain.student.lecture.attendance.dto.*;
@@ -469,9 +474,9 @@ public class ProfessorService {
         return new AttendanceMonitoringResponse(targetDate.toString(), targetSession != null ? targetSession.getSessionNum() : null, targetSession != null && targetSession.getStatus() != null ? targetSession.getStatus().name() : "WAIT", attendanceRate, totalLate, totalAway, totalAbsent, studentResponses);
     }
 
-    public OfficialListResponse getAbsences(Long professorId, int page, int size) {
+    public OfficialListResponse getAbsences(Professor professor, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Official> officialPage = officialRepository.findByProfessor_ProfessorId(professorId, pageable);
+        Page<Official> officialPage = officialRepository.findByProfessor(professor, pageable);
 
         if (officialPage.isEmpty()) return OfficialListResponse.builder().data(new ArrayList<>()).totalElements(0L).totalPages(0).build();
 
@@ -484,7 +489,11 @@ public class ProfessorService {
                 .reason(official.getOfficialReason())
                 .date(official.getOfficialCreated() != null ? official.getOfficialCreated().toLocalDate().toString() : "")
                 .status(official.getStatus() != null ? official.getStatus().name() : "PENDING")
-                .fileName(official.getFileName()).build()).collect(Collectors.toList());
+
+                // 🌟 [핵심 수정] 엔티티 필드 이름에 맞추어 getFileName() 대신 getEvidencePath()를 호출합니다.
+                .fileName(official.getEvidencePath())
+
+                .build()).collect(Collectors.toList());
 
         return OfficialListResponse.builder().data(items).totalElements(officialPage.getTotalElements()).totalPages(officialPage.getTotalPages()).build();
     }
@@ -561,7 +570,12 @@ public class ProfessorService {
                 .sessionId(objection.getLectureSession() != null ? objection.getLectureSession().getSessionId() : null)
                 .reason(objection.getObjectionReason())
                 .date(objection.getLectureSession() != null && objection.getLectureSession().getScheduledAt() != null ? objection.getLectureSession().getScheduledAt().toString() : "")
-                .status(objection.getStatus() != null ? objection.getStatus().getCode() : "PENDING").build()).collect(Collectors.toList());
+                .status(objection.getStatus() != null ? objection.getStatus().getCode() : "PENDING")
+
+                // 🌟 [여기만 수정!] 엔티티 규격에 맞춰 getEvidencePath()로 변경합니다.
+                .fileName(objection.getEvidencePath())
+
+                .build()).collect(Collectors.toList());
 
         return ObjectionListResponse.builder().data(items).totalElements(objectionPage.getTotalElements()).totalPages(objectionPage.getTotalPages()).build();
     }
@@ -621,10 +635,65 @@ public class ProfessorService {
     }
 
     public Resource downloadAbsenceDocument(Long officialId) {
-        Official official = officialRepository.findById(officialId).orElseThrow(() -> new CustomException(404, "첨부된 증빙서류가 존재하지 않습니다."));
-        Resource resource = new ClassPathResource(official.getEvidencePath());
-        if (!resource.exists()) throw new CustomException(404, "첨부된 증빙서류가 존재하지 않습니다.");
-        return resource;
+        Official official = officialRepository.findById(officialId)
+                .orElseThrow(() -> new CustomException(404, "첨부된 증빙서류가 존재하지 않습니다."));
+
+        try {
+            // 🌟 DB에 저장된 "/uploads/official/..." 경로를 실제 파일 시스템 경로로 매핑합니다.
+            String pathStr = official.getEvidencePath();
+
+            // 만약 경로가 슬래시(/)로 시작하면 절대 경로 오작동을 막기 위해 맨 앞 슬래시를 제거하거나 상대 경로화
+            if (pathStr.startsWith("/")) {
+                pathStr = pathStr.substring(1);
+            }
+
+            Path filePath = Paths.get(pathStr).toAbsolutePath().normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (!resource.exists() || !resource.isReadable()) {
+                throw new CustomException(404, "서버 내에서 실제 증빙서류 파일을 찾을 수 없습니다. 경로를 확인해 주세요: " + filePath.toString());
+            }
+
+            return resource;
+
+        } catch (Exception e) {
+            if (e instanceof CustomException) throw (CustomException) e;
+            throw new CustomException(500, "파일을 읽어오는 중 에러가 발생했습니다: " + e.getMessage());
+        }
+    }
+
+    public Resource downloadAppealDocument(Long objectionId) {
+        // 🌟 1. 공결(Official)과 똑같이 이의신청(Objection) 레포지토리에서 ID로 안전하게 조회합니다.
+        Objection objection = objectionRepository.findById(objectionId)
+                .orElseThrow(() -> new CustomException(404, "첨부된 증빙서류가 존재하지 않습니다."));
+
+        try {
+            // 🌟 2. DB에 저장된 "/uploads/objection/..." 경로를 가져옵니다.
+            String pathStr = objection.getEvidencePath();
+
+            if (pathStr == null || pathStr.trim().isEmpty()) {
+                throw new CustomException(404, "등록된 증빙 서류 파일 경로가 존재하지 않습니다.");
+            }
+
+            // 🌟 3. 공결과 완전히 똑같이 맨 앞 슬래시(/)를 제거하여 상대 경로화합니다.
+            if (pathStr.startsWith("/")) {
+                pathStr = pathStr.substring(1);
+            }
+
+            // 🌟 4. 공결과 완전히 동일하게 실제 절대 경로로 파일 시스템 매핑합니다.
+            Path filePath = Paths.get(pathStr).toAbsolutePath().normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (!resource.exists() || !resource.isReadable()) {
+                throw new CustomException(404, "서버 내에서 실제 증빙서류 파일을 찾을 수 없습니다. 경로를 확인해 주세요: " + filePath.toString());
+            }
+
+            return resource;
+
+        } catch (Exception e) {
+            if (e instanceof CustomException) throw (CustomException) e;
+            throw new CustomException(500, "파일을 읽어오는 중 에러가 발생했습니다: " + e.getMessage());
+        }
     }
 
     private String buildScheduleText(Lecture lecture) {

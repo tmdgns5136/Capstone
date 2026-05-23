@@ -1,5 +1,8 @@
 package com.example.demo.domain.professor.controller;
 
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import com.example.demo.domain.professor.dto.ProfessorDashboardResponse;
 import com.example.demo.domain.professor.dto.ProfessorLectureResponse;
 import com.example.demo.domain.professor.dto.TodayLectureResponse;
@@ -14,6 +17,9 @@ import com.example.demo.domain.student.lecture.attendance.dto.ObjectionListRespo
 import com.example.demo.domain.student.lecture.attendance.dto.ProcessObjectionRequest;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
+import com.example.demo.domain.student.lecture.entity.Lecture;
+import com.example.demo.domain.student.lecture.repository.LectureRepository;
+import com.example.demo.global.exception.CustomException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +37,7 @@ import java.util.Map;
 public class ProfessorController {
     private final ProfessorRepository professorRepository;
     private final ProfessorService professorService;
+    private final LectureRepository lectureRepository;
 
     @GetMapping("/lectures")
     public ApiResponse<List<ProfessorLectureResponse>> getLectures(
@@ -205,7 +212,11 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
-        return ApiResponse.success(200, professorService.getAbsences(professor.getProfessorId(), page, size));
+        if (professor == null) {
+            throw new RuntimeException("사번 " + professorNum + "에 해당하는 교수 정보가 DB에 없습니다.");
+        }
+
+        return ApiResponse.success(200, professorService.getAbsences(professor, page, size));
     }
 
     @PatchMapping("/absences/{absenceId}")
@@ -220,6 +231,18 @@ public class ProfessorController {
     public ResponseEntity<Resource> downloadAbsenceDocument(@PathVariable("absenceId") Long absenceId) {
         Resource resource = professorService.downloadAbsenceDocument(absenceId);
 
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(resource);
+    }
+
+    @GetMapping("/appeals/{objectionId}/document") // 🌟 공결(/absences/{id}/document)과 100% 동일한 주소 규격!
+    public ResponseEntity<Resource> downloadAppealDocument(@PathVariable("objectionId") Long objectionId) {
+        // 공결 구조와 똑같이 고친 서비스 메서드 호출
+        Resource resource = professorService.downloadAppealDocument(objectionId);
+
+        // 🌟 복잡한 파일명 가공 없이 공결 리턴 양식 그대로 토시 하나 안 틀리고 반환합니다.
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
