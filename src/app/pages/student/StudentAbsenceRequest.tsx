@@ -88,7 +88,7 @@ export default function StudentAbsenceRequest() {
     setLoadingSessions(true);
     getLectureSessions(selectedLectureId)
       .then((res) => {
-        const filtered = res.data.filter((s) => s.status !== "ATTEND");
+        const filtered = res.data.filter((s) => s.status !== "ATTEND" && s.status !== "TBD");
         setSessions(filtered);
       })
       .catch((err) => {
@@ -292,7 +292,7 @@ export default function StudentAbsenceRequest() {
                       : !selectedLectureId
                         ? "강의를 먼저 선택하세요"
                         : sessions.length === 0
-                          ? "등록된 수업 날짜가 없습니다"
+                          ? "공결 신청할 수업 날짜가 없습니다"
                           : "수업 날짜를 선택하세요"}
                   </option>
                   {sessions.map((s) => (
@@ -313,7 +313,7 @@ export default function StudentAbsenceRequest() {
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={4}
-                placeholder="결석 사유를 상세히 입력하세요..."
+                placeholder="공결 사유를 상세히 입력하세요..."
                 className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none placeholder:text-zinc-300"
                 required
               />
