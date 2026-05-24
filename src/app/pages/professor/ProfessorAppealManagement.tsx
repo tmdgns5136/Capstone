@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { FileCheck, CheckCircle, XCircle, Clock, FileText, X, AlertTriangle, User, Search, AlertCircle } from "lucide-react";
+import { FileCheck, CheckCircle, XCircle, Clock, Download, FileText, X, AlertTriangle, User, Search, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAppealRequests } from "../../hooks/useAppealRequests";
-import type { AppealRequest } from "../../api/appeal";
+import { downloadAppealDocument, type AppealRequest } from "../../api/appeal";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
@@ -14,7 +14,7 @@ export default function ProfessorAppealManagement() {
   const [rejectReason, setRejectReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. 필터링 로직 수정
+  // 필터링 로직
   const filteredRequests = requests.filter(r =>
     r.studentName.includes(searchQuery) ||
     r.course.includes(searchQuery) ||
@@ -24,8 +24,8 @@ export default function ProfessorAppealManagement() {
   const pendingRequests = filteredRequests.filter(r => r.status === "PENDING");
   const processedRequests = filteredRequests.filter(r => r.status !== "PENDING");
 
-  // 2. 처리 함수 수정 
-  const handleApprove = async (id: string) => { 
+  // 승인 처리
+  const handleApprove = async (id: number) => {
     const success = await updateStatus(id, "APPROVED");
     if (success) {
       toast.success("이의 신청이 승인되었습니다. 출결 상태가 출석으로 변경됩니다.");
@@ -33,7 +33,8 @@ export default function ProfessorAppealManagement() {
     }
   };
 
-  const handleReject = async (id: string) => {
+  // 반려 처리
+  const handleReject = async (id: number) => {
     if (!rejectReason.trim()) {
       toast.error("거절 사유를 입력해주세요");
       return;
@@ -46,7 +47,32 @@ export default function ProfessorAppealManagement() {
     }
   };
 
-  // 3. 뱃지 로직 수정 (영문 대응)
+
+// 🌟 [수정] window.open 대신 공결 신청과 똑같은 안전한 Blob 다운로드 방식으로 통일합니다.
+  const handleFileDownload = async (objectionId: number, fileName: string) => {
+    try {
+      // 1. api/appeal.ts에 만들어 둔 Blob 리턴 함수 호출
+      const blob = await downloadAppealDocument(objectionId);
+
+      // 2. 브라우저 메모리에 가상 URL 생성
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // 3. 파일명 지정 및 다운로드 트리거
+      link.download = fileName || "이의신청증빙서류.jpg";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // 4. 가상 URL 메모리 해제
+      window.URL.revokeObjectURL(url);
+      toast.success("파일 다운로드가 완료되었습니다.");
+    } catch (error) {
+      toast.error("파일 다운로드에 실패했습니다. API 함수와 토큰을 확인하세요.");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "APPROVED":
@@ -61,7 +87,7 @@ export default function ProfessorAppealManagement() {
             <XCircle className="w-3 h-3" strokeWidth={1.5} /> 반려
           </span>
         );
-      default: // WAIT
+      default:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
             <Clock className="w-3 h-3" strokeWidth={1.5} /> 대기
@@ -87,7 +113,7 @@ export default function ProfessorAppealManagement() {
         </div>
       </div>
 
-      {/* Stats Overview - 영문 상태값으로 카운트 */}
+      {/* Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
           <div>
@@ -120,7 +146,6 @@ export default function ProfessorAppealManagement() {
 
       {/* Main Dashboard */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-        {/* Tabs & Search */}
         <div className="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           <div className="flex gap-2">
             <button
@@ -153,14 +178,13 @@ export default function ProfessorAppealManagement() {
           </div>
         </div>
 
-        {/* Tab Content */}
         <div className="p-6">
           {activeTab === "pending" ? (
             pendingRequests.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pendingRequests.map((request, index) => (
                   <motion.div
-                    key={request.objectionId} 
+                    key={request.objectionId}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -208,7 +232,7 @@ export default function ProfessorAppealManagement() {
               {processedRequests.length > 0 ? (
                 processedRequests.map((request, index) => (
                   <motion.div
-                    key={request.objectionId} // id -> objectionId 수정
+                    key={request.objectionId}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -291,6 +315,32 @@ export default function ProfessorAppealManagement() {
                   <p className="text-sm text-zinc-800 whitespace-pre-wrap">{selectedRequest.reason}</p>
                 </div>
 
+                {/* 🌟 [공결 관리와 구조 통일] 안전 조건문 및 매핑 바인딩 처리 */}
+                <div className="bg-zinc-50 rounded-xl p-4">
+                  <div className="text-xs text-zinc-400 mb-2">첨부 증빙 서류</div>
+                  {selectedRequest.fileName ? (
+                    <div className="flex items-center gap-3 p-4 bg-primary/10 rounded-xl border border-primary/30">
+                      <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                        <Download className="w-4 h-4 text-primary-dark" strokeWidth={1.5} />
+                      </div>
+                      <span className="text-sm font-medium text-primary-dark flex-1 truncate">
+                        {selectedRequest.fileName}
+                      </span>
+                      <button
+                        onClick={() => handleFileDownload(selectedRequest.objectionId, selectedRequest.fileName || "")}
+                        className="text-sm font-medium text-primary-dark bg-primary/20 hover:bg-primary/30 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                      >
+                        다운로드
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-4 bg-rose-50 rounded-xl border border-rose-100">
+                      <AlertTriangle className="w-4 h-4 text-rose-500" strokeWidth={1.5} />
+                      <span className="text-sm font-medium text-rose-700">첨부된 증빙 서류가 없습니다.</span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2 pt-2">
                   <label className="block text-xs font-medium text-zinc-700">반려 사유 (반려 시 필수 입력)</label>
                   <textarea
@@ -304,13 +354,13 @@ export default function ProfessorAppealManagement() {
 
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => handleReject(selectedRequest.objectionId)} // .id -> .appealId 수정
+                    onClick={() => handleReject(selectedRequest.objectionId)}
                     className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
                   >
                     <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
                   </button>
                   <button
-                    onClick={() => handleApprove(selectedRequest.objectionId)} // .id -> .appealId 수정
+                    onClick={() => handleApprove(selectedRequest.objectionId)}
                     className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)

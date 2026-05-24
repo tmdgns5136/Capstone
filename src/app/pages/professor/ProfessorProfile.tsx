@@ -12,10 +12,9 @@ export default function ProfessorProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ✅ 데이터 상태 (백엔드 InquiryData 규격 매칭)
+  // ✅ 데이터 상태 
   const [name, setName] = useState("");
   const [professorId, setProfessorId] = useState("");
-  const [department, setDepartment] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNum, setPhoneNum] = useState("");
 
@@ -43,7 +42,6 @@ export default function ProfessorProfile() {
       if (data) {
         setName(data.userName || "");
         setProfessorId(data.userNum || "");
-        setDepartment(data.major || "");
         setEmail(data.userEmail || "");
         setPhoneNum(data.phoneNum || "");
         setOriginalData(data); // 취소 대비 원본 저장
@@ -108,7 +106,7 @@ export default function ProfessorProfile() {
       await api("/api/mypage/password-change", {
         method: "PATCH",
         body: JSON.stringify({
-          newPassword: newPwd, // EditRequest 규격
+          newPassword: newPwd, 
         }),
       });
       
@@ -129,11 +127,8 @@ export default function ProfessorProfile() {
     }
 
     try {
-      // 🚨 컨트롤러에 PostMapping으로 되어있으므로 POST 사용
       const res = await api("/api/mypage/withdraw", { method: "POST" });
       toast.success(res.message || "회원 탈퇴가 성공적으로 처리되었습니다.");
-      
-      // 탈퇴 성공 시 로그인 페이지로 이동
       window.location.href = "/";
     } catch (e: any) {
       toast.error(e.message || "탈퇴 처리에 실패했습니다.");
@@ -166,6 +161,8 @@ export default function ProfessorProfile() {
             </button>
           )}
         </div>
+        
+        {/* 학과를 제거하고 레이아웃 정렬 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-1 block">이름</label>
@@ -183,26 +180,9 @@ export default function ProfessorProfile() {
               className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
             />
           </div>
+          
+          {/* 🌟 기존 학과 자리에 전화번호 배치 */}
           <div>
-            <label className="text-sm font-medium text-zinc-700 mb-1 block">학과</label>
-            <input
-              value={department}
-              disabled
-              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-500 cursor-not-allowed"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
-              이메일 {isEditing && <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">수정 가능</span>}
-            </label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={!isEditing}
-              className={`w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors ${!isEditing ? "bg-zinc-50 text-zinc-500 cursor-not-allowed" : "bg-white"}`}
-            />
-          </div>
-          <div className="md:col-span-2">
             <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
               전화번호 {isEditing && <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">수정 가능</span>}
             </label>
@@ -211,6 +191,18 @@ export default function ProfessorProfile() {
               onChange={(e) => setPhoneNum(e.target.value)}
               disabled={!isEditing}
               placeholder="예: 010-1234-5678"
+              className={`w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors ${!isEditing ? "bg-zinc-50 text-zinc-500 cursor-not-allowed" : "bg-white"}`}
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
+              이메일 {isEditing && <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">수정 가능</span>}
+            </label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={!isEditing}
               className={`w-full rounded-lg border border-zinc-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors ${!isEditing ? "bg-zinc-50 text-zinc-500 cursor-not-allowed" : "bg-white"}`}
             />
           </div>

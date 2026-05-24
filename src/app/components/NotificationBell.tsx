@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Bell, Check, Trash2, ArrowRight, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getNotifications, markNotificationRead, type NotificationData } from "../api/notification";
+import { toast } from "sonner";
 
 export interface Notification {
   id: string;
@@ -18,41 +19,45 @@ interface NotificationBellProps {
   role: "student" | "professor" | "admin";
 }
 
-// 🌟 디자인은 유지하되, 백엔드 타입에 맞춰 아이콘/타입 결정
 function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
   switch (type) {
+    case "ABSENCE_OFFICIAL":
     case "ABSENCE_REQUEST":
       return { title: "공결 신청", uiType: "info" };
+    case "ABSENCE_OBJECTION":
     case "APPEAL_REQUEST":
-      return { title: "이의 신청", uiType: "warning" };
+      return { title: "출결 이의신청", uiType: "warning" };
+    case "NOTICE":
+      return { title: "공지사항", uiType: "info" };
+    case "ANSWER":
     case "ANSWER_REGISTER":
       return { title: "답변 등록", uiType: "success" };
     case "PHOTO_RESULT":
       return { title: "사진 변경 요청", uiType: "info" };
     default:
+      if (type?.includes("PHOTO")) return { title: "사진 변경 요청", uiType: "info" };
       return { title: "시스템 알림", uiType: "info" };
   }
 }
 
-// 🌟 백엔드 데이터를 UI용 객체로 변환 (ID와 Link 매핑 추가)
 function toNotification(n: NotificationData, role: string): Notification {
   const { title, uiType } = mapTypeToUI(n.type);
   const isProfessor = role === "professor";
   const isAdmin = role === "admin";
 
-  // 역할에 따른 이동 경로 설정
   let link = `/${role}`;
-  if (n.type === "ABSENCE_REQUEST") {
+  if (n.type === "ABSENCE_OFFICIAL" || n.type === "ABSENCE_REQUEST") {
     link = isAdmin ? "/admin" : isProfessor ? "/professor/absence-management" : "/student/absence-request";
-  } else if (n.type === "APPEAL_REQUEST") {
+  } else if (n.type === "ABSENCE_OBJECTION" || n.type === "APPEAL_REQUEST") {
     link = isAdmin ? "/admin" : isProfessor ? "/professor/appeal-management" : "/student/stats";
-  } else if (n.type === "ANSWER_REGISTER") {
-    link = isProfessor ? "/professor/appeal-management" : "/student";
-  } else if (n.type === "PHOTO_RESULT") {
-    link = isAdmin ? "/admin/photo-requests" : `/${role}`;
+  } else if (n.type === "NOTICE" || n.type === "ANSWER" || n.type === "ANSWER_REGISTER") {
+    link = isProfessor ? "/professor/courses" : "/student/courses";
+  } else if (n.type === "PHOTO_RESULT" || n.type?.includes("PHOTO")) {
+    link = isAdmin ? "/admin/photo-requests" : `/${role}/profile`;
+  } else if (isAdmin && n.message?.includes("사진")) {
+    link = "/admin/photo-requests";
   }
 
-  // 백엔드 응답 필드명 호환 (id / notificationId, read / isRead)
   const notifId = n.id ?? n.notificationId ?? 0;
   const isRead = n.read ?? n.isRead ?? false;
 
@@ -74,15 +79,28 @@ export function NotificationBell({ role }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const failCountRef = useRef(0);
 
   const fetchNotifications = useCallback(() => {
+    // 연속 3회 실패 시 폴링 중단 (Network 탭 오류 스팸 방지)
+    if (failCountRef.current >= 3) return;
+
     getNotifications()
       .then((res) => {
-        // ApiResponse<List<NotificationResponse>> 구조에서 데이터 추출
+        failCountRef.current = 0;
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+
         setNotifications(list.map((n: NotificationData) => toNotification(n, role)));
       })
-      .catch(() => {});
+      .catch((err) => {
+        failCountRef.current += 1;
+        if (failCountRef.current === 1) {
+          console.warn("알림 API 호출 실패:", err.message || err);
+        }
+        if (failCountRef.current >= 3) {
+          console.warn("알림 API 연속 실패 — 폴링을 중단합니다.");
+        }
+      });
   }, [role]);
 
   useEffect(() => {
@@ -112,18 +130,28 @@ export function NotificationBell({ role }: NotificationBellProps) {
   };
 
   const markAllAsRead = () => {
-    notifications.filter(n => !n.isRead).forEach(n => {
+    const unread = notifications.filter(n => !n.isRead);
+    if (unread.length === 0) return;
+    unread.forEach(n => {
       markNotificationRead(Number(n.id)).catch(() => {});
     });
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    toast.success("모든 알림을 읽음 처리했습니다.");
   };
 
   const clearAll = () => {
+    notifications.forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => {});
+    });
     setNotifications([]);
+    toast.success("알림창을 비웠습니다.");
   };
 
   const mapRedirectUrl = (url: string): string | null => {
     if (!url) return null;
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/master") || url.startsWith("/admin")) {
+      return url;
+    }
     const lectureMatch = url.match(/mylecture\/(\d+)/);
     const lectureId = lectureMatch ? lectureMatch[1] : null;
     if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
@@ -142,8 +170,10 @@ export function NotificationBell({ role }: NotificationBellProps) {
     markNotificationRead(Number(id))
       .then((res: any) => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+
         const redirectUrl = res.data?.redirectUrl;
         const frontRoute = redirectUrl ? mapRedirectUrl(redirectUrl) : null;
+
         if (frontRoute) {
           navigate(frontRoute);
         } else if (fallbackLink) {
@@ -208,7 +238,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
           >
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-800">알림</h3>
+              <h3 className="text-sm font-semibold text-zinc-800">새로운 알림</h3>
               <div className="flex items-center gap-1">
                 {unreadCount > 0 && (
                   <button
@@ -238,28 +268,26 @@ export function NotificationBell({ role }: NotificationBellProps) {
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-100">
-                  {notifications.map((notification) => (
+                  {notifications.slice(0, 4).map((notification) => (
                     <div
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification.id, notification.link)}
-                      className={`px-5 py-3.5 cursor-pointer transition-colors hover:bg-zinc-50/80 ${
-                        notification.isRead ? "opacity-50" : ""
+                      className={`px-5 py-3.5 transition-colors ${
+                        notification.isRead ? "opacity-50 bg-zinc-50/50 cursor-pointer hover:bg-zinc-100/80" : "cursor-pointer hover:bg-zinc-50/80"
                       }`}
                     >
                       <div className="flex gap-3">
                         {typeIcon(notification.type)}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-0.5">
-                            <h4 className="text-sm font-medium text-zinc-800 truncate">{notification.title}</h4>
+                            <h4 className={`text-sm font-medium truncate ${notification.isRead ? "text-zinc-400" : "text-zinc-800"}`}>{notification.title}</h4>
                             <span className="text-[11px] text-zinc-400 shrink-0">{notification.createdAt}</span>
                           </div>
                           <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">
                             {notification.message}
                           </p>
                         </div>
-                        {!notification.isRead && (
-                          <div className="w-2 h-2 rounded-full bg-primary self-center shrink-0" />
-                        )}
+                        {!notification.isRead && <div className="w-2 h-2 rounded-full bg-primary self-center shrink-0" />}
                       </div>
                     </div>
                   ))}

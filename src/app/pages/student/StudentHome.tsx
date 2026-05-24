@@ -113,7 +113,7 @@ export default function StudentHome() {
           <div className="flex flex-col items-center justify-center p-10 gap-3">
             <ScanFace className="w-10 h-10 text-zinc-600" />
             <p className="text-zinc-400 font-medium text-sm">현재 진행 중인 수업이 없습니다</p>
-            <p className="text-zinc-600 text-xs">수업 시간이 되면 실시간 출석 현황이 표시됩니다</p>
+            <p className="text-zinc-600 text-xs">수업 시간이 되면 실시간으로 내 상태가 표시됩니다</p>
           </div>
         )}
       </section>

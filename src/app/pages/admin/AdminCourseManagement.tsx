@@ -121,7 +121,9 @@ export default function AdminCourseManagement() {
       }
 
       const lecturePromises = professors.map((prof: any) =>
-        api(`/api/admin/lectures/${prof.userNum}?year=${CURRENT_YEAR}&semester=${CURRENT_SEMESTER_NUM}`, { method: "GET" }).catch(() => null)
+        api(`/api/admin/lectures/${prof.userNum}?year=${CURRENT_YEAR}&semester=${encodeURIComponent("1학기")}`, { 
+        method: "GET" 
+        }).catch(() => null)
       );
 
       const responses = await Promise.all(lecturePromises);

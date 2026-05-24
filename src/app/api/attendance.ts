@@ -1,19 +1,20 @@
 import { api } from "./client";
 import { ApiResponse } from "./lecture";
 
-export type AttendanceStatus = "PRESENT" | "LATE" | "ABSENT" | "EXCUSED" | "TBD";
+export type status = "ATTEND" | "LATENESS" | "ABSENCE" | "TBD";
 
 export interface UpdateAttendancePayload {
   studentId: string;
   lectureId: string;
-  status: AttendanceStatus;
+  status: "ATTEND" | "LATENESS" | "ABSENCE" | "TBD";
   date: string;
+  sessionNum: number; 
 }
 
 export interface StudentAttendanceDetail {
   studentId: string;
   name: string;
-  status?: AttendanceStatus;
+  status?: status;
   present: number;
   late: number;
   absent: number;
@@ -28,6 +29,11 @@ export interface AttendanceMonitoringData {
   students: StudentAttendanceDetail[];
 }
 
+export async function getLectureSessions(lectureId: string, date: string) {
+  const res = await fetch(`/api/lectures/${lectureId}/sessions?date=${date}`);
+  return res.json();
+}
+
 // 8. 학생 출석 상태 수동 변경
 export async function updateAttendance(payload: UpdateAttendancePayload) {
   // [체크] 백엔드에서 주소가 /api/professors/attendance 가 맞는지 확인해주세요!
@@ -40,21 +46,14 @@ export async function updateAttendance(payload: UpdateAttendancePayload) {
 // 9. 출결 모니터링 데이터 조회 (404 해결용)
 export async function getAttendanceMonitoring(
   lectureId: string, 
-  params: { date?: string; semester?: string } = {}
+  // 🌟 [수정 1] 파라미터 타입에 semester?: string 추가
+  params: { date?: string; sessionNum?: number; semester?: string } 
 ) {
-  const now = new Date();
-  const defaultSemester = `${now.getFullYear()}-${now.getMonth() + 1 >= 7 ? "2학기" : "1학기"}`;
-  const semester = params.semester || defaultSemester;
+  // 🌟 [수정 2] 하드코딩된 '2026-1학기'를 지우고, 넘어온 params.semester 값을 사용하도록 변경
+  let url = `/api/professors/lectures/${lectureId}/attendance?semester=${params.semester || '2026-1학기'}`;
   
-  // [수정] URL을 더 명확하게 조립합니다. 
-  // lectureId가 undefined면 여기서 바로 티가 납니다.
-  let url = `/api/professors/lectures/${lectureId}/attendance?semester=${semester}`;
+  if (params.date) url += `&date=${params.date}`;
+  if (params.sessionNum) url += `&sessionNum=${params.sessionNum}`; 
   
-  if (params.date) {
-    url += `&date=${params.date}`;
-  }
-
-  return api<ApiResponse<AttendanceMonitoringData>>(url, { 
-    method: "GET" 
-  });
+  return api<any>(url, { method: "GET" });
 }

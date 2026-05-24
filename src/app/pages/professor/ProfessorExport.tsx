@@ -29,7 +29,7 @@ export default function ProfessorExport() {
     const fetchData = async () => {
       setDataLoading(true);
       try {
-        const res = await getAttendanceMonitoring(selectedCourseId);
+        const res = await getAttendanceMonitoring(selectedCourseId, {});
         if (res.success && res.data?.students) {
           setStudents(res.data.students);
         } else {

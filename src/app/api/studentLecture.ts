@@ -22,6 +22,7 @@ export interface SessionData {
   sessionDate: string;
   startTime: string;
   endTime: string;
+  status?: string;
 }
 
 // 1-13 학기별 출결 통계

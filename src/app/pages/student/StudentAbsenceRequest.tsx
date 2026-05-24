@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { FileText, Upload, Clock, CheckCircle, XCircle, BookOpen, AlertTriangle, ArrowRight, X, Trash2, Paperclip, Loader2 } from "lucide-react";
+import { FileText, Upload, Clock, CheckCircle, XCircle, BookOpen, AlertTriangle, ArrowRight, X, Trash2, Paperclip, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   getMyLectures,
@@ -87,8 +87,15 @@ export default function StudentAbsenceRequest() {
     }
     setLoadingSessions(true);
     getLectureSessions(selectedLectureId)
-      .then((res) => setSessions(res.data))
-      .catch(() => setSessions([]))
+      .then((res) => {
+        const filtered = res.data.filter((s) => s.status !== "ATTEND");
+        setSessions(filtered);
+      })
+      .catch((err) => {
+        console.error("세션 목록 로드 실패:", err);
+        setSessions([]);
+        toast.error("수업 날짜를 불러올 수 없습니다.");
+      })
       .finally(() => setLoadingSessions(false));
   }, [selectedLectureId]);
 
@@ -249,7 +256,7 @@ export default function StudentAbsenceRequest() {
                     </option>
                   ))}
                 </select>
-                <BookOpen strokeWidth={1.5} className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                <ChevronDown strokeWidth={1.5} className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
               </div>
             </div>
 
@@ -271,22 +278,31 @@ export default function StudentAbsenceRequest() {
               <label className="text-sm font-medium text-zinc-700">
                 수업 날짜 <span className="text-rose-500">*</span>
               </label>
-              <select
-                value={selectedSessionId}
-                onChange={(e) => setSelectedSessionId(e.target.value)}
-                disabled={loadingSessions || sessions.length === 0}
-                className="w-full appearance-none rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                required
-              >
-                <option value="" disabled>
-                  {loadingSessions ? "세션 불러오는 중..." : sessions.length === 0 ? "강의를 먼저 선택하세요" : "수업 날짜를 선택하세요"}
-                </option>
-                {sessions.map((s) => (
-                  <option key={s.sessionId} value={s.sessionId}>
-                    {s.sessionDate} ({s.startTime} ~ {s.endTime})
+              <div className="relative">
+                <select
+                  value={selectedSessionId}
+                  onChange={(e) => setSelectedSessionId(e.target.value)}
+                  disabled={loadingSessions || sessions.length === 0}
+                  className="w-full appearance-none cursor-pointer rounded-xl border border-zinc-200 bg-white p-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  required
+                >
+                  <option value="" disabled>
+                    {loadingSessions
+                      ? "세션 불러오는 중..."
+                      : !selectedLectureId
+                        ? "강의를 먼저 선택하세요"
+                        : sessions.length === 0
+                          ? "등록된 수업 날짜가 없습니다"
+                          : "수업 날짜를 선택하세요"}
                   </option>
-                ))}
-              </select>
+                  {sessions.map((s) => (
+                    <option key={s.sessionId} value={s.sessionId}>
+                      {s.sessionDate} ({s.startTime} ~ {s.endTime})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown strokeWidth={1.5} className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+              </div>
             </div>
 
             <div className="space-y-1.5">

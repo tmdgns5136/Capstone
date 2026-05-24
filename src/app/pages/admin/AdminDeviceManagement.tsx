@@ -23,8 +23,16 @@ import {
   EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import Webcam from "react-webcam";
-import { checkAdminPassword, getAdminDevices, registerAdminDevice } from "../../api/adminDevice";
+
+import {
+  getAdminDevices,
+  registerAdminDevice,
+  checkAdminPassword,
+  startAdminDeviceCameraTest,
+  stopAdminDeviceCameraTest,
+} from "../../api/adminDevice";
+
+const RPI_STREAM_URL = import.meta.env.VITE_RPI_STREAM_URL;
 
 const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
@@ -87,6 +95,9 @@ export default function AdminDeviceManagement() {
   const [secretAuthLoading, setSecretAuthLoading] = useState(false);
   // 카메라 테스트
   const [testResult, setTestResult] = useState<any>(null);
+
+  const [cameraTestLoading, setCameraTestLoading] = useState(false);
+  const [streamKey, setStreamKey] = useState(Date.now());
 
   const loadDevices = async () => {
     try {
@@ -235,10 +246,47 @@ export default function AdminDeviceManagement() {
     }
   };
 
-  // 카메라 테스트
-  const handleRunFaceTest = (device: Device) => {
-    setTestDevice(device);
-    setTestResult(null);
+  // 카메라 테스트 시작
+  const handleRunFaceTest = async (device: Device) => {
+    try {
+      setCameraTestLoading(true);
+      setTestDevice(device);
+      setTestResult(null);
+
+      await startAdminDeviceCameraTest(device.deviceId);
+
+      setStreamKey(Date.now());
+      toast.success("카메라 테스트 시작 명령을 전송했습니다.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "카메라 테스트 시작에 실패했습니다.");
+      setTestDevice(null);
+    } finally {
+      setCameraTestLoading(false);
+    }
+  };
+
+  // 카메라 테스트 종료
+  const handleStopCameraTest = async () => {
+    if (!testDevice) return;
+
+    try {
+      setCameraTestLoading(true);
+
+      await stopAdminDeviceCameraTest(testDevice.deviceId);
+
+      toast.success("카메라 테스트를 종료했습니다.");
+      setTestDevice(null);
+      setTestResult(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "카메라 테스트 종료에 실패했습니다.");
+    } finally {
+      setCameraTestLoading(false);
+    }
+  };
+
+  // 모달 닫기 = 카메라 테스트 종료
+  const handleCloseCameraTest = async () => {
+    await handleStopCameraTest();
   };
 
   const simulateFaceRecognition = () => {
@@ -713,7 +761,7 @@ export default function AdminDeviceManagement() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setTestDevice(null)}
+            onClick={handleCloseCameraTest}
           >
             <motion.div
               initial={{ scale: 0.95, y: 20 }}
@@ -735,7 +783,7 @@ export default function AdminDeviceManagement() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setTestDevice(null)}
+                  onClick={handleCloseCameraTest}
                   className="w-8 h-8 rounded-lg flex items-center justify-center bg-zinc-50 text-zinc-500 hover:bg-zinc-100 transition-colors"
                 >
                   <X className="w-4 h-4" strokeWidth={1.5} />
@@ -751,10 +799,19 @@ export default function AdminDeviceManagement() {
                     <span className="text-xs text-zinc-400 font-mono">{testDevice.deviceId}</span>
                   </div>
                   <div className="flex-1 bg-zinc-900 rounded-xl relative overflow-hidden flex items-center justify-center min-h-[300px]">
-                    <Webcam
-                      audio={false}
-                      className={`w-full h-full object-cover rounded-xl ${testResult?.status === "scanning" ? "opacity-70" : "opacity-90"}`}
-                    />
+                    {RPI_STREAM_URL ? (
+                      <iframe
+                          key={streamKey}
+                          src={RPI_STREAM_URL}
+                          title="Raspberry Pi Camera Stream"
+                          className="w-full h-full rounded-xl border-0 bg-black"
+                          allow="autoplay; fullscreen"
+                      />
+                  ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm text-zinc-500">
+                        VITE_RPI_STREAM_URL이 설정되지 않았습니다.
+                      </div>
+                  )}
                     {testResult?.status === "scanning" && (
                       <div className="absolute inset-0 z-10 pointer-events-none rounded-xl">
                         <motion.div
@@ -793,6 +850,16 @@ export default function AdminDeviceManagement() {
                       )}
                       테스트 API 확인
                     </button>
+
+                    <button
+  type="button"
+  onClick={handleStopCameraTest}
+  disabled={cameraTestLoading}
+  className="w-full bg-rose-500 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-rose-600 transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
+>
+  <X className="w-4 h-4" strokeWidth={1.5} />
+  카메라 테스트 종료
+</button>
 
                     {testResult?.status === "unavailable" && (
                       <motion.div

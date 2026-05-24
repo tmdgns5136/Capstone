@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Calendar, MoreHorizontal, ArrowRight, AlertCircle, CheckCircle, XCircle, Clock, Trash2, Upload, Loader2, FileText, X, Paperclip } from "lucide-react";
+import { Calendar, MoreHorizontal, ArrowRight, AlertCircle, CheckCircle, XCircle, Clock, Trash2, Upload, Loader2, FileText, X, Paperclip, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { ScrollableCardList } from "../../components/ScrollableCardList";
 import { ATTENDANCE_STATUS_COLORS } from "../../constants/attendance";
@@ -378,7 +378,12 @@ export default function StudentStats() {
                                     const res = await getLectureSessions(record.lectureId);
                                     setSessions(res.data);
                                     const matched = res.data.find((s: SessionData) => s.sessionDate === record.date);
-                                    if (matched) setSelectedAppealSessionId(String(matched.sessionId));
+                                    if (matched) {
+                                      setSelectedAppealSessionId(String(matched.sessionId));
+                                    } else {
+                                      console.warn("세션 자동 매칭 실패:", { recordDate: record.date, sessions: res.data.map((s: SessionData) => s.sessionDate) });
+                                      setSelectedAppealSessionId("");
+                                    }
                                   } catch {}
                                   setShowAppealModal(true);
                                 }}
@@ -426,7 +431,12 @@ export default function StudentStats() {
                                     const res = await getLectureSessions(record.lectureId);
                                     setSessions(res.data);
                                     const matched = res.data.find((s: SessionData) => s.sessionDate === record.date);
-                                    if (matched) setSelectedAppealSessionId(String(matched.sessionId));
+                                    if (matched) {
+                                      setSelectedAppealSessionId(String(matched.sessionId));
+                                    } else {
+                                      console.warn("세션 자동 매칭 실패:", { recordDate: record.date, sessions: res.data.map((s: SessionData) => s.sessionDate) });
+                                      setSelectedAppealSessionId("");
+                                    }
                                   } catch {}
                                   setShowAppealModal(true);
                                 }}
@@ -461,18 +471,21 @@ export default function StudentStats() {
               )}
             </div>
             {/* 강의 선택 */}
-            <select
-              value={selectedAppealLectureId}
-              onChange={(e) => setSelectedAppealLectureId(e.target.value)}
-              className="w-full appearance-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="" disabled>강의를 선택하세요</option>
-              {lectures.map((l) => (
-                <option key={l.lectureId} value={l.lectureId}>
-                  {l.lectureName}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedAppealLectureId}
+                onChange={(e) => setSelectedAppealLectureId(e.target.value)}
+                className="w-full appearance-none rounded-lg border border-zinc-200 bg-white px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="" disabled>강의를 선택하세요</option>
+                {lectures.map((l) => (
+                  <option key={l.lectureId} value={l.lectureId}>
+                    {l.lectureName}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+            </div>
           </div>
 
           {loadingAppeals ? (
@@ -718,13 +731,20 @@ export default function StudentStats() {
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5" /> 수업 날짜 <span className="text-red-500">*</span>
+              <Calendar className="w-3.5 h-3.5" /> 수업 회차 <span className="text-red-500">*</span>
             </label>
-            <input
-              value={appealRecord?.date || ""}
-              disabled
-              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 text-sm text-zinc-500"
-            />
+            <select
+              value={selectedAppealSessionId}
+              onChange={(e) => setSelectedAppealSessionId(e.target.value)}
+              className="w-full rounded-lg border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="" disabled>회차를 선택하세요</option>
+              {sessions.map((s) => (
+                <option key={s.sessionId} value={String(s.sessionId)}>
+                  {s.sessionDate} ({s.startTime}~{s.endTime})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div>

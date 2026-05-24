@@ -4,24 +4,44 @@ import { Bell, Check, Trash2, ArrowLeft, Info, AlertTriangle, CheckCircle2, Load
 import { useNavigate } from "react-router";
 import { getNotifications, markNotificationRead, type NotificationData } from "../../api/notification";
 import { Notification } from "../../components/NotificationBell";
+import { toast } from "sonner"; // 🌟 토스트 알림 추가
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
 
-function mapTypeToUI(type: string): "info" | "warning" | "success" {
-  const lower = type.toLowerCase();
-  if (lower.includes("warn") || lower.includes("alert")) return "warning";
-  if (lower.includes("success") || lower.includes("approv")) return "success";
-  return "info";
+// 🌟 [수정 1] 백엔드 실제 ENUM DB 코드 규격과 완벽하게 매칭하여 타이틀 정의
+function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
+  switch (type) {
+    case "ABSENCE_OFFICIAL":
+    case "ABSENCE_REQUEST":
+      return { title: "공결 신청", uiType: "info" };
+    case "ABSENCE_OBJECTION":
+    case "APPEAL_REQUEST":
+      return { title: "출결 이의신청", uiType: "warning" };
+    case "NOTICE":
+      return { title: "공지사항", uiType: "info" };
+    case "ANSWER":
+    case "ANSWER_REGISTER":
+      return { title: "답변 등록", uiType: "success" };
+    case "PHOTO_RESULT":
+      return { title: "사진 변경 요청", uiType: "info" };
+    default:
+      if (type?.includes("PHOTO")) return { title: "사진 변경 요청", uiType: "info" };
+      return { title: "시스템 알림", uiType: "info" };
+  }
 }
 
 function toNotification(n: NotificationData): Notification {
+  const { title, uiType } = mapTypeToUI(n.type);
+  const notifId = n.id ?? n.notificationId ?? 0;
+  const isRead = n.isRead ?? n.read ?? false;
+
   return {
-    id: String(n.id),
-    title: n.lectureName || n.type,
+    id: String(notifId),
+    title: title,
     message: n.message,
-    isRead: n.isRead ?? n.read ?? false,
+    isRead: isRead,
     createdAt: n.createdAt,
-    type: mapTypeToUI(n.type),
+    type: uiType,
   };
 }
 
@@ -34,7 +54,8 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
     setLoading(true);
     getNotifications()
       .then((res) => {
-        const list = res.data ?? [];
+        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+        
         setNotifications(list.map(toNotification));
       })
       .catch(() => setNotifications([]))
@@ -50,22 +71,47 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
   };
 
   const markAllAsRead = () => {
-    notifications.filter(n => !n.isRead).forEach(n => {
+    const unread = notifications.filter(n => !n.isRead);
+    if (unread.length === 0) return;
+
+    unread.forEach(n => {
       markNotificationRead(Number(n.id)).catch(() => { });
     });
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    toast.success("모든 알림을 읽음 처리했습니다.");
   };
 
+  // 🌟 [수정 4] 단일 삭제(휴지통) 버튼 클릭 시 백엔드 DB 상태도 '읽음'으로 동기화하여 F5 버그 차단
   const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    markNotificationRead(Number(id))
+      .then(() => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      })
+      .catch(() => {
+        // API 에러가 나더라도 화면에서는 우선 삭제 처리
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      });
   };
 
+  // 🌟 [수정 5] 전체 삭제 버튼 클릭 시 백엔드 DB 상태 전체 연동
   const clearAll = () => {
+    if (notifications.length === 0) return;
+
+    notifications.forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => { });
+    });
     setNotifications([]);
+    toast.success("알림 히스토리를 모두 비웠습니다.");
   };
 
+  // 🌟 [수정 6] 백엔드가 리다이렉트해 준 깔끔한 프론트엔드용 주소를 그대로 통과시킵니다.
   const mapRedirectUrl = (url: string): string | null => {
     if (!url) return null;
+    
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/master") || url.startsWith("/admin")) {
+      return url;
+    }
+
     const lectureMatch = url.match(/mylecture\/(\d+)/);
     const lectureId = lectureMatch ? lectureMatch[1] : null;
     if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
@@ -176,7 +222,7 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                 className="flex flex-col items-center justify-center py-24 text-zinc-300"
               >
                 <Bell className="w-12 h-12 mb-3" strokeWidth={1} />
-                <p className="text-sm text-zinc-400">수신된 알림이 없습니다.</p>
+                <p className="text-sm text-zinc-400">새로운 알림이 없습니다.</p>
               </motion.div>
             ) : (
               notifications.map((notification, index) => {
@@ -192,10 +238,9 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                     exit={{ opacity: 0, x: -40 }}
                     transition={{ ...spring, delay: index * 0.04 }}
                     onClick={() => handleNotificationClick(notification.id)}
-                    className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${config.border} ${notification.isRead
-                        ? "bg-white hover:bg-zinc-50/80 opacity-70"
-                        : "bg-zinc-50/40 hover:bg-zinc-50"
-                      } ${index < notifications.length - 1 ? "border-b border-zinc-100" : ""}`}
+                    className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${
+                      notification.isRead ? "border-l-zinc-200 bg-zinc-50/50 opacity-60 hover:opacity-80" : `${config.border} bg-white hover:bg-zinc-50/80`
+                    } ${index < notifications.length - 1 ? "border-b border-zinc-100" : ""}`}
                   >
                     <div className="flex gap-3 sm:gap-4 items-start">
                       {/* Icon */}
@@ -206,10 +251,8 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className="text-sm font-semibold text-zinc-800 truncate">{notification.title}</h3>
-                          {!notification.isRead && (
-                            <span className="flex-shrink-0 w-2 h-2 bg-primary rounded-full" />
-                          )}
+                          <h3 className={`text-sm font-semibold truncate ${notification.isRead ? "text-zinc-400" : "text-zinc-800"}`}>{notification.title}</h3>
+                          {!notification.isRead && <span className="flex-shrink-0 w-2 h-2 bg-primary rounded-full" />}
                         </div>
                         <p className="text-sm text-zinc-500 leading-relaxed">{notification.message}</p>
                         <span className="text-xs text-zinc-300 mt-1 block">{notification.createdAt}</span>

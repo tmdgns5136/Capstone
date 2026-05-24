@@ -39,6 +39,7 @@ export default function StudentProfile() {
   const [department, setDepartment] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [originalPhone, setOriginalPhone] = useState("");
   const [faceStatus, setFaceStatus] = useState<string>("");
   const [profileImages, setProfileImages] = useState<Record<string, string>>({});
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -72,15 +73,18 @@ export default function StudentProfile() {
         setStudentId(d.userNum);
         setDepartment(d.major || "");
         setEmail(d.userEmail);
-        setPhone(d.phoneNum ? formatPhone(d.phoneNum) : "");
+        const formattedPhone = d.phoneNum ? formatPhone(d.phoneNum) : "";
+        setPhone(formattedPhone);
+        setOriginalPhone(formattedPhone);
         setFaceStatus(d.faceRegistrationsStatus);
         const imgs: Record<string, string> = {};
         d.profileImages?.forEach((img) => {
           imgs[img.orientation] = img.url;
         });
         setProfileImages(imgs);
-      } catch {
-        // API 실패 시 빈 상태 유지
+      } catch (err) {
+        console.error("프로필 조회 실패:", err);
+        toast.error("프로필 정보를 불러올 수 없습니다. 새로고침 해주세요.");
       }
       // 사진 변경 요청 내역도 함께 로드
       try {
@@ -180,6 +184,7 @@ export default function StudentProfile() {
     try {
       await checkPassword(confirmPassword);
       await updateProfile(phone);
+      setOriginalPhone(phone);
       setIsEditing(false);
       setConfirmPassword("");
       toast.success("정보가 저장되었습니다.");
@@ -191,6 +196,7 @@ export default function StudentProfile() {
   };
 
   const handleCancel = () => {
+    setPhone(originalPhone);
     setIsEditing(false);
     setConfirmPassword("");
   };
