@@ -205,7 +205,7 @@ export default function ProfessorAppealManagement() {
                     </div>
 
                     <div className="bg-zinc-50 rounded-xl p-3 flex-1 mb-4">
-                      <div className="text-xs text-zinc-400 mb-1">결석 처리일: {request.date}</div>
+                      <div className="text-xs text-zinc-400 mb-1">결석 처리일: {request.date}{request.sessionNum ? ` (${request.sessionNum}교시)` : ""}</div>
                       <p className="text-sm text-zinc-700 line-clamp-2">{request.reason}</p>
                     </div>
 
@@ -246,7 +246,7 @@ export default function ProfessorAppealManagement() {
                         {request.studentName} <span className="text-zinc-400 text-xs font-normal">({request.studentId})</span>
                       </div>
                       <div className="text-sm text-zinc-600">{request.course}</div>
-                      <div className="text-sm text-zinc-500">{request.date}</div>
+                      <div className="text-sm text-zinc-500">{request.date}{request.sessionNum ? ` (${request.sessionNum}교시)` : ""}</div>
                       <div className="flex justify-end">{getStatusBadge(request.status)}</div>
                     </div>
 
@@ -306,7 +306,7 @@ export default function ProfessorAppealManagement() {
                   <div className="bg-zinc-50 rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">강의 정보</div>
                     <div className="font-semibold text-zinc-900">{selectedRequest.course}</div>
-                    <div className="text-sm text-zinc-500 mt-0.5">{selectedRequest.date}</div>
+                    <div className="text-sm text-zinc-500 mt-0.5">{selectedRequest.date}{selectedRequest.sessionNum ? ` (${selectedRequest.sessionNum}교시)` : ""}</div>
                   </div>
                 </div>
 

@@ -51,6 +51,7 @@ interface DetailedRecord {
   lectureId: string;
   status: "출석" | "지각" | "결석";
   note: string;
+  sessionId?: number;
 }
 
 function mapStatus(s: string): "출석" | "지각" | "결석" {
@@ -149,6 +150,7 @@ export default function StudentStats() {
                   lectureId: lecture.lectureId,
                   status: mapStatus(sess.status),
                   note: sess.status === "ATTEND" ? "정상 인증" : "-",
+                  sessionId: sess.sessionId,
                 });
               });
           } else {
@@ -369,22 +371,16 @@ export default function StudentStats() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-zinc-400">{record.date}</span>
-                  {record.status === "결석" ? (
+                  {(record.status === "결석" || record.status === "지각") ? (
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                                   setAppealRecord({ course: record.course, date: record.date });
                                   setSelectedAppealLectureId(record.lectureId);
-                                  try {
-                                    const res = await getLectureSessions(record.lectureId);
-                                    setSessions(res.data);
-                                    const matched = res.data.find((s: SessionData) => s.sessionDate === record.date);
-                                    if (matched) {
-                                      setSelectedAppealSessionId(String(matched.sessionId));
-                                    } else {
-                                      console.warn("세션 자동 매칭 실패:", { recordDate: record.date, sessions: res.data.map((s: SessionData) => s.sessionDate) });
-                                      setSelectedAppealSessionId("");
-                                    }
-                                  } catch {}
+                                  if (record.sessionId) {
+                                    setSelectedAppealSessionId(String(record.sessionId));
+                                  } else {
+                                    setSelectedAppealSessionId("");
+                                  }
                                   setShowAppealModal(true);
                                 }}
                       className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800"
@@ -422,22 +418,16 @@ export default function StudentStats() {
                     </td>
                     <td className="px-5 py-4 text-sm text-zinc-400">{record.note}</td>
                     <td className="px-5 py-4 text-right">
-                      {record.status === "결석" ? (
+                      {(record.status === "결석" || record.status === "지각") ? (
                         <button
-                          onClick={async () => {
+                          onClick={() => {
                                   setAppealRecord({ course: record.course, date: record.date });
                                   setSelectedAppealLectureId(record.lectureId);
-                                  try {
-                                    const res = await getLectureSessions(record.lectureId);
-                                    setSessions(res.data);
-                                    const matched = res.data.find((s: SessionData) => s.sessionDate === record.date);
-                                    if (matched) {
-                                      setSelectedAppealSessionId(String(matched.sessionId));
-                                    } else {
-                                      console.warn("세션 자동 매칭 실패:", { recordDate: record.date, sessions: res.data.map((s: SessionData) => s.sessionDate) });
-                                      setSelectedAppealSessionId("");
-                                    }
-                                  } catch {}
+                                  if (record.sessionId) {
+                                    setSelectedAppealSessionId(String(record.sessionId));
+                                  } else {
+                                    setSelectedAppealSessionId("");
+                                  }
                                   setShowAppealModal(true);
                                 }}
                           className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800"
@@ -731,20 +721,9 @@ export default function StudentStats() {
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5" /> 수업 회차 <span className="text-red-500">*</span>
+              <Calendar className="w-3.5 h-3.5" /> 수업 날짜
             </label>
-            <select
-              value={selectedAppealSessionId}
-              onChange={(e) => setSelectedAppealSessionId(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 bg-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="" disabled>회차를 선택하세요</option>
-              {sessions.map((s) => (
-                <option key={s.sessionId} value={String(s.sessionId)}>
-                  {s.sessionDate} ({s.startTime}~{s.endTime})
-                </option>
-              ))}
-            </select>
+            <input value={appealRecord?.date || ""} disabled className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 text-sm text-zinc-500" />
           </div>
         </div>
         <div>

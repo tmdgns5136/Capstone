@@ -30,6 +30,11 @@ function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" 
   }
 }
 
+function formatDateTime(dt: string): string {
+  if (!dt) return "";
+  return dt.replace(/T/, " ").replace(/\.\d+$/, "").slice(0, 19);
+}
+
 function toNotification(n: NotificationData): Notification {
   const { title, uiType } = mapTypeToUI(n.type);
   const notifId = n.id ?? n.notificationId ?? 0;
@@ -40,7 +45,7 @@ function toNotification(n: NotificationData): Notification {
     title: title,
     message: n.message,
     isRead: isRead,
-    createdAt: n.createdAt,
+    createdAt: formatDateTime(n.createdAt),
     type: uiType,
   };
 }
@@ -56,7 +61,9 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
       .then((res) => {
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
         
-        setNotifications(list.map(toNotification));
+        const mapped = list.map(toNotification);
+        mapped.sort((a: Notification, b: Notification) => b.createdAt.localeCompare(a.createdAt));
+        setNotifications(mapped);
       })
       .catch(() => setNotifications([]))
       .finally(() => setLoading(false));

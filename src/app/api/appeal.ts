@@ -9,6 +9,7 @@ export interface AppealRequest {
   studentName: string;
   course: string;
   sessionId: number;        // 추가
+  sessionNum?: number;      // 교시 번호
   date: string;
   reason: string;
   status: AppealStatus;

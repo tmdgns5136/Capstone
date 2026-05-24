@@ -40,6 +40,11 @@ function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" 
   }
 }
 
+function formatDateTime(dt: string): string {
+  if (!dt) return "";
+  return dt.replace(/T/, " ").replace(/\.\d+$/, "").slice(0, 19);
+}
+
 function toNotification(n: NotificationData, role: string): Notification {
   const { title, uiType } = mapTypeToUI(n.type);
   const isProfessor = role === "professor";
@@ -66,7 +71,7 @@ function toNotification(n: NotificationData, role: string): Notification {
     title: title,
     message: n.message,
     isRead: isRead,
-    createdAt: n.createdAt,
+    createdAt: formatDateTime(n.createdAt),
     type: uiType,
     link: link
   };
@@ -90,7 +95,9 @@ export function NotificationBell({ role }: NotificationBellProps) {
         failCountRef.current = 0;
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
 
-        setNotifications(list.map((n: NotificationData) => toNotification(n, role)));
+        const mapped = list.map((n: NotificationData) => toNotification(n, role));
+        mapped.sort((a: Notification, b: Notification) => b.createdAt.localeCompare(a.createdAt));
+        setNotifications(mapped);
       })
       .catch((err) => {
         failCountRef.current += 1;
