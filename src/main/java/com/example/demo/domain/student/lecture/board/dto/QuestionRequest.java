@@ -1,5 +1,6 @@
 package com.example.demo.domain.student.lecture.board.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 @Getter
@@ -9,5 +10,6 @@ import lombok.*;
 public class QuestionRequest {
     private String title;
     private String content;
+    @JsonProperty("isPrivate")
     private boolean isPrivate;
 }

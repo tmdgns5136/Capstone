@@ -428,7 +428,7 @@ public class UserService {
                             .endTime(lecture.getLectureEnd())
                             .room(lecture.getLectureRoom())
                             .status(student.getStudentClassStatus().getCode())
-                            .sessionStartTime(currentSession.getSessionStart().toString())
+                            .sessionStartTime(currentSession != null ? currentSession.getSessionStart().toString() : null)
                             .build();
                 })
                 .toList();

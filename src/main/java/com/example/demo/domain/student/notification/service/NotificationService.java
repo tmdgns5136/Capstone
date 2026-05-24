@@ -114,11 +114,11 @@ public class NotificationService {
 
         // 권한 체크 분기 수정 🌟
         if (student != null) {
-            if (!notification.getStudent().getStudentId().equals(student.getStudentId())) {
+            if (notification.getStudent() != null && !notification.getStudent().getStudentId().equals(student.getStudentId())) {
                 throw new CustomException(403, "해당 알림에 대한 접근 권한이 없습니다.");
             }
         } else if (professor != null) {
-            if (!notification.getProfessor().getProfessorId().equals(professor.getProfessorId())) {
+            if (notification.getProfessor() != null &&!notification.getProfessor().getProfessorId().equals(professor.getProfessorId())) {
                 throw new CustomException(403, "해당 알림에 대한 접근 권한이 없습니다.");
             }
         } else {
@@ -126,7 +126,7 @@ public class NotificationService {
             if (master == null) {
                 throw new CustomException(404, "유저 정보를 찾을 수 없습니다.");
             }
-            if (!notification.getMaster().getMasterId().equals(master.getMasterId())) {
+            if (notification.getMaster() != null &&!notification.getMaster().getMasterId().equals(master.getMasterId())) {
                 throw new CustomException(403, "해당 알림에 대한 접근 권한이 없습니다.");
             }
         }

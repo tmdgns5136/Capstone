@@ -529,7 +529,7 @@ public class LectureService {
                             .sessionNum(session.getSessionNum())
                             .sessionDate(session.getScheduledAt().toString())
                             .startTime(session.getSessionStart().toLocalTime().toString())
-                            .endTime(session.getSessionEnd().toLocalTime().toString())
+                            .endTime(session.getSessionEnd() != null ? session.getSessionEnd().toLocalTime().toString() : "")
                             .status(currentStatus.toString()).build();
                 }).toList();
 
