@@ -229,12 +229,10 @@ export default function ProfessorMonitoring() {
 
           {/* 🌟 내보내기 UI (체크박스 파트를 제외하고 깔끔하게 다운로드 버튼만 우측 정렬) */}
           <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-zinc-100">
+            <div className="px-6 py-4 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
                 <FileSpreadsheet className="w-4 h-4 text-zinc-400" /> 데이터 내보내기
               </h2>
-            </div>
-            <div className="p-6 flex justify-end">
               <button
                 onClick={exportToExcel}
                 className="flex items-center gap-2 bg-zinc-900 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-zinc-800 transition-colors shrink-0 shadow-sm"
