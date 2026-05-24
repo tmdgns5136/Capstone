@@ -106,8 +106,7 @@ public class MasterService {
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
         LocalTime startTime = LocalTime.parse(lecture.getLectureStart(), timeFormatter);
         LocalTime endTime = LocalTime.parse(lecture.getLectureEnd(), timeFormatter);
-        DayOfWeek targetDay = DayOfWeek.valueOf(lecture.getLectureDay().toUpperCase());
-
+        DayOfWeek targetDay = getDayOfWeekFromKorean(lecture.getLectureDay());
         // A. 개강일 계산: 해당 연도 3월 1일부터 시작하여 첫 번째 평일(월~금) 찾기
         LocalDate startDate = LocalDate.of(lecture.getLectureYear().intValue(), 3, 1);
         while (startDate.getDayOfWeek() == DayOfWeek.SATURDAY || startDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
@@ -147,6 +146,18 @@ public class MasterService {
             }
         }
     }
+
+    private DayOfWeek getDayOfWeekFromKorean(String dayText) {
+        if (dayText.contains("월")) return DayOfWeek.MONDAY;
+        if (dayText.contains("화")) return DayOfWeek.TUESDAY;
+        if (dayText.contains("수")) return DayOfWeek.WEDNESDAY;
+        if (dayText.contains("목")) return DayOfWeek.THURSDAY;
+        if (dayText.contains("금")) return DayOfWeek.FRIDAY;
+        if (dayText.contains("토")) return DayOfWeek.SATURDAY;
+        if (dayText.contains("일")) return DayOfWeek.SUNDAY;
+        throw new CustomException(400, "올바르지 않은 요일 형식입니다: " + dayText);
+    }
+
 
     // 교수별 강의 목록 조회
     public ApiResponse<List<CourseData>> getProfessorLecture(Authentication authentication, String professorNum, Long year, String semester){

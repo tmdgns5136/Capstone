@@ -15,5 +15,6 @@ public class ObjectionItemResponse {
     private final String reason;
     private final Long sessionId;
     private final String status;
+    private String fileName;
 
 }

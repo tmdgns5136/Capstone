@@ -6,6 +6,7 @@ import com.example.demo.domain.student.lecture.entity.Lecture;
 import com.example.demo.domain.student.lecture.entity.LectureSession;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,5 +24,11 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     Optional<Attendance> findByLectureSessionAndStudent(
             LectureSession lectureSession,
             Student student
+    );
+    // AttendanceRepository.java 에 추가/수정
+    List<Attendance> findByStudentAndLectureSession_LectureAndLectureSession_ScheduledAt(
+            Student student,
+            Lecture lecture,
+            LocalDate scheduledAt
     );
 }

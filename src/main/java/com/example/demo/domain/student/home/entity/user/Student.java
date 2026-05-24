@@ -49,7 +49,7 @@ public class Student {
     @Enumerated(EnumType.STRING)
     private RoleType roleType;
 
-    @Column(name = "STUDENT_STATUS", length = 20, nullable = false)
+    @Column(name = "STUDENT_STATUS", length = 20, nullable = true)
     @Enumerated(EnumType.STRING)
     private StudentStatus studentStatus;
 
