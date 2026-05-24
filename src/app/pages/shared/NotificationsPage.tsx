@@ -108,7 +108,13 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
   const mapRedirectUrl = (url: string): string | null => {
     if (!url) return null;
     
-    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/master") || url.startsWith("/admin")) {
+    if (url.startsWith("/master")) {
+      const converted = url.replace("/master", "/admin");
+      if (converted === "/admin/dashboard") return "/admin";
+      return converted;
+    }
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/admin")) {
+      if (url === "/admin/dashboard") return "/admin";
       return url;
     }
 
@@ -118,21 +124,49 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
     if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
     if (url.includes("/official-requests/")) return `/${role}/absence-request`;
     if (url.includes("/objection-requests/")) return `/${role}/stats`;
-    if (url.includes("mypage")) return `/${role}/profile`;
+    if (url.includes("mypage")) {
+      if (role === "admin") return "/admin/photo-requests";
+      return `/${role}/profile`;
+    }
     return null;
   };
 
+  const getFallbackLink = (notification: Notification): string => {
+    if (notification.title === "사진 변경 요청") {
+      return role === "admin" ? "/admin/photo-requests" : `/${role}/profile`;
+    }
+    if (notification.title === "공결 신청") {
+      return role === "professor" ? "/professor/absence-management" : "/student/absence-request";
+    }
+    if (notification.title === "출결 이의신청") {
+      return role === "professor" ? "/professor/appeal-management" : "/student/stats";
+    }
+    if (notification.title === "공지사항" || notification.title === "답변 등록") {
+      return role === "professor" ? "/professor/courses" : "/student/courses";
+    }
+    return `/${role}`;
+  };
+
+  const isGenericHome = (url: string) => ["/admin", "/student", "/professor"].includes(url);
+
   const handleNotificationClick = (id: string) => {
+    const notification = notifications.find(n => n.id === id);
     markNotificationRead(Number(id))
       .then((res) => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
         const url = res.data?.redirectUrl;
         const frontRoute = url ? mapRedirectUrl(url) : null;
-        if (frontRoute) {
+        if (frontRoute && !isGenericHome(frontRoute)) {
+          navigate(frontRoute);
+        } else if (notification) {
+          navigate(getFallbackLink(notification));
+        } else if (frontRoute) {
           navigate(frontRoute);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (notification) navigate(getFallbackLink(notification));
+      });
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;

@@ -149,7 +149,13 @@ export function NotificationBell({ role }: NotificationBellProps) {
 
   const mapRedirectUrl = (url: string): string | null => {
     if (!url) return null;
-    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/master") || url.startsWith("/admin")) {
+    if (url.startsWith("/master")) {
+      const converted = url.replace("/master", "/admin");
+      if (converted === "/admin/dashboard") return "/admin";
+      return converted;
+    }
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/admin")) {
+      if (url === "/admin/dashboard") return "/admin";
       return url;
     }
     const lectureMatch = url.match(/mylecture\/(\d+)/);
@@ -165,6 +171,8 @@ export function NotificationBell({ role }: NotificationBellProps) {
     return null;
   };
 
+  const isGenericHome = (url: string) => ["/admin", "/student", "/professor"].includes(url);
+
   const handleNotificationClick = (id: string, fallbackLink?: string) => {
     setIsOpen(false);
     markNotificationRead(Number(id))
@@ -174,10 +182,12 @@ export function NotificationBell({ role }: NotificationBellProps) {
         const redirectUrl = res.data?.redirectUrl;
         const frontRoute = redirectUrl ? mapRedirectUrl(redirectUrl) : null;
 
-        if (frontRoute) {
+        if (frontRoute && !isGenericHome(frontRoute)) {
           navigate(frontRoute);
         } else if (fallbackLink) {
           navigate(fallbackLink);
+        } else if (frontRoute) {
+          navigate(frontRoute);
         }
       })
       .catch(() => {
