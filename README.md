@@ -1,4 +1,5 @@
-# 스마트 출결 시스템 (Smart Attendance System)
+# ASaaS - 스마트 출결 시스템 (Smart Attendance System)
+> **ASaaS** (Attendance Software as a Service) | Team 천천히, 꾸준히
 
 AWS Rekognition 얼굴 인식 기반 대학교 자동 출결 관리 웹 애플리케이션
 
@@ -36,7 +37,7 @@ Vite 개발 서버가 실행되며, `/api` 요청은 `http://127.0.0.1:8080`으�
 - 얼굴 사진(정면/좌측/우측) 기반 회원가입
 - 실시간 출석 현황 및 수업별 출석률 통계
 - 시간표 조회
-- 결석 사유서 제출
+- 공결 사유 제출
 - 프로필 사진 변경 요청
 
 ### 교수 (Professor)
@@ -74,7 +75,7 @@ Vite 개발 서버가 실행되며, `/api` 요청은 `http://127.0.0.1:8080`으�
 │   │   └── App.tsx           # 메인 앱 컴포넌트
 │   └── styles/               # 글로벌 스타일 (Tailwind, fonts, theme)
 ├── public/                   # 정적 파일 (얼굴 등록 가이드 이미지 등)
-├── utils/                    # 유틸리티 (Supabase 설정 등)
+├── utils/                    # 유틸리티
 ├── vite.config.ts            # Vite 설정 (프록시, 경로 별칭)
 └── index.html                # HTML 엔트리 포인트
 ```
