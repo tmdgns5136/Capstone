@@ -18,7 +18,7 @@ export default function Support() {
             <div className="bg-zinc-50 rounded-xl border border-zinc-200 p-5">
               <Mail className="w-5 h-5 text-zinc-400 mb-3" strokeWidth={1.5} />
               <p className="text-sm font-semibold text-zinc-900">이메일 문의</p>
-              <p className="text-xs text-zinc-500 mt-1">asaas-support@university.ac.kr</p>
+              <p className="text-xs text-zinc-500 mt-1">202110908@sangmyung.kr</p>
             </div>
             <div className="bg-zinc-50 rounded-xl border border-zinc-200 p-5">
               <Clock className="w-5 h-5 text-zinc-400 mb-3" strokeWidth={1.5} />
