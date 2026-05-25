@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Bell, Check, Trash2, ArrowRight, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { getNotifications, markNotificationRead, type NotificationData } from "../api/notification";
+import { toast } from "sonner";
 
 export interface Notification {
   id: string;
@@ -14,7 +16,65 @@ export interface Notification {
 }
 
 interface NotificationBellProps {
-  role: "student" | "professor";
+  role: "student" | "professor" | "admin";
+}
+
+function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
+  switch (type) {
+    case "ABSENCE_OFFICIAL":
+    case "ABSENCE_REQUEST":
+      return { title: "공결 신청", uiType: "info" };
+    case "ABSENCE_OBJECTION":
+    case "APPEAL_REQUEST":
+      return { title: "출결 이의신청", uiType: "warning" };
+    case "NOTICE":
+      return { title: "공지사항", uiType: "info" };
+    case "ANSWER":
+    case "ANSWER_REGISTER":
+      return { title: "답변 등록", uiType: "success" };
+    case "PHOTO_RESULT":
+      return { title: "사진 변경 요청", uiType: "info" };
+    default:
+      if (type?.includes("PHOTO")) return { title: "사진 변경 요청", uiType: "info" };
+      return { title: "시스템 알림", uiType: "info" };
+  }
+}
+
+function formatDateTime(dt: string): string {
+  if (!dt) return "";
+  return dt.replace(/T/, " ").replace(/\.\d+$/, "").slice(0, 19);
+}
+
+function toNotification(n: NotificationData, role: string): Notification {
+  const { title, uiType } = mapTypeToUI(n.type);
+  const isProfessor = role === "professor";
+  const isAdmin = role === "admin";
+
+  let link = `/${role}`;
+  if (n.type === "ABSENCE_OFFICIAL" || n.type === "ABSENCE_REQUEST") {
+    link = isAdmin ? "/admin" : isProfessor ? "/professor/absence-management" : "/student/absence-request";
+  } else if (n.type === "ABSENCE_OBJECTION" || n.type === "APPEAL_REQUEST") {
+    link = isAdmin ? "/admin" : isProfessor ? "/professor/appeal-management" : "/student/stats";
+  } else if (n.type === "NOTICE" || n.type === "ANSWER" || n.type === "ANSWER_REGISTER") {
+    link = isProfessor ? "/professor/courses" : "/student/courses";
+  } else if (n.type === "PHOTO_RESULT" || n.type?.includes("PHOTO")) {
+    link = isAdmin ? "/admin/photo-requests" : `/${role}/profile`;
+  } else if (isAdmin && n.message?.includes("사진")) {
+    link = "/admin/photo-requests";
+  }
+
+  const notifId = n.id ?? n.notificationId ?? 0;
+  const isRead = n.read ?? n.isRead ?? false;
+
+  return {
+    id: String(notifId),
+    title: title,
+    message: n.message,
+    isRead: isRead,
+    createdAt: formatDateTime(n.createdAt),
+    type: uiType,
+    link: link
+  };
 }
 
 const spring = { type: "spring" as const, stiffness: 200, damping: 24 };
@@ -23,70 +83,38 @@ export function NotificationBell({ role }: NotificationBellProps) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const failCountRef = useRef(0);
 
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "출결 상태 변경",
-      message: "데이터베이스 심화 과목의 출결 상태가 '지각'으로 변경되었습니다.",
-      isRead: false,
-      createdAt: "10분 전",
-      type: "warning",
-      link: "/student/stats/데이터베이스"
-    },
-    {
-      id: "2",
-      title: "공결 신청 승인",
-      message: "운영체제 과목의 공결 신청이 승인되었습니다.",
-      isRead: false,
-      createdAt: "1시간 전",
-      type: "success",
-      link: "/student/absence-request"
-    },
-    {
-      id: "3",
-      title: "시스템 알림",
-      message: "서버 점검이 예정되어 있습니다. (02:00 - 04:00)",
-      isRead: true,
-      createdAt: "1일 전",
-      type: "info",
-      link: "/student"
-    },
-  ]);
+  const fetchNotifications = useCallback(() => {
+    // 연속 3회 실패 시 폴링 중단 (Network 탭 오류 스팸 방지)
+    if (failCountRef.current >= 3) return;
+
+    getNotifications()
+      .then((res) => {
+        failCountRef.current = 0;
+        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+
+        const mapped = list.map((n: NotificationData) => toNotification(n, role));
+        mapped.sort((a: Notification, b: Notification) => b.createdAt.localeCompare(a.createdAt));
+        setNotifications(mapped);
+      })
+      .catch((err) => {
+        failCountRef.current += 1;
+        if (failCountRef.current === 1) {
+          console.warn("알림 API 호출 실패:", err.message || err);
+        }
+        if (failCountRef.current >= 3) {
+          console.warn("알림 API 연속 실패 — 폴링을 중단합니다.");
+        }
+      });
+  }, [role]);
 
   useEffect(() => {
-    if (role === "professor") {
-      setNotifications([
-        {
-          id: "1",
-          title: "새로운 공결 신청",
-          message: "김철수 학생이 알고리즘 과목에 공결을 신청했습니다.",
-          isRead: false,
-          createdAt: "5분 전",
-          type: "info",
-          link: "/professor/absence-management"
-        },
-        {
-          id: "2",
-          title: "출결 시스템 경고",
-          message: "405호 라즈베리파이 센서 연결이 불안정합니다.",
-          isRead: false,
-          createdAt: "30분 전",
-          type: "warning",
-          link: "/professor/class-control"
-        },
-        {
-          id: "3",
-          title: "데이터 동기화 완료",
-          message: "어제 강의의 출결 데이터 분석이 완료되었습니다.",
-          isRead: true,
-          createdAt: "2시간 전",
-          type: "success",
-          link: "/professor/monitoring"
-        },
-      ]);
-    }
-  }, [role]);
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -101,25 +129,77 @@ export function NotificationBell({ role }: NotificationBellProps) {
   }, []);
 
   const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n =>
-      n.id === id ? { ...n, isRead: true } : n
-    ));
+    markNotificationRead(Number(id))
+      .then(() => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      })
+      .catch(() => {});
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    const unread = notifications.filter(n => !n.isRead);
+    if (unread.length === 0) return;
+    unread.forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => {});
+    });
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    toast.success("모든 알림을 읽음 처리했습니다.");
   };
 
   const clearAll = () => {
+    notifications.forEach(n => {
+      markNotificationRead(Number(n.id)).catch(() => {});
+    });
     setNotifications([]);
+    toast.success("알림창을 비웠습니다.");
   };
 
-  const handleNotificationClick = (id: string, link?: string) => {
-    markAsRead(id);
-    setIsOpen(false);
-    if (link) {
-      navigate(link);
+  const mapRedirectUrl = (url: string): string | null => {
+    if (!url) return null;
+    if (url.startsWith("/master")) {
+      const converted = url.replace("/master", "/admin");
+      if (converted === "/admin/dashboard") return "/admin";
+      return converted;
     }
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/admin")) {
+      if (url === "/admin/dashboard") return "/admin";
+      return url;
+    }
+    const lectureMatch = url.match(/mylecture\/(\d+)/);
+    const lectureId = lectureMatch ? lectureMatch[1] : null;
+    if (url.includes("/notices/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
+    if (url.includes("/official-requests/")) return `/${role}/absence-request`;
+    if (url.includes("/objection-requests/")) return `/${role}/stats`;
+    if (url.includes("mypage")) {
+      if (role === "admin") return "/admin/photo-requests";
+      return `/${role}/profile`;
+    }
+    return null;
+  };
+
+  const isGenericHome = (url: string) => ["/admin", "/student", "/professor"].includes(url);
+
+  const handleNotificationClick = (id: string, fallbackLink?: string) => {
+    setIsOpen(false);
+    markNotificationRead(Number(id))
+      .then((res: any) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+
+        const redirectUrl = res.data?.redirectUrl;
+        const frontRoute = redirectUrl ? mapRedirectUrl(redirectUrl) : null;
+
+        if (frontRoute && !isGenericHome(frontRoute)) {
+          navigate(frontRoute);
+        } else if (fallbackLink) {
+          navigate(fallbackLink);
+        } else if (frontRoute) {
+          navigate(frontRoute);
+        }
+      })
+      .catch(() => {
+        if (fallbackLink) navigate(fallbackLink);
+      });
   };
 
   const viewAll = () => {
@@ -175,7 +255,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
           >
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-800">알림</h3>
+              <h3 className="text-sm font-semibold text-zinc-800">새로운 알림</h3>
               <div className="flex items-center gap-1">
                 {unreadCount > 0 && (
                   <button
@@ -205,28 +285,26 @@ export function NotificationBell({ role }: NotificationBellProps) {
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-100">
-                  {notifications.map((notification) => (
+                  {notifications.slice(0, 4).map((notification) => (
                     <div
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification.id, notification.link)}
-                      className={`px-5 py-3.5 cursor-pointer transition-colors hover:bg-zinc-50/80 ${
-                        notification.isRead ? "opacity-50" : ""
+                      className={`px-5 py-3.5 transition-colors ${
+                        notification.isRead ? "opacity-50 bg-zinc-50/50 cursor-pointer hover:bg-zinc-100/80" : "cursor-pointer hover:bg-zinc-50/80"
                       }`}
                     >
                       <div className="flex gap-3">
                         {typeIcon(notification.type)}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-0.5">
-                            <h4 className="text-sm font-medium text-zinc-800 truncate">{notification.title}</h4>
+                            <h4 className={`text-sm font-medium truncate ${notification.isRead ? "text-zinc-400" : "text-zinc-800"}`}>{notification.title}</h4>
                             <span className="text-[11px] text-zinc-400 shrink-0">{notification.createdAt}</span>
                           </div>
                           <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">
                             {notification.message}
                           </p>
                         </div>
-                        {!notification.isRead && (
-                          <div className="w-2 h-2 rounded-full bg-primary self-center shrink-0" />
-                        )}
+                        {!notification.isRead && <div className="w-2 h-2 rounded-full bg-primary self-center shrink-0" />}
                       </div>
                     </div>
                   ))}

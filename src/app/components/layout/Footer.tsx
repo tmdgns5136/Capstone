@@ -16,9 +16,9 @@ export default function Footer() {
             </p>
           </div>
           <div className="flex items-center gap-6">
-            <a href="#" className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">개인정보처리방침</a>
-            <a href="#" className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">이용약관</a>
-            <a href="#" className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">고객센터</a>
+            <a href="/privacy" className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">개인정보처리방침</a>
+            <a href="/terms" className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">이용약관</a>
+            <a href="/support" className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">고객센터</a>
           </div>
         </div>
       </div>

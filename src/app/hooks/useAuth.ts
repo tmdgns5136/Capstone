@@ -1,10 +1,14 @@
 import { useSyncExternalStore, useCallback } from "react";
+import { setAccessToken, clearTokens, getAccessToken } from "../api/client";
 
 export type Role = "student" | "professor" | "admin";
 
 interface AuthState {
   isAuthenticated: boolean;
   role: Role | null;
+  userName: string | null;
+  userNum?: string | null;
+  major?: string | null;
 }
 
 const AUTH_KEY = "AUTH_STATE";
@@ -14,7 +18,7 @@ function getSnapshot(): AuthState {
     const raw = localStorage.getItem(AUTH_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { isAuthenticated: false, role: null };
+  return { isAuthenticated: false, role: null, userName: null, userNum: null, major: null };
 }
 
 // Track subscribers for useSyncExternalStore
@@ -46,25 +50,45 @@ if (typeof window !== "undefined") {
   });
 }
 
+function mapRole(backendRole: string): Role {
+  const r = backendRole.toUpperCase();
+  if (r === "STUDENT" || r === "ROLE_STUDENT") return "student";
+  if (r === "PROFESSOR" || r === "ROLE_PROFESSOR") return "professor";
+  if (r === "MASTER" || r === "ROLE_MASTER") return "admin";
+  return "student";
+}
+
 export function useAuth() {
   const state = useSyncExternalStore(subscribe, getState);
 
-  const login = useCallback((role: Role) => {
-    const newState: AuthState = { isAuthenticated: true, role };
-    localStorage.setItem(AUTH_KEY, JSON.stringify(newState));
-    localStorage.setItem("DEMO_MODE", "true");
-    emitChange();
-  }, []);
+  const login = useCallback(
+    (role: string, userName: string, accessToken: string, major?: string, userNum?: string) => {
+      setAccessToken(accessToken);
+      const newState: AuthState = {
+        isAuthenticated: true,
+        role: mapRole(role),
+        userName,
+        userNum: userNum || null,
+        major: major || null,
+      };
+      localStorage.setItem(AUTH_KEY, JSON.stringify(newState));
+      emitChange();
+    },
+    [],
+  );
 
   const logout = useCallback(() => {
+    clearTokens();
     localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem("DEMO_MODE");
     emitChange();
   }, []);
 
   return {
     isAuthenticated: state.isAuthenticated,
     role: state.role,
+    userName: state.userName,
+    userNum: state.userNum,
+    major: state.major,
     login,
     logout,
   };

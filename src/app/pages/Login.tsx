@@ -5,34 +5,46 @@ import { Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { Logo } from "../components/Logo";
 import ThemeToggle from "../components/ThemeToggle";
-
-function resolveRole(loginId: string): "student" | "professor" | "admin" {
-  const id = loginId.trim().toLowerCase();
-  if (id.startsWith("admin")) return "admin";
-  if (/^\d{9}$/.test(id)) return "student";
-  return "professor";
-}
+import { login as apiLogin } from "../api/auth";
+import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [loginId, setLoginId] = useState("");
+  const savedId = localStorage.getItem("savedLoginId");
+  const [loginId, setLoginId] = useState(savedId || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [saveId, setSaveId] = useState(false);
+  const [saveId, setSaveId] = useState(!!savedId);
   const [stayLoggedIn, setStayLoggedIn] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
-      const role = resolveRole(loginId);
-      login(role);
-      navigate(`/${role}`);
+    try {
+      const res = await apiLogin(loginId, password);
+      const { role, userName, accessToken } = res.data;
+      if (saveId) {
+        localStorage.setItem("savedLoginId", loginId);
+      } else {
+        localStorage.removeItem("savedLoginId");
+      }
+
+      login(role, userName, accessToken, undefined, loginId);
+
+      const mappedRole = role.toUpperCase().includes("STUDENT")
+        ? "student"
+        : role.toUpperCase().includes("PROFESSOR")
+          ? "professor"
+          : "admin";
+      navigate(`/${mappedRole}`);
+    } catch (err: any) {
+      toast.error(err.message || "로그인에 실패했습니다.");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (
@@ -42,8 +54,6 @@ export default function Login() {
         <div className="max-w-[1280px] mx-auto px-6 lg:px-8 flex items-center justify-between h-14">
           <Logo size="md" />
           <div className="flex items-center gap-4">
-            <a href="#" className="text-sm text-zinc-500 hover:text-zinc-700 transition-colors">Support</a>
-            <a href="#" className="text-sm text-zinc-500 hover:text-zinc-700 transition-colors">System Status</a>
             <ThemeToggle />
           </div>
         </div>
@@ -98,7 +108,7 @@ export default function Login() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.5} /> : <Eye className="w-[18px] h-[18px]" strokeWidth={1.5} />}
+                  {showPassword ? <Eye className="w-[18px] h-[18px]" strokeWidth={1.5} /> : <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.5} />}
                 </button>
               </div>
             </div>
@@ -190,11 +200,12 @@ export default function Login() {
       <footer className="border-t border-zinc-200">
         <div className="max-w-[1280px] mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <a href="#" className="text-xs text-zinc-400 hover:text-zinc-600">Privacy Policy</a>
-            <a href="#" className="text-xs text-zinc-400 hover:text-zinc-600">Terms of Service</a>
+            <a href="/privacy" className="text-xs text-zinc-400 hover:text-zinc-600 underline">개인정보처리방침</a>
+            <a href="/terms" className="text-xs text-zinc-400 hover:text-zinc-600 underline">이용약관</a>
+            <a href="/support" className="text-xs text-zinc-400 hover:text-zinc-600 underline">고객센터</a>
           </div>
           <p className="text-xs text-zinc-400">Team 천천히, 꾸준히</p>
-          <p className="text-xs text-zinc-400">&copy; 2024 FaceAttend Inc. All rights reserved.</p>
+          <p className="text-xs text-zinc-400">&copy; 2026 FaceAttend Inc. All rights reserved.</p>
         </div>
       </footer>
     </div>

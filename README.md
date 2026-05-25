@@ -1,15 +1,15 @@
-# 스마트 출결 시스템 (Smart Attendance System)
+# ASaaS - 스마트 출결 시스템 (Smart Attendance System)
+> **ASaaS** (Attendance Software as a Service) | Team 천천히, 꾸준히
 
-Amazon Rekognition, React, Supabase, 라즈베리파이 카메라를 활용한 대학교 자동 출결 관리 B2B SaaS 웹 애플리케이션
+AWS Rekognition 얼굴 인식 기반 대학교 자동 출결 관리 웹 애플리케이션
 
 ## 기술 스택
 
 - **Frontend**: React 18, TypeScript, Vite
-- **UI**: Tailwind CSS v4, Motion (Framer Motion), shadcn/ui
-- **Backend**: Supabase (Auth, Database, Storage, Edge Functions)
-- **Server**: Hono (Deno Edge Function)
+- **UI**: Tailwind CSS v4, MUI, shadcn/ui (Radix UI), Motion, Recharts, Lucide Icons
+- **Backend**: Spring Boot (REST API, `localhost:8080`)
 - **AI/ML**: AWS Rekognition (얼굴 인식)
-- **IoT**: 라즈베리파이 카메라 모듈
+- **기타**: React Router v7, React Hook Form, react-webcam, SheetJS (xlsx 내보내기)
 
 ## 시작하기
 
@@ -19,82 +19,74 @@ Amazon Rekognition, React, Supabase, 라즈베리파이 카메라를 활용한 �
 npm install
 ```
 
-### 2. 환경 변수 설정
-
-`.env.example` 파일을 복사하여 `.env` 파일을 생성하고, Supabase 프로젝트 정보를 입력하세요:
-
-```bash
-cp .env.example .env
-```
-
-`.env` 파일 내용:
-```env
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
-
-### 3. 개발 서버 실행
+### 2. 개발 서버 실행
 
 ```bash
 npm run dev
 ```
 
-브라우저에서 `http://localhost:5173` 으로 접속하세요.
+Vite 개발 서버가 실행되며, `/api` 요청은 `http://127.0.0.1:8080`으로 프록시됩니다.
+
+> 백엔드 서버가 `localhost:8080`에서 실행 중이어야 API 연동이 정상 동작합니다.
+
+서버 실행 후 브라우저에서 `http://localhost:5173` 으로 접속하세요.
 
 ## 주요 기능
 
 ### 학생 (Student)
-- 얼굴 인식 기반 회원가입
-- 실시간 출석 현황 조회
-- 수업별 출석률 통계
-- 결석 사유서 제출
+- 얼굴 사진(정면/좌측/우측) 기반 회원가입
+- 실시간 출석 현황 및 수업별 출석률 통계
+- 시간표 조회
+- 공결 신청
+- 프로필 사진 변경 요청
 
 ### 교수 (Professor)
-- 강의실 카메라 실시간 모니터링
-- 자동 출석 체크 및 수동 수정
+- 강의별 출석 관리 및 수동 수정
+- 라즈베리파이 카메라 실시간 모니터링
+- 공결 신청 / 이의 신청 관리
 - 출석부 엑셀 내보내기
-- 학생별 출석 통계 분석
+- 강의 공지사항 및 Q&A
 
 ### 관리자 (Admin)
 - 학생/교수 계정 관리
 - 강좌 및 수업 관리
 - IoT 카메라 기기 관리
+- 사진 변경 요청 승인/반려
 - 시스템 전체 통계 대시보드
-
-## 데모 모드
-
-실제 서버 연동 없이 프론트엔드를 테스트하려면 로그인 페이지에서 **"데모 로그인"** 버튼을 클릭하세요.
 
 ## 프로젝트 구조
 
 ```
-/
 ├── src/
 │   ├── app/
-│   │   ├── components/    # 재사용 가능한 컴포넌트
-│   │   ├── pages/         # 페이지 컴포넌트 (student, professor, admin)
-│   │   ├── layouts/       # 레이아웃 컴포넌트
-│   │   ├── lib/           # Supabase 클라이언트 등 라이브러리
-│   │   ├── routes.tsx     # React Router 설정
-│   │   └── App.tsx        # 메인 앱 컴포넌트
-│   ├── styles/            # 글로벌 스타일 (Tailwind, fonts, theme)
-│   └── main.tsx           # 앱 엔트리 포인트
-├── supabase/
-│   └── functions/
-│       └── server/        # Hono 서버 (Edge Function)
-├── .env                   # 환경 변수 (gitignore)
-└── index.html             # HTML 엔트리 포인트
+│   │   ├── api/              # API 클라이언트 (auth, mypage, 공통 client)
+│   │   ├── components/       # 재사용 컴포넌트
+│   │   │   ├── layout/       # TopNav, Footer
+│   │   │   └── ui/           # shadcn/ui 기반 UI 컴포넌트
+│   │   ├── constants/        # 상수 정의 (출석 상태 등)
+│   │   ├── hooks/            # 커스텀 훅 (인증, 테마, 과목, 시뮬레이터 등)
+│   │   ├── layouts/          # RootLayout
+│   │   ├── pages/
+│   │   │   ├── student/      # 학생 페이지 (대시보드, 수업, 통계, 프로필 등)
+│   │   │   ├── professor/    # 교수 페이지 (대시보드, 출석, 모니터링, 내보내기 등)
+│   │   │   ├── admin/        # 관리자 페이지 (대시보드, 학생/교수/강좌/기기 관리)
+│   │   │   └── shared/       # 공통 페이지 (알림)
+│   │   ├── routes.tsx        # React Router 라우팅 설정
+│   │   └── App.tsx           # 메인 앱 컴포넌트
+│   └── styles/               # 글로벌 스타일 (Tailwind, fonts, theme)
+├── public/                   # 정적 파일 (얼굴 등록 가이드 이미지 등)
+├── utils/                    # 유틸리티
+├── vite.config.ts            # Vite 설정 (프록시, 경로 별칭)
+└── index.html                # HTML 엔트리 포인트
 ```
 
-## 디자인 시스템
+## API 연동
 
-- **컬러**:
-  - Primary (학생): `#00E5FF` (Cyan)
-  - Primary (교수): `#FF0055` (Pink)
-  - Accent: `#FFF500` (Yellow)
-  - Background: `#F0EFEB` (Warm Gray)
-- **테마**: 벤토 그리드, 리니어 다크, 글래스모피즘
-- **폰트**: Mono (시스템 폰트)
+프론트엔드는 `/api/home` 기본 경로로 백엔드 REST API와 통신합니다.
+
+- JWT 기반 인증 (Access Token + Refresh Token)
+- 401 응답 시 자동 토큰 재발급 후 재시도
+- FormData 지원 (얼굴 사진 업로드)
 
 ## 빌드
 

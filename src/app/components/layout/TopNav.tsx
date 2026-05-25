@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { NotificationBell } from "../NotificationBell";
 import { Logo } from "../Logo";
 import { useAuth } from "../../hooks/useAuth";
+import { logout as apiLogout } from "../../api/auth";
 import ThemeToggle from "../ThemeToggle";
 
 interface NavItem {
@@ -26,7 +27,13 @@ export default function TopNav({ role, navItems, userName, userDepartment, profi
   const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (!window.confirm("로그아웃하시겠습니까?")) return;
+    try {
+      await apiLogout();
+    } catch {
+      // 서버 에러여도 로컬 로그아웃 처리
+    }
     logout();
     navigate("/login");
   };

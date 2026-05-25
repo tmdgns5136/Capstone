@@ -6,6 +6,7 @@ import AdminStudentManagement from "./AdminStudentManagement";
 import AdminProfessorManagement from "./AdminProfessorManagement";
 import AdminDeviceManagement from "./AdminDeviceManagement";
 import AdminPhotoRequestManagement from "./AdminPhotoRequestManagement";
+import NotificationsPage from "../shared/NotificationsPage";
 import TopNav from "../../components/layout/TopNav";
 import Footer from "../../components/layout/Footer";
 
@@ -42,6 +43,7 @@ export default function AdminDashboard() {
             <Route path="students" element={<AdminStudentManagement />} />
             <Route path="professors" element={<AdminProfessorManagement />} />
             <Route path="photo-requests" element={<AdminPhotoRequestManagement />} />
+            <Route path="notifications" element={<NotificationsPage role="admin" />} />
           </Routes>
         </div>
       </main>

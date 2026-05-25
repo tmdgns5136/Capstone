@@ -1,53 +1,87 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { FileCheck, CheckCircle, XCircle, Clock, FileText, X, AlertTriangle, User, Search, AlertCircle } from "lucide-react";
+import { FileCheck, CheckCircle, XCircle, Clock, Download, FileText, X, AlertTriangle, User, Search, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAppealRequests } from "../../hooks/useAppealRequests";
+import { downloadAppealDocument, type AppealRequest } from "../../api/appeal";
 
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
 export default function ProfessorAppealManagement() {
-  const { requests, updateStatus } = useAppealRequests();
+  const { requests, loading, updateStatus } = useAppealRequests();
   const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<AppealRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // 필터링 로직
   const filteredRequests = requests.filter(r =>
     r.studentName.includes(searchQuery) ||
     r.course.includes(searchQuery) ||
     r.studentId.includes(searchQuery)
   );
 
-  const pendingRequests = filteredRequests.filter(r => r.status === "대기");
-  const processedRequests = filteredRequests.filter(r => r.status !== "대기");
+  const pendingRequests = filteredRequests.filter(r => r.status === "PENDING");
+  const processedRequests = filteredRequests.filter(r => r.status !== "PENDING");
 
-  const handleApprove = (id: string) => {
-    updateStatus(id, "승인");
-    toast.success("이의 신청이 승인되었습니다. 출결 상태가 출석으로 변경됩니다.");
-    setSelectedRequest(null);
+  // 승인 처리
+  const handleApprove = async (id: number) => {
+    const success = await updateStatus(id, "APPROVED");
+    if (success) {
+      toast.success("이의 신청이 승인되었습니다. 출결 상태가 출석으로 변경됩니다.");
+      setSelectedRequest(null);
+    }
   };
 
-  const handleReject = (id: string) => {
+  // 반려 처리
+  const handleReject = async (id: number) => {
     if (!rejectReason.trim()) {
       toast.error("거절 사유를 입력해주세요");
       return;
     }
-    updateStatus(id, "거절", rejectReason);
-    toast.success("이의 신청이 반려되었습니다.");
-    setSelectedRequest(null);
-    setRejectReason("");
+    const success = await updateStatus(id, "REJECTED", rejectReason);
+    if (success) {
+      toast.success("이의 신청이 반려되었습니다.");
+      setSelectedRequest(null);
+      setRejectReason("");
+    }
+  };
+
+
+// 🌟 [수정] window.open 대신 공결 신청과 똑같은 안전한 Blob 다운로드 방식으로 통일합니다.
+  const handleFileDownload = async (objectionId: number, fileName: string) => {
+    try {
+      // 1. api/appeal.ts에 만들어 둔 Blob 리턴 함수 호출
+      const blob = await downloadAppealDocument(objectionId);
+
+      // 2. 브라우저 메모리에 가상 URL 생성
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // 3. 파일명 지정 및 다운로드 트리거
+      link.download = fileName || "이의신청증빙서류.jpg";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // 4. 가상 URL 메모리 해제
+      window.URL.revokeObjectURL(url);
+      toast.success("파일 다운로드가 완료되었습니다.");
+    } catch (error) {
+      toast.error("파일 다운로드에 실패했습니다. API 함수와 토큰을 확인하세요.");
+    }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "승인":
+      case "APPROVED":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
             <CheckCircle className="w-3 h-3" strokeWidth={1.5} /> 승인
           </span>
         );
-      case "거절":
+      case "REJECTED":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-700">
             <XCircle className="w-3 h-3" strokeWidth={1.5} /> 반려
@@ -64,7 +98,6 @@ export default function ProfessorAppealManagement() {
 
   return (
     <div className="max-w-7xl mx-auto pb-10 space-y-6">
-
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">이의 신청 관리</h1>
@@ -85,7 +118,7 @@ export default function ProfessorAppealManagement() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
           <div>
             <p className="text-sm text-zinc-400 font-medium">대기 중인 이의</p>
-            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "대기").length}</h3>
+            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "PENDING").length}</h3>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
             <Clock className="w-5 h-5 text-amber-600" strokeWidth={1.5} />
@@ -94,7 +127,7 @@ export default function ProfessorAppealManagement() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
           <div>
             <p className="text-sm text-zinc-400 font-medium">승인됨</p>
-            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "승인").length}</h3>
+            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "APPROVED").length}</h3>
           </div>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <CheckCircle className="w-5 h-5 text-primary-dark" strokeWidth={1.5} />
@@ -103,7 +136,7 @@ export default function ProfessorAppealManagement() {
         <div className="bg-white rounded-xl border border-zinc-200 p-5 flex items-center justify-between">
           <div>
             <p className="text-sm text-zinc-400 font-medium">반려됨</p>
-            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "거절").length}</h3>
+            <h3 className="text-3xl font-bold text-zinc-900 mt-1">{requests.filter(r => r.status === "REJECTED").length}</h3>
           </div>
           <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
             <XCircle className="w-5 h-5 text-rose-600" strokeWidth={1.5} />
@@ -113,16 +146,12 @@ export default function ProfessorAppealManagement() {
 
       {/* Main Dashboard */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-
-        {/* Tabs & Search */}
         <div className="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab("pending")}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === "pending"
-                  ? "bg-primary text-white"
-                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                activeTab === "pending" ? "bg-primary text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
               }`}
             >
               대기 중 ({pendingRequests.length})
@@ -130,9 +159,7 @@ export default function ProfessorAppealManagement() {
             <button
               onClick={() => setActiveTab("processed")}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === "processed"
-                  ? "bg-primary text-white"
-                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                activeTab === "processed" ? "bg-primary text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
               }`}
             >
               처리 완료 ({processedRequests.length})
@@ -151,14 +178,13 @@ export default function ProfessorAppealManagement() {
           </div>
         </div>
 
-        {/* Tab Content */}
         <div className="p-6">
           {activeTab === "pending" ? (
             pendingRequests.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pendingRequests.map((request, index) => (
                   <motion.div
-                    key={request.id}
+                    key={request.objectionId}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -179,7 +205,7 @@ export default function ProfessorAppealManagement() {
                     </div>
 
                     <div className="bg-zinc-50 rounded-xl p-3 flex-1 mb-4">
-                      <div className="text-xs text-zinc-400 mb-1">결석 처리일: {request.date}</div>
+                      <div className="text-xs text-zinc-400 mb-1">결석 처리일: {request.date}{request.sessionNum ? ` (${request.sessionNum}교시)` : ""}</div>
                       <p className="text-sm text-zinc-700 line-clamp-2">{request.reason}</p>
                     </div>
 
@@ -206,11 +232,12 @@ export default function ProfessorAppealManagement() {
               {processedRequests.length > 0 ? (
                 processedRequests.map((request, index) => (
                   <motion.div
-                    key={request.id}
+                    key={request.objectionId}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
-                    className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-50 rounded-xl items-center hover:bg-zinc-100 transition-colors"
+                    onClick={() => setSelectedRequest(request)}
+                    className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-50 rounded-xl items-center hover:bg-zinc-100 transition-colors cursor-pointer"
                   >
                     <div className="flex-1 grid md:grid-cols-4 gap-3 w-full items-center">
                       <div className="text-sm font-semibold text-zinc-800 flex items-center gap-2">
@@ -219,20 +246,14 @@ export default function ProfessorAppealManagement() {
                          </div>
                         {request.studentName} <span className="text-zinc-400 text-xs font-normal">({request.studentId})</span>
                       </div>
-                      <div className="text-sm text-zinc-600">
-                        {request.course}
-                      </div>
-                      <div className="text-sm text-zinc-500">
-                        {request.date}
-                      </div>
-                      <div className="flex justify-end">
-                        {getStatusBadge(request.status)}
-                      </div>
+                      <div className="text-sm text-zinc-600">{request.course}</div>
+                      <div className="text-sm text-zinc-500">{request.date}{request.sessionNum ? ` (${request.sessionNum}교시)` : ""}</div>
+                      <div className="flex justify-end">{getStatusBadge(request.status)}</div>
                     </div>
 
-                    {request.rejectReason && (
+                    {request.rejectedReason && (
                       <div className="w-full md:w-auto bg-rose-50 text-rose-700 rounded-lg p-2 text-xs font-medium">
-                        <span className="text-rose-500">반려 사유:</span> {request.rejectReason}
+                        <span className="text-rose-500">반려 사유:</span> {request.rejectedReason}
                       </div>
                     )}
                   </motion.div>
@@ -286,7 +307,7 @@ export default function ProfessorAppealManagement() {
                   <div className="bg-zinc-50 rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">강의 정보</div>
                     <div className="font-semibold text-zinc-900">{selectedRequest.course}</div>
-                    <div className="text-sm text-zinc-500 mt-0.5">{selectedRequest.date}</div>
+                    <div className="text-sm text-zinc-500 mt-0.5">{selectedRequest.date}{selectedRequest.sessionNum ? ` (${selectedRequest.sessionNum}교시)` : ""}</div>
                   </div>
                 </div>
 
@@ -295,33 +316,68 @@ export default function ProfessorAppealManagement() {
                   <p className="text-sm text-zinc-800 whitespace-pre-wrap">{selectedRequest.reason}</p>
                 </div>
 
-                <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-medium text-zinc-700">
-                    반려 사유 (반려 시 필수 입력)
-                  </label>
-                  <textarea
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    rows={2}
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder:text-zinc-400"
-                    placeholder="반려 사유를 구체적으로 입력하세요..."
-                  />
+                {/* 🌟 [공결 관리와 구조 통일] 안전 조건문 및 매핑 바인딩 처리 */}
+                <div className="bg-zinc-50 rounded-xl p-4">
+                  <div className="text-xs text-zinc-400 mb-2">첨부 증빙 서류</div>
+                  {selectedRequest.fileName ? (
+                    <div className="flex items-center gap-3 p-4 bg-primary/10 rounded-xl border border-primary/30">
+                      <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                        <Download className="w-4 h-4 text-primary-dark" strokeWidth={1.5} />
+                      </div>
+                      <span className="text-sm font-medium text-primary-dark flex-1 truncate">
+                        {selectedRequest.fileName}
+                      </span>
+                      <button
+                        onClick={() => handleFileDownload(selectedRequest.objectionId, selectedRequest.fileName || "")}
+                        className="text-sm font-medium text-primary-dark bg-primary/20 hover:bg-primary/30 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                      >
+                        다운로드
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-4 bg-rose-50 rounded-xl border border-rose-100">
+                      <AlertTriangle className="w-4 h-4 text-rose-500" strokeWidth={1.5} />
+                      <span className="text-sm font-medium text-rose-700">첨부된 증빙 서류가 없습니다.</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => handleReject(selectedRequest.id)}
-                    className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
-                  </button>
-                  <button
-                    onClick={() => handleApprove(selectedRequest.id)}
-                    className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)
-                  </button>
-                </div>
+                {selectedRequest.status === "REJECTED" && selectedRequest.rejectedReason && (
+                  <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+                    <p className="text-sm font-medium text-rose-700 mb-1">반려 사유</p>
+                    <p className="text-sm text-rose-600">{selectedRequest.rejectedReason}</p>
+                  </div>
+                )}
+
+                {selectedRequest.status === "PENDING" && (
+                  <>
+                    <div className="space-y-2 pt-2">
+                      <label className="block text-xs font-medium text-zinc-700">반려 사유 (반려 시 필수 입력)</label>
+                      <textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder:text-zinc-400"
+                        placeholder="반려 사유를 구체적으로 입력하세요..."
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => handleReject(selectedRequest.objectionId)}
+                        className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
+                      </button>
+                      <button
+                        onClick={() => handleApprove(selectedRequest.objectionId)}
+                        className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>

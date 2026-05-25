@@ -13,6 +13,9 @@ const StudentDashboard = lazy(() => import("./pages/student/StudentDashboard"));
 const ProfessorDashboard = lazy(() => import("./pages/professor/ProfessorDashboard"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Support = lazy(() => import("./pages/Support"));
 
 function L({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>{children}</Suspense>;
@@ -32,6 +35,9 @@ export const router = createBrowserRouter([
       { path: "student/*", element: <AuthGuard allowedRole="student"><L><StudentDashboard /></L></AuthGuard> },
       { path: "professor/*", element: <AuthGuard allowedRole="professor"><L><ProfessorDashboard /></L></AuthGuard> },
       { path: "admin/*", element: <AuthGuard allowedRole="admin"><L><AdminDashboard /></L></AuthGuard> },
+      { path: "privacy", element: <L><PrivacyPolicy /></L> },
+      { path: "terms", element: <L><Terms /></L> },
+      { path: "support", element: <L><Support /></L> },
       { path: "*", element: <L><NotFound /></L> },
     ],
   },
