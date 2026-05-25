@@ -88,13 +88,13 @@ export default function StudentAbsenceRequest() {
     setLoadingSessions(true);
     getLectureSessions(selectedLectureId)
       .then((res) => {
-        const filtered = res.data.filter((s) => s.status !== "ATTEND" && s.status !== "TBD");
+        const filtered = res.data.filter((s) => s.status === "ABSENCE");
         setSessions(filtered);
       })
       .catch((err) => {
         console.error("세션 목록 로드 실패:", err);
         setSessions([]);
-        toast.error("수업 날짜를 불러올 수 없습니다.");
+        toast.error("강의 날짜를 불러올 수 없습니다.");
       })
       .finally(() => setLoadingSessions(false));
   }, [selectedLectureId]);
@@ -262,21 +262,7 @@ export default function StudentAbsenceRequest() {
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-zinc-700">
-                제목 <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="공결 신청 제목을 입력하세요"
-                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all placeholder:text-zinc-300"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-zinc-700">
-                수업 날짜 <span className="text-rose-500">*</span>
+                강의 날짜 <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <select
@@ -292,8 +278,8 @@ export default function StudentAbsenceRequest() {
                       : !selectedLectureId
                         ? "강의를 먼저 선택하세요"
                         : sessions.length === 0
-                          ? "공결 신청할 수업 날짜가 없습니다"
-                          : "수업 날짜를 선택하세요"}
+                          ? "공결 신청할 강의 날짜가 없습니다"
+                          : "강의 날짜를 선택하세요"}
                   </option>
                   {sessions.map((s) => (
                     <option key={s.sessionId} value={s.sessionId}>
@@ -303,6 +289,20 @@ export default function StudentAbsenceRequest() {
                 </select>
                 <ChevronDown strokeWidth={1.5} className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-zinc-700">
+                제목 <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="공결 신청 제목을 입력하세요"
+                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all placeholder:text-zinc-300"
+                required
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -442,7 +442,7 @@ export default function StudentAbsenceRequest() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.06 }}
                     onClick={() => handleShowDetail(request.requestId, request.lectureId)}
-                    className="rounded-xl border border-zinc-100 p-4 shadow-[0_2px_4px_-1px_rgba(0,0,0,0.08)] hover:border-zinc-200 hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.12)] transition-all cursor-pointer"
+                    className="rounded-xl border border-zinc-100 dark:border-zinc-700 p-4 shadow-[0_2px_4px_-1px_rgba(0,0,0,0.08)] hover:border-zinc-200 hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.12)] dark:hover:border-primary/50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
@@ -524,7 +524,7 @@ export default function StudentAbsenceRequest() {
                         <p className="text-sm text-zinc-800 mt-0.5">{getProfessorName(detailLectureId)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-zinc-400 font-medium">수업 날짜</p>
+                        <p className="text-xs text-zinc-400 font-medium">강의 날짜</p>
                         <p className="text-sm text-zinc-800 mt-0.5">{detailSessionDate || "-"}</p>
                       </div>
                       <div>
@@ -592,7 +592,10 @@ export default function StudentAbsenceRequest() {
                           <XCircle className="w-3.5 h-3.5 text-rose-600" strokeWidth={1.5} />
                           <span className="text-xs font-semibold text-rose-700">교수님 반려</span>
                         </div>
-                        <p className="text-sm text-rose-700">반려되었습니다. 사유를 확인 후 재신청해 주세요.</p>
+                        <p className="text-sm font-medium text-rose-700 mb-1">반려되었습니다. 사유 확인 후 재신청해주세요.</p>
+                        {detailData.rejectedReason && (
+                          <p className="text-sm text-rose-600">사유: {detailData.rejectedReason}</p>
+                        )}
                       </div>
                     )}
 

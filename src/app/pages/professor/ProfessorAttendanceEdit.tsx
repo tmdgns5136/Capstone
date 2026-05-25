@@ -63,8 +63,8 @@ export default function ProfessorAttendanceEdit() {
     if (changeIds.length === 0) return;
     setLoading(true);
     try {
-      await Promise.all(changeIds.map(id => updateAttendance({ 
-        studentId: id, lectureId: selectedLectureId, status: pendingChanges[id], date: currentSession.date 
+      await Promise.all(changeIds.map(id => updateAttendance({
+        studentId: id, lectureId: selectedLectureId, status: pendingChanges[id], date: currentSession.date, sessionNum: 1
       })));
       toast.success("출결 수정이 저장되었습니다.");
       fetchAttendance();

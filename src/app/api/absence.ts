@@ -13,7 +13,7 @@ export interface AbsenceRequest {
   reason: string;
   status: AbsenceStatus;
   fileName: string;         // 백엔드에서 필드명 확인됨
-  rejectReason?: string;
+  rejectedReason?: string;
   // requestDate, hasDocument는 백엔드 응답에 없으므로 필요 시 추가 확인
 }
 
@@ -40,9 +40,20 @@ export async function processAbsenceRequest(
 }
 
 // 10-2. 공결 증빙서류 다운로드 (Blob 처리)
-export async function downloadAbsenceDocument(officialId: number) {
-  return api<Blob>(`/api/professors/absences/${officialId}/document`, {
+export async function downloadAbsenceDocument(officialId: number): Promise<Blob> {
+  const token = sessionStorage.getItem("accessToken") || localStorage.getItem("accessToken") || "";
+
+  const response = await fetch(`/api/professors/absences/${officialId}/document`, {
     method: "GET",
-    // 주의: client.ts의 api 함수가 blob 응답을 처리할 수 있어야 합니다.
+    headers: {
+      "Authorization": token ? `Bearer ${token}` : "",
+      "Accept": "*/*"
+    }
   });
+
+  if (!response.ok) {
+    throw new Error("서버로부터 공결 증빙 서류를 읽어오지 못했습니다.");
+  }
+
+  return await response.blob();
 }

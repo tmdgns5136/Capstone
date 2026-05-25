@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import { Eye, MessageSquare, Megaphone, Loader2, ArrowRight, Edit3, Plus } from "lucide-react"; // 🌟 Plus 아이콘 추가
+import { Eye, MessageSquare, Megaphone, Loader2, ArrowRight, Edit3, Plus, Trash2 } from "lucide-react";
 import { Pagination } from "../../components/Pagination";
 import { api } from "../../api/client"; 
 import { FormModal } from "../../components/FormModal";
 import { toast } from "sonner";
+
+function formatDate(dt: string) {
+  if (!dt) return "";
+  return dt.replace("T", " ").replace(/\.\d+$/, "").slice(0, 19);
+}
 
 interface Notice {
   noticeId: number;
@@ -76,15 +81,15 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
     try {
       setIsCreating(true);
       
-      // 백엔드 createNotice API 규격에 맞춰 호출 (JSON Body 형태)
-      const response = await api<any>(`/api/professors/lectures/${lectureId}/notices`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: createTitle,
-          content: createContent,
-        }),
-      });
+      // 백엔드가 @RequestParam 방식이므로 URL 파라미터로 전송
+      const params = new URLSearchParams();
+      params.append("title", createTitle);
+      params.append("content", createContent);
+
+      const response = await api<any>(
+        `/api/professors/lectures/${lectureId}/notices?${params.toString()}`,
+        { method: "POST" }
+      );
 
       if (response.success) {
         toast.success("공지사항이 등록되었습니다.");
@@ -131,6 +136,22 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedNotice) return;
+    if (!confirm("공지사항을 삭제하시겠습니까?")) return;
+
+    try {
+      const response = await api<any>(`/api/professors/notices/${selectedNotice.noticeId}`, { method: "DELETE" });
+      if (response.success) {
+        toast.success("공지사항이 삭제되었습니다.");
+        setSelectedNotice(null);
+        fetchNotices();
+      }
+    } catch (error) {
+      toast.error("공지사항 삭제에 실패했습니다.");
+    }
+  };
+
   if (isLoading) return <div className="p-10 text-center text-zinc-400">공지사항 로딩 중...</div>;
 
   return (
@@ -154,7 +175,7 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
             <div key={notice.noticeId} onClick={() => setSelectedNotice(notice)} className="px-6 py-5 hover:bg-zinc-50/50 transition-colors cursor-pointer group">
               <div className="flex items-center gap-2 mb-2">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-500 uppercase">공지</span>
-                <span className="text-xs text-zinc-400">{notice.createdDate}</span>
+                <span className="text-xs text-zinc-400">{formatDate(notice.createdDate)}</span>
               </div>
               
               <div className="flex items-start justify-between gap-4">
@@ -241,15 +262,23 @@ export function ProfessorCourseNotices({ lectureId }: { lectureId: number | Stri
         title="공지사항 상세 및 수정"
         titleIcon={<Edit3 className="w-5 h-5 text-zinc-400" />}
         footer={
-          <div className="flex justify-end gap-2 w-full">
+          <div className="flex justify-between w-full">
+            <button
+              onClick={handleDelete}
+              className="text-sm text-rose-500 hover:text-rose-700 px-4 py-2 flex items-center gap-1.5 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> 삭제
+            </button>
+            <div className="flex gap-2">
             <button onClick={() => setSelectedNotice(null)} className="text-sm text-zinc-500 px-4 py-2">닫기</button>
-            <button 
+            <button
               onClick={handleUpdate}
               disabled={isUpdating}
               className="bg-zinc-900 text-white text-sm font-medium px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-50"
             >
               {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : "수정사항 저장"} <ArrowRight className="w-4 h-4" />
             </button>
+            </div>
           </div>
         }
       >

@@ -5,6 +5,11 @@ import { api } from "../../api/client";
 import { FormModal } from "../../components/FormModal";
 import type { QuestionData, QuestionDetailData } from "../../api/studentLecture";
 
+function formatDate(dt: string) {
+  if (!dt) return "";
+  return dt.replace("T", " ").replace(/\.\d+$/, "").slice(0, 19);
+}
+
 interface ProfessorCourseQAProps {
   lectureId: string;
 }
@@ -157,14 +162,14 @@ export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
               <button
                 key={q.questionId}
                 onClick={() => handleQuestionClick(q.questionId)}
-                className="w-full p-5 flex items-center justify-between hover:bg-zinc-50/50 transition-colors text-left"
+                className="w-full p-5 flex items-center justify-between hover:bg-zinc-50 transition-colors text-left cursor-pointer group"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     {q.isPrivate && (
                       <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">비밀글</span>
                     )}
-                    <h3 className="text-sm font-semibold text-zinc-900">{q.title}</h3>
+                    <h3 className="text-sm font-semibold text-zinc-900 group-hover:text-primary transition-colors">{q.title}</h3>
                     {q.isAnswered ? (
                       <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">답변완료</span>
                     ) : (
@@ -174,7 +179,7 @@ export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
                   <div className="flex items-center gap-3 text-xs text-zinc-400">
                     <span>{q.studentNum}</span>
                     <span>•</span>
-                    <span>{q.createdDate}</span>
+                    <span>{formatDate(q.createdDate)}</span>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-zinc-300" />
@@ -218,13 +223,23 @@ export function ProfessorCourseQA({ lectureId }: ProfessorCourseQAProps) {
         ) : (
           <div className="space-y-6 py-4">
             <div className="bg-zinc-50 rounded-xl p-4">
-              <h4 className="text-xs font-bold text-zinc-400 uppercase mb-2">Student Question</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold text-zinc-400 uppercase">Student Question</h4>
+                {selectedQuestion?.createdDate && (
+                  <span className="text-xs text-zinc-400">{formatDate(selectedQuestion.createdDate)}</span>
+                )}
+              </div>
               <p className="text-sm font-bold text-zinc-900 mb-2">{selectedQuestion?.title}</p>
               <p className="text-sm text-zinc-600 leading-relaxed whitespace-pre-wrap">{selectedQuestion?.content}</p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-bold text-zinc-400 uppercase">Professor's Answer</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-zinc-400 uppercase">Professor's Answer</label>
+                {selectedQuestion?.answer?.answeredDate && (
+                  <span className="text-xs text-zinc-400">{formatDate(selectedQuestion.answer.answeredDate)}</span>
+                )}
+              </div>
               <textarea 
                 value={answerContent}
                 onChange={(e) => setAnswerContent(e.target.value)}

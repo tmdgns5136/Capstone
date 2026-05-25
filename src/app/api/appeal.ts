@@ -13,7 +13,7 @@ export interface AppealRequest {
   date: string;
   reason: string;
   status: AppealStatus;
-  rejectReason?: string;
+  rejectedReason?: string;
   fileName?: string;
 }
 

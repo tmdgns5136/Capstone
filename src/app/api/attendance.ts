@@ -1,5 +1,6 @@
 import { api } from "./client";
 import { ApiResponse } from "./lecture";
+import { CURRENT_SEMESTER_CODE } from "../constants/semester";
 
 export type status = "ATTEND" | "LATENESS" | "ABSENCE" | "TBD";
 
@@ -49,8 +50,7 @@ export async function getAttendanceMonitoring(
   // 🌟 [수정 1] 파라미터 타입에 semester?: string 추가
   params: { date?: string; sessionNum?: number; semester?: string } 
 ) {
-  // 🌟 [수정 2] 하드코딩된 '2026-1학기'를 지우고, 넘어온 params.semester 값을 사용하도록 변경
-  let url = `/api/professors/lectures/${lectureId}/attendance?semester=${params.semester || '2026-1학기'}`;
+  let url = `/api/professors/lectures/${lectureId}/attendance?semester=${params.semester || CURRENT_SEMESTER_CODE}`;
   
   if (params.date) url += `&date=${params.date}`;
   if (params.sessionNum) url += `&sessionNum=${params.sessionNum}`; 

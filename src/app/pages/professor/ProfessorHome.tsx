@@ -115,8 +115,8 @@ export default function ProfessorHome() {
       {/* Stats Grid: API 6번 실제 데이터 적용 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="현재 강의 수강생" value={currentlyActive ? currentlyActive.students : 0} unit="명" icon={<Users className="text-rose-400" />} />
-        <StatCard label="평균 출석률" value={stats?.avgAttendance} unit="%" icon={<CheckCircle className="text-primary" />} isProgress />
-        <StatCard label="공결 대기" value={stats?.pendingAbsences} unit="건" icon={<AlertCircle className="text-amber-400" />} />
+        <StatCard label="이의 신청 대기" value={stats?.pendingAppeals} unit="건" icon={<AlertCircle className="text-amber-400" />} />
+        <StatCard label="공결 신청 대기" value={stats?.pendingAbsences} unit="건" icon={<AlertCircle className="text-rose-400" />} />
         <StatCard label="오늘 강의" value={stats?.todayClasses} unit="개" icon={<Clock className="text-primary" />} dark />
       </div>
 
@@ -213,7 +213,7 @@ export default function ProfessorHome() {
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
           <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-500" /> 공결 신청 대기
+            <AlertCircle className="w-4 h-4 text-rose-500" /> 공결 신청 관리
           </h2>
           <button onClick={() => navigate("/professor/absence-management")} className="text-xs text-zinc-400 hover:text-primary transition-colors">전체 관리</button>
         </div>

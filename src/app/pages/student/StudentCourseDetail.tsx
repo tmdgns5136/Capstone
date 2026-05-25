@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ArrowRight, MessageSquare, Plus, Trash2, Loader2, Lock } from "lucide-react";
+import { ChevronLeft, ArrowRight, MessageSquare, Plus, Trash2, Loader2, Lock, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Pagination } from "../../components/Pagination";
 import { FormModal } from "../../components/FormModal";
@@ -16,6 +16,11 @@ import {
   type QuestionData,
   type QuestionDetailData,
 } from "../../api/studentLecture";
+
+function formatDate(dt: string) {
+  if (!dt) return "";
+  return dt.replace("T", " ").replace(/\.\d+$/, "").slice(0, 19);
+}
 
 interface Course {
   id: number;
@@ -171,7 +176,7 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
         <div className="bg-white rounded-xl border border-zinc-200 p-6">
           <h2 className="text-xl font-bold text-zinc-900 mb-2">{selectedNotice.title}</h2>
           <div className="flex items-center gap-3 text-xs text-zinc-400 mb-6">
-            <span>{selectedNotice.createdDate}</span>
+            <span>{formatDate(selectedNotice.createdDate)}</span>
             <span>조회 {selectedNotice.views}</span>
           </div>
           <div className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">{selectedNotice.content}</div>
@@ -198,7 +203,7 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
             </button>
           </div>
           <div className="flex items-center gap-3 text-xs text-zinc-400 mb-6">
-            <span>{selectedQuestion.createdDate}</span>
+            <span>{formatDate(selectedQuestion.createdDate)}</span>
             <span>조회 {selectedQuestion.views}</span>
             {selectedQuestion.isPrivate && (
               <span className="px-2 py-0.5 rounded text-xs font-medium bg-zinc-800 text-white">비밀글</span>
@@ -211,7 +216,7 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
                 <span className="text-xs font-semibold text-primary-dark bg-primary/30 px-2 py-0.5 rounded">
                   {selectedQuestion.answer.professorName} 교수님 답변
                 </span>
-                <span className="text-xs text-zinc-400">{selectedQuestion.answer.answeredDate}</span>
+                <span className="text-xs text-zinc-400">{formatDate(selectedQuestion.answer.answeredDate)}</span>
               </div>
               <p className="text-sm text-zinc-700">{selectedQuestion.answer.content}</p>
             </div>
@@ -283,11 +288,18 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
                     onClick={() => handleNoticeClick(notice.noticeId)}
                     className="px-6 py-5 hover:bg-zinc-50/50 transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 text-zinc-600">공지</span>
-                      <span className="text-xs text-zinc-400">{notice.createdDate}</span>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 text-zinc-600">공지</span>
+                          <span className="text-xs text-zinc-400">{formatDate(notice.createdDate)}</span>
+                        </div>
+                        <h3 className="text-base font-semibold text-zinc-900">{notice.title}</h3>
+                      </div>
+                      <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0 mt-1">
+                        <Eye className="w-3.5 h-3.5" /> {notice.views ?? 0}
+                      </span>
                     </div>
-                    <h3 className="text-base font-semibold text-zinc-900">{notice.title}</h3>
                   </div>
                 ))}
               </div>
@@ -322,7 +334,7 @@ export function StudentCourseDetail({ course, onBack }: StudentCourseDetailProps
                         ) : (
                           <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">미답변</span>
                         ))}
-                        <span className="text-xs text-zinc-400">{q.createdDate}</span>
+                        <span className="text-xs text-zinc-400">{formatDate(q.createdDate)}</span>
                       </div>
                       {isOtherPrivate ? (
                         <h3 className="text-base text-zinc-400 flex items-center gap-1.5">

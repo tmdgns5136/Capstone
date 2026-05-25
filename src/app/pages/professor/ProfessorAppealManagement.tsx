@@ -236,7 +236,8 @@ export default function ProfessorAppealManagement() {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
-                    className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-50 rounded-xl items-center hover:bg-zinc-100 transition-colors"
+                    onClick={() => setSelectedRequest(request)}
+                    className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-50 rounded-xl items-center hover:bg-zinc-100 transition-colors cursor-pointer"
                   >
                     <div className="flex-1 grid md:grid-cols-4 gap-3 w-full items-center">
                       <div className="text-sm font-semibold text-zinc-800 flex items-center gap-2">
@@ -250,9 +251,9 @@ export default function ProfessorAppealManagement() {
                       <div className="flex justify-end">{getStatusBadge(request.status)}</div>
                     </div>
 
-                    {request.rejectReason && (
+                    {request.rejectedReason && (
                       <div className="w-full md:w-auto bg-rose-50 text-rose-700 rounded-lg p-2 text-xs font-medium">
-                        <span className="text-rose-500">반려 사유:</span> {request.rejectReason}
+                        <span className="text-rose-500">반려 사유:</span> {request.rejectedReason}
                       </div>
                     )}
                   </motion.div>
@@ -341,31 +342,42 @@ export default function ProfessorAppealManagement() {
                   )}
                 </div>
 
-                <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-medium text-zinc-700">반려 사유 (반려 시 필수 입력)</label>
-                  <textarea
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    rows={2}
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder:text-zinc-400"
-                    placeholder="반려 사유를 구체적으로 입력하세요..."
-                  />
-                </div>
+                {selectedRequest.status === "REJECTED" && selectedRequest.rejectedReason && (
+                  <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+                    <p className="text-sm font-medium text-rose-700 mb-1">반려 사유</p>
+                    <p className="text-sm text-rose-600">{selectedRequest.rejectedReason}</p>
+                  </div>
+                )}
 
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => handleReject(selectedRequest.objectionId)}
-                    className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
-                  </button>
-                  <button
-                    onClick={() => handleApprove(selectedRequest.objectionId)}
-                    className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)
-                  </button>
-                </div>
+                {selectedRequest.status === "PENDING" && (
+                  <>
+                    <div className="space-y-2 pt-2">
+                      <label className="block text-xs font-medium text-zinc-700">반려 사유 (반려 시 필수 입력)</label>
+                      <textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder:text-zinc-400"
+                        placeholder="반려 사유를 구체적으로 입력하세요..."
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => handleReject(selectedRequest.objectionId)}
+                        className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
+                      </button>
+                      <button
+                        onClick={() => handleApprove(selectedRequest.objectionId)}
+                        className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>

@@ -50,6 +50,7 @@ export interface DashboardStats {
   totalStudents: number;
   avgAttendance: number;
   pendingAbsences: number;
+  pendingAppeals: number;
   todayClasses: number;
 }
 

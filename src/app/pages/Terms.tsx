@@ -1,13 +1,14 @@
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import { ArrowLeft } from "lucide-react";
 
 export default function Terms() {
+  const navigate = useNavigate();
   return (
     <div className="min-h-[100dvh] bg-white flex flex-col">
       <div className="max-w-3xl mx-auto px-6 py-12 flex-1">
-        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-600 mb-8">
+        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-600 mb-8">
           <ArrowLeft className="w-4 h-4" /> 돌아가기
-        </Link>
+        </button>
 
         <h1 className="text-3xl font-bold text-zinc-900 mb-2">이용약관</h1>
         <p className="text-sm text-zinc-400 mb-8">최종 수정일: 2026년 3월 1일</p>
