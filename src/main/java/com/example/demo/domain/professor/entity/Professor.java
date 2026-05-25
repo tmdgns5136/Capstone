@@ -4,7 +4,6 @@ import com.example.demo.domain.enumerate.ProfessorStatus;
 import com.example.demo.domain.enumerate.RoleType;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
-import com.example.demo.domain.student.lecture.board.entity.Answer;
 import com.example.demo.domain.student.lecture.board.entity.NoticeBoard;
 import com.example.demo.domain.student.lecture.board.entity.QuestionBoard;
 import com.example.demo.domain.student.lecture.entity.Lecture;
@@ -76,9 +75,6 @@ public class Professor {
     @Builder.Default
     @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL)
     private List<Official> officials = new ArrayList<>();
-
-    @OneToOne(mappedBy = "professor", cascade = CascadeType.ALL)
-    private Answer answer;
 
     @Builder.Default
     @OneToMany(mappedBy = "professor", cascade = CascadeType.ALL)
