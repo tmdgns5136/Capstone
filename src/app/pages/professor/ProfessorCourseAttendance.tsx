@@ -15,21 +15,8 @@ interface ProfessorCourseAttendanceProps {
 export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendanceProps) {
   const { courses } = useProfessorCourses();
 
-  // 🌟 [수정 1] 강의 시간표를 분석하여 해당 강의가 총 몇 교시짜리 수업인지 동적으로 계산합니다.
-  const maxPeriods = useMemo(() => {
-    const currentCourse = courses.find(c => String(c.lectureId) === String(lectureId));
-    if (!currentCourse) return 2; // 기본값
-
-    // schedule 예시: "화 13:00-15:00" 또는 "월 09:00-12:00"
-    const timeMatch = currentCourse.schedule?.match(/(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
-    if (timeMatch) {
-      const startHour = parseInt(timeMatch[1], 10);
-      const endHour = parseInt(timeMatch[3], 10);
-      const diff = endHour - startHour;
-      return diff > 0 ? diff : 2; // 시간 차이가 곧 총 교시 수
-    }
-    return 2;
-  }, [courses, lectureId]);
+  // 🌟 [수정 1] API 응답에서 실제 세션 개수를 가져와 교시 수를 결정합니다. (15분/50분 세션 모두 자동 대응)
+  const [maxPeriods, setMaxPeriods] = useState(2);
 
   const SCHEDULE = useMemo(() => {
     const currentCourse = courses.find(c => String(c.lectureId) === String(lectureId));
@@ -131,7 +118,12 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
       });
 
       if (response.success) {
-        const mapped = (response.data.students || []).map((s: any) => {
+        const students = response.data.students || [];
+        // API 응답의 첫 학생 세션 배열 길이로 교시 수 자동 결정
+        if (students.length > 0 && students[0].sessions?.length > 0) {
+          setMaxPeriods(students[0].sessions.length);
+        }
+        const mapped = students.map((s: any) => {
           const matched = s.sessions.find((sess: any) => sess.sessionNum === absoluteSessionNum);
           const statusMap: Record<string, string> = {
             "ATTEND": "출석", "LATENESS": "지각", "ABSENCE": "결석", "TBD": "미정"

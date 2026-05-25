@@ -32,18 +32,18 @@ function parseDayIndex(day: string): number {
   return -1;
 }
 
-function parseHour(time: string): number {
-  // "09:00", "09:00:00" 등
+function parseTimeToMinutes(time: string): number {
+  // "09:00", "17:30", "09:00:00" 등 → 분 단위 (09:00 → 540, 17:30 → 1050)
   const parts = time.split(":");
-  return parseInt(parts[0], 10);
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || "0", 10);
 }
 
 interface TimetableEntry {
   name: string;
   room: string;
   day: number;
-  startHour: number;
-  endHour: number;
+  startMin: number;  // 분 단위 (ex: 1050 = 17:30)
+  endMin: number;
   color: string;
   lectureCode: string;
 }
@@ -62,8 +62,8 @@ export default function StudentTimetable() {
             name: item.lectureName,
             room: item.room || "",
             day: parseDayIndex(item.day),
-            startHour: parseHour(item.startTime),
-            endHour: parseHour(item.endTime),
+            startMin: parseTimeToMinutes(item.startTime),
+            endMin: parseTimeToMinutes(item.endTime),
             color: courseColors[idx % courseColors.length],
             lectureCode: item.lectureCode,
           });
@@ -113,29 +113,42 @@ export default function StudentTimetable() {
 
             {/* Time grid */}
             <div className="relative">
-              {timeSlots.map((time, index) => (
+              {/* 배경 그리드 (시간 라벨 + 셀 라인) */}
+              {timeSlots.map((time) => (
                 <div key={time} className="grid border-b border-zinc-200 last:border-b-0" style={{ gridTemplateColumns: "28px repeat(7, 1fr)" }}>
                   <div className="text-center text-[9px] sm:text-xs font-medium text-zinc-300 flex items-start justify-center pt-0.5 sm:pt-1">
                     {time.slice(0, -3)}
                   </div>
                   {days.map((_, dayIndex) => (
-                    <div
-                      key={dayIndex}
-                      className="h-[36px] sm:h-[52px] relative border-l border-zinc-200"
-                    >
+                    <div key={dayIndex} className="h-[36px] sm:h-[52px] border-l border-zinc-200" />
+                  ))}
+                </div>
+              ))}
+              {/* 과목 블록 오버레이 (전체 그리드 위에 absolute 배치) */}
+              <div className="absolute inset-0 pointer-events-none" style={{ display: "grid", gridTemplateColumns: "28px repeat(7, 1fr)" }}>
+                <div /> {/* 시간 라벨 열 빈칸 */}
+                {days.map((_, dayIndex) => {
+                  const GRID_START = 8 * 60; // 08:00 = 480분
+                  const TOTAL_MIN = timeSlots.length * 60; // 전체 분
+                  return (
+                    <div key={dayIndex} className="relative">
                       {courses
-                        .filter((c) => c.day === dayIndex && c.startHour === index + 8)
+                        .filter((c) => c.day === dayIndex)
                         .map((course, i) => {
-                          const duration = Math.max(course.endHour - course.startHour, 1);
+                          const topMin = course.startMin - GRID_START;
+                          const durationMin = Math.max(course.endMin - course.startMin, 10);
+                          const topPercent = (topMin / TOTAL_MIN) * 100;
+                          const heightPercent = (durationMin / TOTAL_MIN) * 100;
                           return (
                             <motion.div
                               key={i}
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ type: "spring", stiffness: 100, damping: 20 }}
-                              className={`absolute inset-x-px top-px rounded-md sm:rounded-lg border p-0.5 sm:p-1.5 ${course.color} z-10 flex flex-col justify-center items-center text-center cursor-default overflow-hidden`}
+                              className={`absolute inset-x-px rounded-md sm:rounded-lg border p-0.5 sm:p-1.5 ${course.color} z-10 flex flex-col justify-center items-center text-center cursor-default overflow-hidden pointer-events-auto`}
                               style={{
-                                height: `calc(${duration * 100}% - 2px)`,
+                                top: `${topPercent}%`,
+                                height: `${heightPercent}%`,
                               }}
                             >
                               <div className="text-[9px] sm:text-xs font-semibold leading-tight truncate w-full">{course.name}</div>
@@ -144,9 +157,9 @@ export default function StudentTimetable() {
                           );
                         })}
                     </div>
-                  ))}
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -175,7 +188,7 @@ export default function StudentTimetable() {
                       </div>
                       <div className="flex items-center gap-1.5 text-xs opacity-70">
                         <Clock strokeWidth={1.5} className="w-3 h-3" />
-                        {days[course.day]}요일 {String(course.startHour).padStart(2, "0")}:00 - {String(course.endHour).padStart(2, "0")}:00
+                        {days[course.day]}요일 {String(Math.floor(course.startMin / 60)).padStart(2, "0")}:{String(course.startMin % 60).padStart(2, "0")} - {String(Math.floor(course.endMin / 60)).padStart(2, "0")}:{String(course.endMin % 60).padStart(2, "0")}
                       </div>
                     </div>
                   </motion.div>

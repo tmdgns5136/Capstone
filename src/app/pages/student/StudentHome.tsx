@@ -18,8 +18,9 @@ function getTodayString() {
   return days[new Date().getDay()];
 }
 
-function parseHour(time: string) {
-  return parseInt(time.split(":")[0], 10);
+function parseMinutes(time: string) {
+  const parts = time.split(":");
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || "0", 10);
 }
 
 export default function StudentHome() {
@@ -146,10 +147,10 @@ export default function StudentHome() {
       <section>
         <h2 className="text-lg font-bold text-zinc-900 mb-4">주간 시간표</h2>
         <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-          <div className="grid border-b border-zinc-100" style={{ gridTemplateColumns: "36px repeat(7, 1fr)" }}>
-            <div className="py-2 text-xs font-medium text-zinc-400 text-center">-</div>
+          <div className="grid border-b border-zinc-300" style={{ gridTemplateColumns: "36px repeat(7, 1fr)" }}>
+            <div className="py-2" />
             {days.map((day) => (
-              <div key={day} className="py-2 text-xs font-medium text-zinc-500 text-center truncate px-0.5">
+              <div key={day} className="py-2 text-xs font-medium text-zinc-500 text-center truncate px-0.5 border-l border-zinc-200">
                 <span className="hidden sm:inline">{day}</span>
                 <span className="sm:hidden">{day.replace("요일", "")}</span>
               </div>
@@ -165,7 +166,7 @@ export default function StudentHome() {
             {hours.map((hour, rowIdx) => (
               <div
                 key={hour}
-                className="border-b border-zinc-50 text-[10px] text-zinc-400 flex items-center justify-center"
+                className="border-b border-zinc-200 text-[10px] text-zinc-400 flex items-start justify-center pt-1"
                 style={{ gridColumn: 1, gridRow: rowIdx + 1 }}
               >
                 {String(hour).padStart(2, "0")}
@@ -173,35 +174,48 @@ export default function StudentHome() {
             ))}
             {hours.map((_, rowIdx) =>
               days.map((__, colIdx) => (
-                <div key={`cell-${rowIdx}-${colIdx}`} className="border-b border-zinc-50" style={{ gridColumn: colIdx + 2, gridRow: rowIdx + 1 }} />
+                <div key={`cell-${rowIdx}-${colIdx}`} className="border-b border-l border-zinc-200" style={{ gridColumn: colIdx + 2, gridRow: rowIdx + 1 }} />
               ))
             )}
-            {timetable.map((course) => {
-              const dayIdx = dayMap[course.day] ?? dayMap[course.day.toUpperCase()];
-              if (dayIdx === undefined) return null;
-              const startHour = parseHour(course.startTime);
-              const endHour = parseHour(course.endTime);
-              const rowStart = startHour - hours[0] + 1;
-              const rowEnd = endHour - hours[0] + 1;
-              const col = dayIdx + 2;
-              return (
-                <div
-                  key={`${course.day}-${course.startTime}`}
-                  className="px-0.5 py-0.5 overflow-hidden z-10"
-                  style={{ gridColumn: col, gridRow: `${rowStart} / ${rowEnd}` }}
-                >
-                  <div className="rounded-md p-1.5 h-full overflow-hidden flex flex-col justify-between bg-primary/15 border-l-2 border-primary">
-                    <div>
-                      <p className="text-[11px] font-semibold text-zinc-900 truncate leading-tight">{course.lectureName}</p>
-                      <p className="text-[10px] text-zinc-400 truncate leading-tight mt-0.5">{course.room}</p>
+            {/* 과목 블록 오버레이 */}
+            {(() => {
+              const ROW_HEIGHT = 72; // px, gridTemplateRows와 동일
+              const GRID_START_MIN = hours[0] * 60; // 08:00 = 480분
+              const COL_COUNT = 7;
+              // 각 요일별 컬럼 위치를 grid 위에 absolute로 배치
+              return timetable.map((course) => {
+                const dayIdx = dayMap[course.day] ?? dayMap[course.day.toUpperCase()];
+                if (dayIdx === undefined) return null;
+                const startMin = parseMinutes(course.startTime);
+                const endMin = parseMinutes(course.endTime);
+                const topPx = ((startMin - GRID_START_MIN) / 60) * ROW_HEIGHT;
+                const heightPx = Math.max(((endMin - startMin) / 60) * ROW_HEIGHT, ROW_HEIGHT / 6);
+                // gridColumn은 36px(시간라벨) + 각 요일 칸. CSS grid 위 absolute이므로 left/width를 %로 계산
+                // 시간라벨 폭 = 36px, 나머지를 7등분
+                return (
+                  <div
+                    key={`${course.day}-${course.startTime}`}
+                    className="absolute px-0.5 py-0.5 z-10"
+                    style={{
+                      top: `${topPx}px`,
+                      height: `${heightPx}px`,
+                      left: `calc(36px + ${(dayIdx / COL_COUNT)} * (100% - 36px))`,
+                      width: `calc((100% - 36px) / ${COL_COUNT})`,
+                    }}
+                  >
+                    <div className="rounded-md p-1.5 h-full overflow-hidden flex flex-col justify-between bg-teal-100 dark:bg-teal-900 border-l-2 border-primary">
+                      <div>
+                        <p className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 truncate leading-tight">{course.lectureName}</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-300 truncate leading-tight mt-0.5">{course.room}</p>
+                      </div>
+                      <span className="self-start px-1.5 py-0.5 rounded text-[10px] font-medium leading-tight bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-200">
+                        {course.startTime} - {course.endTime}
+                      </span>
                     </div>
-                    <span className="self-start px-1.5 py-0.5 rounded text-[10px] font-medium leading-tight bg-zinc-100 text-zinc-600">
-                      {course.startTime} - {course.endTime}
-                    </span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         </div>
       </section>
