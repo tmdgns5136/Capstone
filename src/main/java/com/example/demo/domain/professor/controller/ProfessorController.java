@@ -193,13 +193,24 @@ public class ProfessorController {
             @PathVariable("lectureId") String lectureId,
             @RequestParam("semester") String semester,
             @RequestParam(value = "date", required = false) String date,
+            @RequestParam(value = "sessionNum", required = false) Long sessionNum,
             Authentication authentication
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200,
-                professorService.getAttendanceMonitoring(professor.getProfessorId(), lectureId, semester, date)
+                professorService.getAttendanceMonitoring(
+                        professor.getProfessorId(),
+                        lectureId,
+                        semester,
+                        date,
+                        sessionNum
+                )
         );
     }
 

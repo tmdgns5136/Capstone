@@ -378,11 +378,29 @@ public class ProfessorService {
         LocalDate attendanceDate = request.getDate() != null && !request.getDate().trim().isEmpty() ? LocalDate.parse(request.getDate()) : LocalDate.now();
         List<LectureSession> sessions = lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(lecture, attendanceDate);
 
-        LectureSession session = request.getSessionNum() != null
-                ? sessions.stream().filter(s -> request.getSessionNum().equals(s.getSessionNum())).findFirst().orElseThrow(() -> new CustomException(404, "해당 회차의 강의 세션을 찾을 수 없습니다."))
-                : (sessions.isEmpty() ? null : sessions.get(sessions.size() - 1));
+        // sessionNum을 날짜 내 교시 순서(1-based index)로 매칭
+        LectureSession session;
+        if (request.getSessionNum() != null) {
+            int idx = request.getSessionNum().intValue() - 1;
+            session = (idx >= 0 && idx < sessions.size()) ? sessions.get(idx) : null;
+        } else {
+            session = sessions.isEmpty() ? null : sessions.get(sessions.size() - 1);
+        }
 
-        if (session == null) throw new CustomException(404, "해당 날짜의 강의 세션을 찾을 수 없습니다.");
+        // 세션이 없으면 수동 출결용 세션을 자동 생성
+        if (session == null) {
+            Long sessionNum = request.getSessionNum() != null ? request.getSessionNum() : 1L;
+            session = LectureSession.builder()
+                    .lecture(lecture)
+                    .scheduledAt(attendanceDate)
+                    .sessionNum(sessionNum)
+                    .status(SessionStatus.ENDED)
+                    .sessionStart(attendanceDate.atStartOfDay())
+                    .sessionEnd(attendanceDate.atStartOfDay())
+                    .build();
+            lectureSessionRepository.save(session);
+        }
+        final LectureSession finalSession = session;
         if (request.getStatus() == null || request.getStatus().trim().isEmpty()) throw new CustomException(400, "출결 상태값은 필수입니다.");
 
         String status = request.getStatus().trim().toUpperCase();
@@ -395,8 +413,8 @@ public class ProfessorService {
             default: throw new CustomException(400, "유효하지 않은 출결 상태입니다.");
         }
 
-        Attendance attendance = attendanceRepository.findByLectureSessionAndStudent(session, student).orElseGet(() -> {
-            Attendance newA = new Attendance(); newA.setLectureSession(session); newA.setStudent(student); return newA;
+        Attendance attendance = attendanceRepository.findByLectureSessionAndStudent(finalSession, student).orElseGet(() -> {
+            Attendance newA = new Attendance(); newA.setLectureSession(finalSession); newA.setStudent(student); return newA;
         });
 
         attendance.setAttendStatus(newAttendStatus);
@@ -414,15 +432,36 @@ public class ProfessorService {
         return ActionResponse.success(200, "출결 상태가 변경되었습니다.", null);
     }
 
-    public AttendanceMonitoringResponse getAttendanceMonitoring(Long professorId, String lectureIdStr, String semester, String dateStr) {
+    public AttendanceMonitoringResponse getAttendanceMonitoring(
+            Long professorId,
+            String lectureIdStr,
+            String semester,
+            String dateStr,
+            Long sessionNum
+    ) {
         Lecture lecture = lectureRepository.findById(Long.valueOf(lectureIdStr))
                 .filter(l -> l.getProfessor().getProfessorId().equals(professorId))
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
         List<Enrollment> enrollments = enrollmentRepository.findByLecture_LectureId(lecture.getLectureId());
         LocalDate targetDate = (dateStr != null && !dateStr.isEmpty()) ? LocalDate.parse(dateStr) : LocalDate.now();
-        List<LectureSession> targetSessions = lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(lecture, targetDate);
-        LectureSession targetSession = targetSessions.isEmpty() ? null : targetSessions.get(targetSessions.size() - 1);
+        List<LectureSession> targetSessions =
+                lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(
+                        lecture,
+                        targetDate
+                );
+
+        LectureSession targetSession;
+
+        // sessionNum을 날짜 내 교시 순서(1-based index)로 매칭
+        if (sessionNum != null) {
+            int idx = sessionNum.intValue() - 1;
+            targetSession = (idx >= 0 && idx < targetSessions.size()) ? targetSessions.get(idx) : null;
+        } else {
+            targetSession = targetSessions.isEmpty()
+                    ? null
+                    : targetSessions.get(targetSessions.size() - 1);
+        }
 
         List<AttendanceStudentResponse> studentResponses = new ArrayList<>();
         int totalAttendance = 0, totalLate = 0, totalAway = 0, totalAbsent = 0;
@@ -455,15 +494,21 @@ public class ProfessorService {
             double rate = totalSessions == 0 ? 0.0 : Math.round((presentCount * 1000.0 / totalSessions)) / 10.0;
             String currentStatus = convertAttendStatusForResponse(currentAttendStatus, currentClassStatus);
 
-            List<SessionData> sessionResponses = targetSessions.stream().map(ls -> {
+            List<SessionData> sessionResponses = new ArrayList<>();
+            for (int i = 0; i < targetSessions.size(); i++) {
+                LectureSession ls = targetSessions.get(i);
                 Attendance sa = attendanceRepository.findByLectureSessionAndStudent(ls, student).orElse(null);
                 String saStatus = sa == null ? "TBD" : convertAttendStatusForResponse(sa.getAttendStatus(), sa.getStudentClassStatus());
-                return SessionData.builder().sessionId(ls.getSessionId()).sessionNum(ls.getSessionNum())
+                sessionResponses.add(SessionData.builder().sessionId(ls.getSessionId()).sessionNum((long)(i + 1))
                         .sessionDate(ls.getScheduledAt() != null ? ls.getScheduledAt().toString() : null)
-                        .startTime(ls.getScheduledAt() != null ? ls.getSessionStart().toLocalTime().withSecond(0).withNano(0).toString() : null)
-                        .endTime(ls.getScheduledAt() != null ? ls.getSessionEnd().toLocalTime().withSecond(0).withNano(0).toString() : null)
-                        .status(saStatus).build();
-            }).collect(Collectors.toList());
+                        .startTime(ls.getSessionStart() != null
+                                ? ls.getSessionStart().toLocalTime().withSecond(0).withNano(0).toString()
+                                : null)
+                        .endTime(ls.getSessionEnd() != null
+                                ? ls.getSessionEnd().toLocalTime().withSecond(0).withNano(0).toString()
+                                : null)
+                        .status(saStatus).build());
+            }
 
             studentResponses.add(new AttendanceStudentResponse(student.getStudentNum(), student.getStudentName(), currentStatus, presentCount, lateCount, absentCount, totalSessions, rate, sessionResponses));
         }
