@@ -133,7 +133,7 @@ export default function AdminHome() {
               devices.slice(0, 5).map((device) => (
                 <div key={device.deviceId} className="flex items-start justify-between px-6 py-4 hover:bg-zinc-50/50 transition-colors">
                   <div className="flex gap-3">
-                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${device.networkStatus === "ONLINE" ? statusDot.success : statusDot.warning}`} />
+                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${device.networkStatus === "ONLINE" ? "bg-emerald-400" : "bg-amber-400"}`} />
                     <div>
                       <p className="text-sm font-medium text-zinc-900">{device.deviceName || device.deviceId}</p>
                       <p className="text-xs text-zinc-400 mt-0.5">{device.classroom} · {device.deviceId}</p>

@@ -21,7 +21,7 @@ const spring = { type: "spring", stiffness: 100, damping: 20 };
 function statusLabel(status: string) {
   switch (status) {
     case "APPROVED": return "승인";
-    case "REJECTED": return "거절";
+    case "REJECTED": return "반려";
     default: return "대기";
   }
 }
@@ -442,7 +442,7 @@ export default function StudentAbsenceRequest() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.06 }}
                     onClick={() => handleShowDetail(request.requestId, request.lectureId)}
-                    className="rounded-xl border border-zinc-100 dark:border-zinc-700 p-4 shadow-[0_2px_4px_-1px_rgba(0,0,0,0.08)] hover:border-zinc-200 hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.12)] dark:hover:border-primary/50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                    className="rounded-xl border border-zinc-100 p-4 shadow-[0_2px_4px_-1px_rgba(0,0,0,0.08)] hover:border-zinc-200 hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.12)] transition-all cursor-pointer"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
@@ -592,7 +592,7 @@ export default function StudentAbsenceRequest() {
                           <XCircle className="w-3.5 h-3.5 text-rose-600" strokeWidth={1.5} />
                           <span className="text-xs font-semibold text-rose-700">교수님 반려</span>
                         </div>
-                        <p className="text-sm font-medium text-rose-700 mb-1">반려되었습니다. 사유 확인 후 재신청해주세요.</p>
+                        <p className="text-sm font-medium text-rose-700 mb-1">반려되었습니다. 사유 확인 후 재신청 바랍니다.</p>
                         {detailData.rejectedReason && (
                           <p className="text-sm text-rose-600">사유: {detailData.rejectedReason}</p>
                         )}
