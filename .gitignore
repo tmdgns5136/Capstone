@@ -1,0 +1,119 @@
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# =========================
+# Java / Spring Boot / Gradle
+# =========================
+.gradle/
+build/
+out/
+target/
+
+!gradle/wrapper/gradle-wrapper.jar
+
+*.class
+*.log
+*.tmp
+
+# =========================
+# Spring Boot local config / secrets
+# application.yaml은 환경변수 방식으로 바꿔서 Git에 올리고,
+# 실제 비밀번호는 application-local.yaml 또는 환경변수로 관리
+# =========================
+src/main/resources/application-local.yml
+src/main/resources/application-local.yaml
+src/main/resources/application-secret.yml
+src/main/resources/application-secret.yaml
+src/main/resources/application-private.yml
+src/main/resources/application-private.yaml
+
+.env
+.env.*
+!.env.example
+
+# =========================
+# Credentials / Keys
+# =========================
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.crt
+*.cer
+
+aws-credentials.json
+service-account.json
+secrets/
+
+# =========================
+# Database / local runtime
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+
+# =========================
+# Upload / storage folders
+# 실제 업로드 이미지, 출석 이미지, 임시 저장 파일은 Git에 올리지 않음
+# =========================
+uploads/
+upload/
+storage/
+files/
+device-attendance/
+temp/
+tmp/
+
+# =========================
+# Python / Raspberry Pi / YOLO
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+ENV/
+
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# YOLO / OpenCV outputs
+runs/
+weights/
+*.pt
+*.onnx
+*.engine
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# =========================
+# Node / Frontend
+# =========================
+node_modules/
+dist/
+.next/
+.nuxt/
+coverage/
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
