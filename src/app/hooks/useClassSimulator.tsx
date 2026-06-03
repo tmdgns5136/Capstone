@@ -68,14 +68,31 @@ function getTodayString() {
   return `${year}-${month}-${day}`;
 }
 
+// 하드 코딩 데이터: true / 실제 API: false
+const DEMO_MODE = true;
+
+const DEMO_COURSE: Course = {
+  lectureId: "demo-1",
+  name: "운영체제",
+  room: "G511",
+  schedule: "화 19:00~19:30",
+  students: 18,
+};
+
+const DEMO_ATTENDANCE: AttendanceData = { present: 14, away: 0, absent: 4, total: 18 };
+
 export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
-  const { courses, loading: coursesLoading } = useProfessorCourses();
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [scheduledCourse, setScheduledCourse] = useState<Course | null>(null);
-  const [isActive, setIsActive] = useState(false);
+  const { courses: realCourses, loading: realLoading } = useProfessorCourses();
+
+  const courses = DEMO_MODE ? [DEMO_COURSE] : realCourses;
+  const coursesLoading = DEMO_MODE ? false : realLoading;
+
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(DEMO_MODE ? DEMO_COURSE : null);
+  const [scheduledCourse, setScheduledCourse] = useState<Course | null>(DEMO_MODE ? DEMO_COURSE : null);
+  const [isActive, setIsActive] = useState(DEMO_MODE ? true : false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [lastCaptureTime, setLastCaptureTime] = useState<Date | null>(null);
-  const [attendanceData, setAttendanceData] = useState<AttendanceData>({ present: 0, away: 0, absent: 0, total: 0 });
+  const [lastCaptureTime, setLastCaptureTime] = useState<Date | null>(DEMO_MODE ? new Date() : null);
+  const [attendanceData, setAttendanceData] = useState<AttendanceData>(DEMO_MODE ? DEMO_ATTENDANCE : { present: 0, away: 0, absent: 0, total: 0 });
 
   useEffect(() => {
     if (courses.length === 0) return;
@@ -103,6 +120,11 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
 
   const refreshAttendanceData = useCallback(async () => {
     if (!selectedCourse) return;
+    if (DEMO_MODE) {
+      setAttendanceData(DEMO_ATTENDANCE);
+      setLastCaptureTime(new Date());
+      return;
+    }
 
     try {
       const response = await getAttendanceMonitoring(String(selectedCourse.lectureId), {
@@ -138,6 +160,7 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
 
   const syncLectureRuntimeState = useCallback(async () => {
     if (!selectedCourse) return;
+    if (DEMO_MODE) return;
 
     try {
       const response = await getTodayLectures();
@@ -163,6 +186,16 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
 
   const startSimulation = useCallback(async () => {
     if (!selectedCourse) return;
+
+    if (DEMO_MODE) {
+      setIsActive(true);
+      setElapsedTime(0);
+      setLastCaptureTime(new Date());
+      setAttendanceData(DEMO_ATTENDANCE);
+      toast.success(`${selectedCourse.name} 강의가 시작되었습니다.`);
+      return;
+    }
+
     const lectureId = toNumberId(selectedCourse.lectureId);
     if (!lectureId) {
       toast.error("강의 ID를 확인할 수 없습니다.");
@@ -189,6 +222,13 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
 
   const stopSimulation = useCallback(async () => {
     if (!selectedCourse) return;
+
+    if (DEMO_MODE) {
+      setIsActive(false);
+      toast.success("강의가 종료되었습니다. 출결 데이터가 서버에 반영됩니다.");
+      return;
+    }
+
     const lectureId = toNumberId(selectedCourse.lectureId);
     if (!lectureId) {
       toast.error("강의 ID를 확인할 수 없습니다.");
