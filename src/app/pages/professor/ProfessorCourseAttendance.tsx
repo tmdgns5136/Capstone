@@ -123,16 +123,14 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
         if (students.length > 0 && students[0].sessions?.length > 0) {
           setMaxPeriods(students[0].sessions.length);
         }
-        const mapped = students.map((s: any) => {
-          const matched = s.sessions.find((sess: any) => sess.sessionNum === absoluteSessionNum);
-          const statusMap: Record<string, string> = {
-            "ATTEND": "출석", "LATENESS": "지각", "ABSENCE": "결석", "TBD": "미정"
-          };
-          return {
-            ...s,
-            status: matched ? (statusMap[matched.status] || "미정") : "미정"
-          };
-        });
+        const statusMap: Record<string, string> = {
+          "ATTEND": "출석", "LATENESS": "지각", "ABSENCE": "결석",
+          "AWAY": "결석", "TBD": "미진행"
+        };
+        const mapped = students.map((s: any) => ({
+          ...s,
+          status: statusMap[s.status] || "미진행"
+        }));
         setSavedMap(prev => ({ ...prev, [key]: mapped }));
       }
     } catch {
@@ -152,18 +150,21 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
     try {
       const modified = students.filter((s, i) => s.status !== baseStudents[i].status);
 
-      const results = await Promise.allSettled(modified.map(s => {
-        const dbStat = s.status === "출석" ? "ATTEND" : s.status === "지각" ? "LATENESS" : "ABSENCE";
-        return updateAttendance({
-          studentId: s.studentId,
-          lectureId: String(lectureId),
-          status: dbStat,
-          date: sessionDate,
-          sessionNum: absoluteSessionNum
-        });
-      }));
-
-      const failedCount = results.filter(r => r.status === 'rejected').length;
+      let failedCount = 0;
+      for (const s of modified) {
+        try {
+          const dbStat = s.status === "출석" ? "ATTEND" : s.status === "지각" ? "LATENESS" : "ABSENCE";
+          await updateAttendance({
+            studentId: s.studentId,
+            lectureId: String(lectureId),
+            status: dbStat,
+            date: sessionDate,
+            sessionNum: absoluteSessionNum
+          });
+        } catch {
+          failedCount++;
+        }
+      }
 
       if (failedCount > 0) {
         toast.error(`${failedCount}명의 출결 저장에 실패했습니다. 다시 시도해주세요.`);
@@ -222,6 +223,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
 
   const filteredStudents = students.filter(s => s.name.includes(searchQuery) || s.studentId.includes(searchQuery));
   const pagedStudents = filteredStudents.slice((page - 1) * 8, page * 8);
+
 
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
