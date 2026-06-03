@@ -28,6 +28,15 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -44,6 +53,9 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class FaceRecognitionService {
+
+    private static final int REKOGNITION_MAX_IMAGE_BYTES = 4_500_000;
+    private static final int MIN_RESIZE_WIDTH = 800;
 
     private final AmazonRekognition amazonRekognition;
     private final DeviceCaptureRepository deviceCaptureRepository;
@@ -218,9 +230,90 @@ public class FaceRecognitionService {
     }
 
     private Image toRekognitionImage(Path path) throws Exception {
+        byte[] imageBytes;
         try (InputStream inputStream = new FileInputStream(path.toFile())) {
-            ByteBuffer imageBytes = ByteBuffer.wrap(IOUtils.toByteArray(inputStream));
-            return new Image().withBytes(imageBytes);
+            imageBytes = IOUtils.toByteArray(inputStream);
+        }
+
+        if (imageBytes.length > REKOGNITION_MAX_IMAGE_BYTES) {
+            imageBytes = resizeForRekognition(path, imageBytes.length);
+        }
+
+        return new Image().withBytes(ByteBuffer.wrap(imageBytes));
+    }
+
+    private byte[] resizeForRekognition(Path path, int originalBytes) throws Exception {
+        BufferedImage source = ImageIO.read(path.toFile());
+        if (source == null) {
+            throw new IllegalStateException("Rekognition image resize failed. Unsupported image file: " + path);
+        }
+
+        BufferedImage current = toRgbImage(source);
+        for (float quality : new float[]{0.9f, 0.8f, 0.7f}) {
+            byte[] compressed = writeJpeg(current, quality);
+            if (compressed.length <= REKOGNITION_MAX_IMAGE_BYTES) {
+                log.info("Rekognition image compressed: path={}, originalBytes={}, resizedBytes={}",
+                        path, originalBytes, compressed.length);
+                return compressed;
+            }
+        }
+
+        while (current.getWidth() > MIN_RESIZE_WIDTH) {
+            int nextWidth = Math.max(MIN_RESIZE_WIDTH, (int) (current.getWidth() * 0.85));
+            int nextHeight = Math.max(1, (int) (current.getHeight() * (nextWidth / (double) current.getWidth())));
+            current = resizeImage(current, nextWidth, nextHeight);
+
+            byte[] compressed = writeJpeg(current, 0.8f);
+            if (compressed.length <= REKOGNITION_MAX_IMAGE_BYTES) {
+                log.info("Rekognition image resized: path={}, originalBytes={}, width={}, height={}, resizedBytes={}",
+                        path, originalBytes, current.getWidth(), current.getHeight(), compressed.length);
+                return compressed;
+            }
+        }
+
+        byte[] compressed = writeJpeg(current, 0.6f);
+        if (compressed.length > REKOGNITION_MAX_IMAGE_BYTES) {
+            throw new IllegalStateException("Rekognition image is still too large after resize: " + path);
+        }
+        return compressed;
+    }
+
+    private BufferedImage toRgbImage(BufferedImage source) {
+        if (source.getType() == BufferedImage.TYPE_INT_RGB) {
+            return source;
+        }
+
+        BufferedImage rgb = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = rgb.createGraphics();
+        graphics.drawImage(source, 0, 0, null);
+        graphics.dispose();
+        return rgb;
+    }
+
+    private BufferedImage resizeImage(BufferedImage source, int width, int height) {
+        BufferedImage resized = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = resized.createGraphics();
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        graphics.drawImage(source, 0, 0, width, height, null);
+        graphics.dispose();
+        return resized;
+    }
+
+    private byte[] writeJpeg(BufferedImage image, float quality) throws Exception {
+        ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
+        ImageWriteParam params = writer.getDefaultWriteParam();
+        params.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        params.setCompressionQuality(quality);
+
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
+             ImageOutputStream imageOutput = ImageIO.createImageOutputStream(output)) {
+            writer.setOutput(imageOutput);
+            writer.write(null, new IIOImage(image, null, null), params);
+            return output.toByteArray();
+        } finally {
+            writer.dispose();
         }
     }
 }

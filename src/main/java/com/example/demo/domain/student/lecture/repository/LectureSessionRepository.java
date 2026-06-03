@@ -26,13 +26,21 @@ public interface LectureSessionRepository extends JpaRepository<LectureSession, 
             LocalDate scheduledAt
     );
 
+    List<LectureSession> findByStatus(SessionStatus status);
+
     @Query("""
         select s
         from LectureSession s
         where s.lecture.lectureRoom = :classroom
-          and s.status = :status
           and s.sessionStart <= :targetTime
           and (s.sessionEnd is null or s.sessionEnd >= :targetTime)
+          and exists (
+              select active
+              from LectureSession active
+              where active.lecture = s.lecture
+                and active.scheduledAt = s.scheduledAt
+                and active.status = :status
+          )
         order by s.sessionStart desc
         """)
     List<LectureSession> findCurrentSessionsByClassroomAndTime(

@@ -52,10 +52,12 @@ import com.example.demo.domain.device.service.DeviceService;
 import com.example.demo.domain.enumerate.StudentClassStatus;
 //import com.example.demo.domain.stream.service.YoloWorkerProcessService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -72,14 +74,18 @@ import java.time.LocalTime;
 import java.time.Duration;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class ProfessorService {
 
@@ -349,8 +355,9 @@ public class ProfessorService {
                 .filter(l -> l.getProfessor().getProfessorId().equals(professorId))
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
-        LocalDate today = LocalDate.now();
-        if (!isWithinLectureSchedule(LocalTime.now(), today.getDayOfWeek(), lecture)) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = now.toLocalDate();
+        if (!isWithinLectureSchedule(now.toLocalTime(), today.getDayOfWeek(), lecture)) {
             throw new CustomException(400, "정규 수업 시간이 아닙니다. 계속 하시겠습니까?");
         }
 
@@ -359,9 +366,16 @@ public class ProfessorService {
             throw new CustomException(400, "이미 시작된 강의입니다.");
         }
 
-        Long nextSessionNum = todaySessions.stream().map(LectureSession::getSessionNum).filter(num -> num != null).max(Long::compareTo).orElse(0L) + 1L;
-        LectureSession newSession = LectureSession.builder().lecture(lecture).scheduledAt(today).sessionNum(nextSessionNum).status(SessionStatus.IN_PROGRESS).sessionStart(LocalDateTime.now()).build();
-        lectureSessionRepository.save(newSession);
+        LectureSession session = findSessionForTime(todaySessions, now);
+        if (session == null) {
+            throw new CustomException(404, "No lecture session matches the current time.");
+        }
+        if (session.getStatus() == SessionStatus.ENDED) {
+            throw new CustomException(400, "The matching lecture session has already ended.");
+        }
+
+        session.setStatus(SessionStatus.IN_PROGRESS);
+        lectureSessionRepository.save(session);
 
         Device device = deviceRepository.findFirstByClassroomAndActiveTrue(lecture.getLectureRoom())
                 .orElseThrow(() -> new CustomException(404, "해당 강의실에 연결된 활성 장치를 찾을 수 없습니다."));
@@ -384,55 +398,189 @@ public class ProfessorService {
                 .filter(l -> l.getProfessor().getProfessorId().equals(professorId))
                 .orElseThrow(() -> new CustomException(404, "강의 정보를 찾을 수 없습니다."));
 
-        LocalDate today = LocalDate.now();
-        List<LectureSession> todaySessions = lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(lecture, today);
-        List<LectureSession> inProgressSessions = todaySessions.stream().filter(s -> s.getStatus() == SessionStatus.IN_PROGRESS).toList();
+        closeInProgressLecture(lecture, LocalDate.now(), LocalDateTime.now(), true);
+        return ActionResponse.success(200, "출석 체크가 종료되었습니다.", "/api/professors/lectures/" + lectureIdStr + "/attendance");
+    }
 
-        if (inProgressSessions.isEmpty()) throw new CustomException(400, "시작되지 않은 강의는 종료할 수 없습니다.");
+    @Scheduled(fixedDelay = 30000)
+    @Transactional
+    public void advanceInProgressLectureSessions() {
+        LocalDateTime now = LocalDateTime.now();
+        Set<String> processedKeys = new HashSet<>();
 
-        LectureSession session = inProgressSessions.get(inProgressSessions.size() - 1);
-        session.setStatus(SessionStatus.ENDED); session.setSessionEnd(LocalDateTime.now());
-        lectureSessionRepository.save(session);
+        for (LectureSession session : lectureSessionRepository.findByStatus(SessionStatus.IN_PROGRESS)) {
+            Lecture lecture = session.getLecture();
+            LocalDate scheduledAt = session.getScheduledAt();
 
-        Device device = deviceRepository.findFirstByClassroomAndActiveTrue(lecture.getLectureRoom())
-                .orElseThrow(() -> new CustomException(404, "해당 강의실에 연결된 활성 장치를 찾을 수 없습니다."));
+            if (lecture == null || scheduledAt == null) {
+                continue;
+            }
 
-        deviceService.sendStopCaptureCommand(
-                device.getDeviceId(),
-                lecture.getLectureId(),
-                lecture.getLectureRoom()
-        );
+            String key = lecture.getLectureId() + ":" + scheduledAt;
+            if (!processedKeys.add(key)) {
+                continue;
+            }
 
-        //yoloWorkerProcessService.stopWorker(device.getDeviceId());
-
-        if (!todaySessions.isEmpty() && todaySessions.get(0).getSessionStart() != null && todaySessions.get(todaySessions.size() - 1).getSessionEnd() != null) {
-            long totalMinutes = Duration.between(todaySessions.get(0).getSessionStart(), todaySessions.get(todaySessions.size() - 1).getSessionEnd()).toMinutes();
-            long actualLectureMinutes = totalMinutes - ((todaySessions.size() - 1) * 10L);
-
-            List<Attendance> attendances = attendanceRepository.findByLectureSessionIn(todaySessions);
-            Map<Student, List<Attendance>> attendanceMap = attendances.stream().collect(Collectors.groupingBy(Attendance::getStudent));
-
-            for (Map.Entry<Student, List<Attendance>> entry : attendanceMap.entrySet()) {
-                List<Attendance> studentAttendances = entry.getValue();
-                LocalDateTime firstEnter = studentAttendances.stream().map(Attendance::getEnterTime).filter(t -> t != null).min(LocalDateTime::compareTo).orElse(null);
-                LocalDateTime lastExit = studentAttendances.stream().map(Attendance::getExitTime).filter(t -> t != null).max(LocalDateTime::compareTo).orElse(null);
-
-                if (firstEnter == null || lastExit == null) {
-                    for (Attendance a : studentAttendances) { a.setAttendStatus(AttendStatus.ABSENCE); a.setStayRate(0.0); }
-                    attendanceRepository.saveAll(studentAttendances); continue;
-                }
-
-                double stayRate = (double) Duration.between(firstEnter, lastExit).toMinutes() / actualLectureMinutes * 100.0;
-                AttendStatus status = stayRate >= 80.0 ? AttendStatus.ATTEND : stayRate >= 50.0 ? AttendStatus.LATENESS : AttendStatus.ABSENCE;
-
-                for (Attendance a : studentAttendances) {
-                    a.setStayRate(Math.round(stayRate * 10.0) / 10.0);
-                    a.setAttendStatus(status);
-                }
-                attendanceRepository.saveAll(studentAttendances);
+            try {
+                advanceInProgressLectureSession(lecture, scheduledAt, now);
+            } catch (Exception e) {
+                log.warn("진행 중 세션 전환 실패: lectureId={}, scheduledAt={}", lecture.getLectureId(), scheduledAt, e);
             }
         }
-        return ActionResponse.success(200, "출석 체크가 종료되었습니다.", "/api/professors/lectures/" + lectureIdStr + "/attendance");
+    }
+
+    private void advanceInProgressLectureSession(Lecture lecture, LocalDate scheduledAt, LocalDateTime now) {
+        if (lecture.getLectureEnd() != null) {
+            LocalDateTime classEndAt = LocalDateTime.of(scheduledAt, LocalTime.parse(lecture.getLectureEnd().trim()));
+            if (!now.isBefore(classEndAt)) {
+                return;
+            }
+        }
+
+        List<LectureSession> sessions = lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(lecture, scheduledAt);
+        LectureSession currentSession = findSessionForTime(sessions, now);
+        if (currentSession == null || currentSession.getStatus() == SessionStatus.ENDED) {
+            return;
+        }
+
+        boolean changed = false;
+        for (LectureSession session : sessions) {
+            if (session.getStatus() == SessionStatus.IN_PROGRESS
+                    && !session.getSessionId().equals(currentSession.getSessionId())) {
+                session.setStatus(SessionStatus.ENDED);
+                changed = true;
+            }
+        }
+
+        if (currentSession.getStatus() == SessionStatus.NOT_STARTED) {
+            currentSession.setStatus(SessionStatus.IN_PROGRESS);
+            changed = true;
+        }
+
+        if (changed) {
+            lectureSessionRepository.saveAll(sessions);
+        }
+    }
+
+    @Scheduled(fixedDelay = 60000)
+    @Transactional
+    public void autoEndLecturesAtClassEndTime() {
+        LocalDateTime now = LocalDateTime.now();
+        Set<String> processedKeys = new HashSet<>();
+
+        for (LectureSession session : lectureSessionRepository.findByStatus(SessionStatus.IN_PROGRESS)) {
+            Lecture lecture = session.getLecture();
+            LocalDate scheduledAt = session.getScheduledAt();
+
+            if (lecture == null || scheduledAt == null || lecture.getLectureEnd() == null) {
+                continue;
+            }
+
+            LocalDateTime classEndAt;
+            try {
+                classEndAt = LocalDateTime.of(scheduledAt, LocalTime.parse(lecture.getLectureEnd().trim()));
+            } catch (Exception e) {
+                log.warn("수업 종료 시간 파싱 실패: lectureId={}, lectureEnd={}", lecture.getLectureId(), lecture.getLectureEnd(), e);
+                continue;
+            }
+
+            if (now.isBefore(classEndAt)) {
+                continue;
+            }
+
+            String key = lecture.getLectureId() + ":" + scheduledAt;
+            if (!processedKeys.add(key)) {
+                continue;
+            }
+
+            try {
+                closeInProgressLecture(lecture, scheduledAt, now, false);
+                log.info("수업 종료 시간 도달로 출석 체크 자동 종료: lectureId={}, scheduledAt={}", lecture.getLectureId(), scheduledAt);
+            } catch (Exception e) {
+                log.warn("출석 체크 자동 종료 실패: lectureId={}, scheduledAt={}", lecture.getLectureId(), scheduledAt, e);
+            }
+        }
+    }
+
+    private void closeInProgressLecture(
+            Lecture lecture,
+            LocalDate scheduledAt,
+            LocalDateTime endedAt,
+            boolean requireActiveDevice
+    ) {
+        List<LectureSession> sessions = lectureSessionRepository.findByLectureAndScheduledAtOrderBySessionStartAsc(lecture, scheduledAt);
+        List<LectureSession> inProgressSessions = sessions.stream()
+                .filter(s -> s.getStatus() == SessionStatus.IN_PROGRESS)
+                .toList();
+
+        if (inProgressSessions.isEmpty()) {
+            throw new CustomException(400, "시작되지 않은 강의는 종료할 수 없습니다.");
+        }
+
+        LectureSession session = inProgressSessions.get(inProgressSessions.size() - 1);
+        session.setStatus(SessionStatus.ENDED);
+        session.setSessionEnd(endedAt);
+        lectureSessionRepository.save(session);
+
+        sendStopCaptureCommand(lecture, requireActiveDevice);
+        updateAttendanceStatusesAfterLectureEnd(sessions);
+    }
+
+    private void sendStopCaptureCommand(Lecture lecture, boolean requireActiveDevice) {
+        if (requireActiveDevice) {
+            Device device = deviceRepository.findFirstByClassroomAndActiveTrue(lecture.getLectureRoom())
+                    .orElseThrow(() -> new CustomException(404, "해당 강의실에 연결된 활성 장치를 찾을 수 없습니다."));
+            deviceService.sendStopCaptureCommand(device.getDeviceId(), lecture.getLectureId(), lecture.getLectureRoom());
+            return;
+        }
+
+        deviceRepository.findFirstByClassroomAndActiveTrue(lecture.getLectureRoom())
+                .ifPresent(device -> deviceService.sendStopCaptureCommand(
+                        device.getDeviceId(),
+                        lecture.getLectureId(),
+                        lecture.getLectureRoom()
+                ));
+    }
+
+    private void updateAttendanceStatusesAfterLectureEnd(List<LectureSession> sessions) {
+        if (sessions.isEmpty()
+                || sessions.get(0).getSessionStart() == null
+                || sessions.get(sessions.size() - 1).getSessionEnd() == null) {
+            return;
+        }
+
+        long totalMinutes = Duration.between(sessions.get(0).getSessionStart(), sessions.get(sessions.size() - 1).getSessionEnd()).toMinutes();
+        long actualLectureMinutes = totalMinutes - ((sessions.size() - 1) * 10L);
+        if (actualLectureMinutes <= 0) {
+            return;
+        }
+
+        List<Attendance> attendances = attendanceRepository.findByLectureSessionIn(sessions);
+        Map<Student, List<Attendance>> attendanceMap = attendances.stream().collect(Collectors.groupingBy(Attendance::getStudent));
+
+        for (Map.Entry<Student, List<Attendance>> entry : attendanceMap.entrySet()) {
+            List<Attendance> studentAttendances = entry.getValue();
+            LocalDateTime firstEnter = studentAttendances.stream().map(Attendance::getEnterTime).filter(t -> t != null).min(LocalDateTime::compareTo).orElse(null);
+            LocalDateTime lastExit = studentAttendances.stream().map(Attendance::getExitTime).filter(t -> t != null).max(LocalDateTime::compareTo).orElse(null);
+
+            if (firstEnter == null || lastExit == null) {
+                for (Attendance a : studentAttendances) {
+                    a.setAttendStatus(AttendStatus.ABSENCE);
+                    a.setStayRate(0.0);
+                }
+                attendanceRepository.saveAll(studentAttendances);
+                continue;
+            }
+
+            double stayRate = (double) Duration.between(firstEnter, lastExit).toMinutes() / actualLectureMinutes * 100.0;
+            AttendStatus status = stayRate >= 80.0 ? AttendStatus.ATTEND : stayRate >= 50.0 ? AttendStatus.LATENESS : AttendStatus.ABSENCE;
+
+            for (Attendance a : studentAttendances) {
+                a.setStayRate(Math.round(stayRate * 10.0) / 10.0);
+                a.setAttendStatus(status);
+            }
+            attendanceRepository.saveAll(studentAttendances);
+        }
     }
 
     @Transactional
@@ -909,6 +1057,15 @@ public class ProfessorService {
     private boolean isWithinLectureSchedule(LocalTime now, DayOfWeek today, Lecture lecture) {
         if (!isLectureDay(lecture.getLectureDay(), today) || lecture.getLectureStart() == null || lecture.getLectureEnd() == null) return false;
         return !now.isBefore(LocalTime.parse(lecture.getLectureStart().trim())) && !now.isAfter(LocalTime.parse(lecture.getLectureEnd().trim()));
+    }
+
+    private LectureSession findSessionForTime(List<LectureSession> sessions, LocalDateTime targetTime) {
+        return sessions.stream()
+                .filter(s -> s.getSessionStart() != null)
+                .filter(s -> !s.getSessionStart().isAfter(targetTime))
+                .filter(s -> s.getSessionEnd() == null || !s.getSessionEnd().isBefore(targetTime))
+                .max(Comparator.comparing(LectureSession::getSessionStart))
+                .orElse(null);
     }
 
     private String convertDayToKorean(DayOfWeek dayOfWeek) {

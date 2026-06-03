@@ -26,4 +26,4 @@ public enum AttendStatus {
     public static AttendStatus of(String code) {
         return attendMap.getOrDefault(code, TBD);
     }
-}
+}g
