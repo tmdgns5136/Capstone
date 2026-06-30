@@ -35,19 +35,19 @@ AWS Rekognition 얼굴 인식 기반 대학교 자동 출결 관리 웹 애플�
 
 ## 프로젝트 구조
 src/main/java/com/example/demo/
-├── domain/               # 도메인별 비즈니스 로직 및 엔티티
-│   ├── attendance/       # 출결 관리
-│   ├── device/           # IoT 기기 관리
-│   ├── enumerate/        # 상수 및 열거형 정의
-│   ├── master/           # 관리자 관련 기능
-│   ├── professor/        # 교수 관련 기능
-│   ├── recognition/      # AWS Rekognition 얼굴 인식 로직
-│   ├── stream/           # 데이터 스트리밍 처리
-│   └── student/          # 학생 관련 기능
-└── global/               # 전역 설정 및 공통 컴포넌트
-    ├── aws/              # AWS SDK 설정
-    ├── config/           # Spring Boot 보안 및 서비스 설정
-    ├── exception/        # 전역 예외 처리
-    ├── jwt/              # 인증 및 JWT 토큰 처리
-    ├── mqtt/             # MQTT 통신 로직
-    └── response/         # 공통 API 응답 규격
+├── domain/,도메인별 비즈니스 로직 및 엔티티
+│ ├── attendance/,출결 관리
+│ ├── device/,IoT 기기 관리
+│ ├── enumerate/,상수 및 열거형 정의
+│ ├── master/,관리자 관련 기능
+│ ├── professor/,교수 관련 기능
+│ ├── recognition/,AWS Rekognition 얼굴 인식 로직
+│ ├── stream/,데이터 스트리밍 처리
+│ └── student/,학생 관련 기능
+└── global/,전역 설정 및 공통 컴포넌트
+├── aws/,AWS SDK 설정
+├── config/,Spring Boot 보안 및 서비스 설정
+├── exception/,전역 예외 처리
+├── jwt/,인증 및 JWT 토큰 처리
+├── mqtt/,MQTT 통신 로직
+└── response/,공통 API 응답 규격
