@@ -45,6 +45,7 @@ domain/ (도메인별 비즈니스 로직 및 엔티티)
 -  recognition/ : AWS Rekognition 얼굴 인식 로직
 -  stream/ : 데이터 스트리밍 처리
 -  student/ : 학생 관련 기능
+
 global/ (전역 설정 및 공통 컴포넌트)
 -  aws/ : AWS SDK 설정
 -  config/ : Spring Boot 보안 및 서비스 설정
