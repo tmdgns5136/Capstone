@@ -33,8 +33,8 @@ AWS Rekognition 얼굴 인식 기반 대학교 자동 출결 관리 웹 애플�
 - 사진 변경 요청 승인/반려
 - 시스템 전체 통계 대시보드
 
-## 프로젝트 구
-- src/main/java/com/example/demo/
+## 프로젝트 구조
+src/main/java/com/example/demo/
 ├── domain/               # 도메인별 비즈니스 로직 및 엔티티
 │   ├── attendance/       # 출결 관리
 │   ├── device/           # IoT 기기 관리
