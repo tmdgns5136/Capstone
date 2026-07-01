@@ -291,6 +291,8 @@ public class MasterService {
 
         Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "해당 강의를 찾을 수 없습니다."));
 
+        enrollmentRepository.deleteByLecture(lecture);
+
         lectureRepository.delete(lecture);
 
         return ActionResponse.success(200, "강의가 삭제되었습니다.", "/api/admin/lectures/" + lecture.getProfessor().getProfessorNum());
