@@ -8,7 +8,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProfessorRepository extends JpaRepository<Professor, Long> {
-    Professor findByLecture(Lecture lecture);
 
     Professor findByProfessorNum(String professorNum);
 
