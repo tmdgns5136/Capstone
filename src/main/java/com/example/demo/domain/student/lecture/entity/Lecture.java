@@ -1,5 +1,6 @@
 package com.example.demo.domain.student.lecture.entity;
 
+import com.example.demo.domain.attendance.entity.AttendanceRecord;
 import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.student.lecture.attendance.entity.Objection;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
@@ -94,6 +95,14 @@ public class Lecture {
     @Builder.Default
     @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL)
     private List<Notification> notifications = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AttendanceRecord> attendanceRecords = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "lecture", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<LectureSchedule> lectureSchedules = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PROFESSOR_ID")

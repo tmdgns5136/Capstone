@@ -46,6 +46,11 @@ public class ProfessorController {
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200, professorService.getLectures(professor.getProfessorId(), semester));
     }
 
@@ -53,6 +58,11 @@ public class ProfessorController {
     public ApiResponse<List<TodayLectureResponse>> getTodayLectures(Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200, professorService.getTodayLectures(professor.getProfessorId()));
     }
 
@@ -60,6 +70,11 @@ public class ProfessorController {
     public ApiResponse<ProfessorDashboardResponse> getDashboard(Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200, professorService.getDashboard(professor.getProfessorId()));
     }
 
@@ -73,6 +88,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.createNotice(lectureId, title, content);
     }
 
@@ -85,6 +104,11 @@ public class ProfessorController {
         return professorService.updateNotice(noticeId, title, content);
     }
 
+    @DeleteMapping("/notices/{noticeId}")
+    public ActionResponse deleteNotice(@PathVariable("noticeId") Long noticeId) {
+        return professorService.deleteNotice(noticeId);
+    }
+
     @GetMapping("/lectures/{lectureId}/notices")
     public ApiResponse<Map<String, Object>> getNotices(
             @PathVariable("lectureId") Long lectureId,
@@ -94,6 +118,10 @@ public class ProfessorController {
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
 
         return ApiResponse.success(200,
                 professorService.getNotices(lectureId, page, size));
@@ -108,6 +136,10 @@ public class ProfessorController {
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
 
         try {
             Long id = Long.valueOf(lectureId);
@@ -128,6 +160,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200,
                 professorService.getQuestionDetail(lectureId, questionId));
     }
@@ -141,6 +177,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.createAnswer(questionId, request.get("content"));
     }
 
@@ -153,6 +193,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.updateAnswer(questionId, request.get("content"));
     }
 
@@ -164,6 +208,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.deleteAnswer(questionId);
     }
 
@@ -171,6 +219,11 @@ public class ProfessorController {
     public ActionResponse startLecture(@PathVariable("lectureId") String lectureId, Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.startLecture(professor.getProfessorId(), lectureId);
     }
 
@@ -178,6 +231,11 @@ public class ProfessorController {
     public ActionResponse endLecture(@PathVariable("lectureId") String lectureId, Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.endLecture(professor.getProfessorId(), lectureId);
     }
 
@@ -185,6 +243,11 @@ public class ProfessorController {
     public ActionResponse updateAttendance(@RequestBody UpdateAttendanceRequest request, Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.updateAttendance(professor.getProfessorId(), request);
     }
 
@@ -193,13 +256,24 @@ public class ProfessorController {
             @PathVariable("lectureId") String lectureId,
             @RequestParam("semester") String semester,
             @RequestParam(value = "date", required = false) String date,
+            @RequestParam(value = "sessionNum", required = false) Long sessionNum,
             Authentication authentication
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200,
-                professorService.getAttendanceMonitoring(professor.getProfessorId(), lectureId, semester, date)
+                professorService.getAttendanceMonitoring(
+                        professor.getProfessorId(),
+                        lectureId,
+                        semester,
+                        date,
+                        sessionNum
+                )
         );
     }
 
@@ -213,7 +287,7 @@ public class ProfessorController {
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
         if (professor == null) {
-            throw new RuntimeException("사번 " + professorNum + "에 해당하는 교수 정보가 DB에 없습니다.");
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
         }
 
         return ApiResponse.success(200, professorService.getAbsences(professor, page, size));
@@ -258,6 +332,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200, professorService.getAppeals(professor.getProfessorId(), page, size));
     }
 
@@ -276,6 +354,10 @@ public class ProfessorController {
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
 
         byte[] excelFile = professorService.exportAttendance(lectureId, professor.getProfessorId());
 
