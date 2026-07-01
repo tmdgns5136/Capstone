@@ -33,6 +33,8 @@ public class SecurityConfig {
                                 .requestMatchers("/api/mypage/image/**").permitAll()
                                 .requestMatchers("/api/admin/image/**").permitAll()
                                 .requestMatchers("/api/mylecture/image/**").permitAll()
+                                .requestMatchers("/api/professors/absences/*/document").permitAll()
+                                .requestMatchers("/api/professors/appeals/*/document").permitAll()
                                 .anyRequest().authenticated()
                 )
                 .addFilterBefore(

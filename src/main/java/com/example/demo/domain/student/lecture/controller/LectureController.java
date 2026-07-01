@@ -136,7 +136,7 @@ public class LectureController {
             @PathVariable("requestId") Long requestId,
             Authentication authentication,
             @RequestPart("request") AbsenceRequest request,
-            @RequestPart("evidenceFile") MultipartFile evidenceFile
+            @RequestPart(value = "evidenceFile", required = false) MultipartFile evidenceFile
     ) throws IOException {
         ApiResponse<AbsenceData> apiResponse =
                 lectureService.modifyOfficialRequest(authentication, lectureId, requestId, request, evidenceFile);

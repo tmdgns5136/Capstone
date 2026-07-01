@@ -14,6 +14,9 @@ public class ObjectionItemResponse {
     private final String date;
     private final String reason;
     private final Long sessionId;
+    private final Long sessionNum;
     private final String status;
+    private String fileName;
+    private final String rejectedReason;
 
 }

@@ -11,5 +11,6 @@ public class NoticeData {
     private Long noticeId;
     private String title;
     private String createdDate;
+    private Long views;
 
 }

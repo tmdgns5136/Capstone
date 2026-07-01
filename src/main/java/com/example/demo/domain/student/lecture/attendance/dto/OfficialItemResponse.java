@@ -16,6 +16,7 @@ public class OfficialItemResponse {
     private final String status;
     private final boolean hasDocument;
     private final String fileName;
+    private final String rejectedReason;
 
 
 }

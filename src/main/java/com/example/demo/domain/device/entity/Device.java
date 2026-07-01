@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "DEVICE", uniqueConstraints = {
@@ -101,6 +103,14 @@ public class Device {
 
     @Column(name = "UPDATED_AT", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DeviceCapture> deviceCaptures = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DeviceErrorLog> deviceErrorLogs = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {

@@ -4,24 +4,47 @@ import java.util.List;
 
 public class AttendanceMonitoringResponse {
 
-    private final int attendance;
-    private final int late;
-    private final int away;
-    private final int absent;
-    private final List<AttendanceStudentResponse> students;
+    private String date;
+    private Long sessionNum;
+    private String sessionStatus;
+
+    private int attendance;
+    private int late;
+    private int away;
+    private int absent;
+
+    private List<AttendanceStudentResponse> students;
 
     public AttendanceMonitoringResponse(
+            String date,
+            Long sessionNum,
+            String sessionStatus,
             int attendance,
             int late,
             int away,
             int absent,
             List<AttendanceStudentResponse> students
     ) {
+        this.date = date;
+        this.sessionNum = sessionNum;
+        this.sessionStatus = sessionStatus;
         this.attendance = attendance;
         this.late = late;
         this.away = away;
         this.absent = absent;
         this.students = students;
+    }
+
+    public String getDate() {
+        return date;
+    }
+
+    public Long getSessionNum() {
+        return sessionNum;
+    }
+
+    public String getSessionStatus() {
+        return sessionStatus;
     }
 
     public int getAttendance() {

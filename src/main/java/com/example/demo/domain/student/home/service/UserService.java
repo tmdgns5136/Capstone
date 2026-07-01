@@ -417,7 +417,8 @@ public class UserService {
                 .map(lecture -> {
                     // 2. 해당 강의의 세션(교시)들 중, 현재 시간에 걸쳐 있는 세션을 찾습니다.
                     LectureSession currentSession = lecture.getLectureSessions().stream()
-                            .filter(session -> session.getSessionStart().toString().compareTo(LocalTime.now().toString()) <= 0
+                            .filter(session -> session.getSessionStart() != null && session.getSessionEnd() != null
+                                    && session.getSessionStart().toString().compareTo(LocalTime.now().toString()) <= 0
                                     && LocalTime.now().toString().compareTo(session.getSessionEnd().toString()) <= 0)
                             .findFirst()
                             .orElse(null); // 만약 맞는 세션이 없다면 null 처리 (또는 기본값)
@@ -428,7 +429,7 @@ public class UserService {
                             .endTime(lecture.getLectureEnd())
                             .room(lecture.getLectureRoom())
                             .status(student.getStudentClassStatus().getCode())
-                            .sessionStartTime(currentSession.getSessionStart().toString())
+                            .sessionStartTime(currentSession != null ? currentSession.getSessionStart().toString() : null)
                             .build();
                 })
                 .toList();

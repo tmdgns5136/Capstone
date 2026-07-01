@@ -1,5 +1,8 @@
 package com.example.demo.domain.professor.controller;
 
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import com.example.demo.domain.professor.dto.ProfessorDashboardResponse;
 import com.example.demo.domain.professor.dto.ProfessorLectureResponse;
 import com.example.demo.domain.professor.dto.TodayLectureResponse;
@@ -14,6 +17,9 @@ import com.example.demo.domain.student.lecture.attendance.dto.ObjectionListRespo
 import com.example.demo.domain.student.lecture.attendance.dto.ProcessObjectionRequest;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
+import com.example.demo.domain.student.lecture.entity.Lecture;
+import com.example.demo.domain.student.lecture.repository.LectureRepository;
+import com.example.demo.global.exception.CustomException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +37,7 @@ import java.util.Map;
 public class ProfessorController {
     private final ProfessorRepository professorRepository;
     private final ProfessorService professorService;
+    private final LectureRepository lectureRepository;
 
     @GetMapping("/lectures")
     public ApiResponse<List<ProfessorLectureResponse>> getLectures(
@@ -39,6 +46,11 @@ public class ProfessorController {
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200, professorService.getLectures(professor.getProfessorId(), semester));
     }
 
@@ -46,6 +58,11 @@ public class ProfessorController {
     public ApiResponse<List<TodayLectureResponse>> getTodayLectures(Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200, professorService.getTodayLectures(professor.getProfessorId()));
     }
 
@@ -53,6 +70,11 @@ public class ProfessorController {
     public ApiResponse<ProfessorDashboardResponse> getDashboard(Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200, professorService.getDashboard(professor.getProfessorId()));
     }
 
@@ -66,6 +88,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.createNotice(lectureId, title, content);
     }
 
@@ -78,6 +104,11 @@ public class ProfessorController {
         return professorService.updateNotice(noticeId, title, content);
     }
 
+    @DeleteMapping("/notices/{noticeId}")
+    public ActionResponse deleteNotice(@PathVariable("noticeId") Long noticeId) {
+        return professorService.deleteNotice(noticeId);
+    }
+
     @GetMapping("/lectures/{lectureId}/notices")
     public ApiResponse<Map<String, Object>> getNotices(
             @PathVariable("lectureId") Long lectureId,
@@ -87,6 +118,10 @@ public class ProfessorController {
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
 
         return ApiResponse.success(200,
                 professorService.getNotices(lectureId, page, size));
@@ -101,6 +136,10 @@ public class ProfessorController {
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
 
         try {
             Long id = Long.valueOf(lectureId);
@@ -121,6 +160,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200,
                 professorService.getQuestionDetail(lectureId, questionId));
     }
@@ -134,6 +177,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.createAnswer(questionId, request.get("content"));
     }
 
@@ -146,6 +193,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.updateAnswer(questionId, request.get("content"));
     }
 
@@ -157,6 +208,10 @@ public class ProfessorController {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.deleteAnswer(questionId);
     }
 
@@ -164,6 +219,11 @@ public class ProfessorController {
     public ActionResponse startLecture(@PathVariable("lectureId") String lectureId, Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.startLecture(professor.getProfessorId(), lectureId);
     }
 
@@ -171,6 +231,11 @@ public class ProfessorController {
     public ActionResponse endLecture(@PathVariable("lectureId") String lectureId, Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.endLecture(professor.getProfessorId(), lectureId);
     }
 
@@ -178,6 +243,11 @@ public class ProfessorController {
     public ActionResponse updateAttendance(@RequestBody UpdateAttendanceRequest request, Authentication authentication) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return professorService.updateAttendance(professor.getProfessorId(), request);
     }
 
@@ -186,22 +256,41 @@ public class ProfessorController {
             @PathVariable("lectureId") String lectureId,
             @RequestParam("semester") String semester,
             @RequestParam(value = "date", required = false) String date,
+            @RequestParam(value = "sessionNum", required = false) Long sessionNum,
             Authentication authentication
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
 
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
         return ApiResponse.success(200,
-                professorService.getAttendanceMonitoring(professor.getProfessorId(), lectureId, semester, date)
+                professorService.getAttendanceMonitoring(
+                        professor.getProfessorId(),
+                        lectureId,
+                        semester,
+                        date,
+                        sessionNum
+                )
         );
     }
 
     @GetMapping("/absences")
     public ApiResponse<OfficialListResponse> getAbsences(
+            Authentication authentication,
             @RequestParam("page") int page,
             @RequestParam("size") int size
     ) {
-        return ApiResponse.success(200, professorService.getAbsences(page, size));
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
+        return ApiResponse.success(200, professorService.getAbsences(professor, page, size));
     }
 
     @PatchMapping("/absences/{absenceId}")
@@ -222,12 +311,32 @@ public class ProfessorController {
                 .body(resource);
     }
 
+    @GetMapping("/appeals/{objectionId}/document") // 🌟 공결(/absences/{id}/document)과 100% 동일한 주소 규격!
+    public ResponseEntity<Resource> downloadAppealDocument(@PathVariable("objectionId") Long objectionId) {
+        // 공결 구조와 똑같이 고친 서비스 메서드 호출
+        Resource resource = professorService.downloadAppealDocument(objectionId);
+
+        // 🌟 복잡한 파일명 가공 없이 공결 리턴 양식 그대로 토시 하나 안 틀리고 반환합니다.
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(resource);
+    }
+
     @GetMapping("/appeals")
     public ApiResponse<ObjectionListResponse> getAppeals(
+            Authentication authentication,
             @RequestParam("page") int page,
             @RequestParam("size") int size
     ) {
-        return ApiResponse.success(200, professorService.getAppeals(page, size));
+        String professorNum = authentication.getName();
+        Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
+
+        return ApiResponse.success(200, professorService.getAppeals(professor.getProfessorId(), page, size));
     }
 
     @PatchMapping("/appeals/{appealId}")
@@ -245,6 +354,10 @@ public class ProfessorController {
     ) {
         String professorNum = authentication.getName();
         Professor professor = professorRepository.findByProfessorNum(professorNum);
+
+        if (professor == null) {
+            throw new CustomException(404, "교수 정보를 찾을 수 없습니다.");
+        }
 
         byte[] excelFile = professorService.exportAttendance(lectureId, professor.getProfessorId());
 
