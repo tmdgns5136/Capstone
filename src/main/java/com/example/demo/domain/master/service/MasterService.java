@@ -123,27 +123,50 @@ public class MasterService {
         long sessionCount = 1; // SESSION_NUM 관리용
 
         // C. 15주간 반복
+//        for (int week = 0; week < 16; week++) {
+//            LocalDate currentDay = firstClassDate.plusWeeks(week);
+//            LocalTime currentPeriodStart = startTime;
+//
+//            // D. 시간 분할 (50분 수업, 10분 휴식 = 1시간 간격)
+//            // 다음 수업 시작+50분이 전체 종료시간을 넘지 않을 때까지 생성
+//            while (!currentPeriodStart.plusMinutes(50).isAfter(endTime)) {
+//
+//                LectureSession session = LectureSession.builder()
+//                        .lecture(lecture)
+//                        .sessionNum(sessionCount++) // 세션 번호 증가
+//                        .scheduledAt(currentDay)
+//                        .sessionStart(LocalDateTime.of(currentDay, currentPeriodStart))
+//                        .sessionEnd(LocalDateTime.of(currentDay, currentPeriodStart.plusMinutes(50)))
+//                        .status(SessionStatus.NOT_STARTED)
+//                        .build();
+//
+//                lectureSessionRepository.save(session);
+//
+//                // 다음 교시 시작 (1시간 뒤)
+//                currentPeriodStart = currentPeriodStart.plusHours(1);
+//            }
+//        }
         for (int week = 0; week < 16; week++) {
             LocalDate currentDay = firstClassDate.plusWeeks(week);
             LocalTime currentPeriodStart = startTime;
 
-            // D. 시간 분할 (50분 수업, 10분 휴식 = 1시간 간격)
-            // 다음 수업 시작+50분이 전체 종료시간을 넘지 않을 때까지 생성
-            while (!currentPeriodStart.plusMinutes(50).isAfter(endTime)) {
+            // D. 시간 분할 (15분 수업, 휴식 없음)
+            // 현재 교시의 종료 시간(시작 + 15분)이 전체 종료시간(endTime)을 넘지 않을 때까지 반복
+            while (!currentPeriodStart.plusMinutes(15).isAfter(endTime)) {
 
                 LectureSession session = LectureSession.builder()
                         .lecture(lecture)
                         .sessionNum(sessionCount++) // 세션 번호 증가
                         .scheduledAt(currentDay)
                         .sessionStart(LocalDateTime.of(currentDay, currentPeriodStart))
-                        .sessionEnd(LocalDateTime.of(currentDay, currentPeriodStart.plusMinutes(50)))
+                        .sessionEnd(LocalDateTime.of(currentDay, currentPeriodStart.plusMinutes(15)))
                         .status(SessionStatus.NOT_STARTED)
                         .build();
 
                 lectureSessionRepository.save(session);
 
-                // 다음 교시 시작 (1시간 뒤)
-                currentPeriodStart = currentPeriodStart.plusHours(1);
+                // 다음 교시 시작 (쉬는 시간 없이 바로 15분 뒤 시작)
+                currentPeriodStart = currentPeriodStart.plusMinutes(15);
             }
         }
     }

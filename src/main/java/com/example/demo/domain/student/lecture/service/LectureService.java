@@ -3,6 +3,7 @@ package com.example.demo.domain.student.lecture.service;
 import com.example.demo.domain.enumerate.AttendStatus;
 import com.example.demo.domain.enumerate.NoticeType;
 import com.example.demo.domain.enumerate.Status;
+import com.example.demo.domain.professor.repository.ProfessorRepository;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceData;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceDetailData;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceRequest;
@@ -64,6 +65,7 @@ public class LectureService {
     private final ObjectionRepository objectionRepository;
     private final LectureSessionRepository lectureSessionRepository;
     private final AttendanceRepository attendanceRepository;
+    private final ProfessorRepository professorRepository;
     private final FileService fileService;
     private final FileUtil fileUtil;
     private final NoticeBoardRepository noticeBoardRepository;
@@ -157,6 +159,8 @@ public class LectureService {
         LectureSession session = lectureSessionRepository.findById(request.getSessionId())
                 .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
 
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
         String savedPath = fileService.saveEvidenceFile(evidenceFile, "official");
         Official official = Official.builder()
                 .officialTitle(request.getTitle())
@@ -165,7 +169,8 @@ public class LectureService {
                 .status(Status.PENDING)
                 .lectureSession(session)
                 .student(student)
-                .lecture(lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."))).build();
+                .professor(professorRepository.findByLecture(lecture))
+                .lecture(lecture).build();
 
 
         Official savedOfficial = officialRepository.save(official);
@@ -336,6 +341,8 @@ public class LectureService {
         LectureSession session = lectureSessionRepository.findById(request.getSessionId())
                 .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
 
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
         String savedPath = fileService.saveEvidenceFile(evidenceFile, "objection");
         Objection objection = Objection.builder()
                 .objectionTitle(request.getTitle())
@@ -344,7 +351,8 @@ public class LectureService {
                 .status(Status.PENDING)
                 .lectureSession(session)
                 .student(student)
-                .lecture(lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."))).build();
+                .professor(professorRepository.findByLecture(lecture))
+                .lecture(lecture).build();
 
         Objection savedObjection = objectionRepository.save(objection);
 
