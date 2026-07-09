@@ -1,23 +1,43 @@
 package com.example.demo.domain.attendance.dto;
 
+import com.example.demo.domain.student.lecture.dto.SessionData;
+
+import java.util.List;
+
 public class AttendanceStudentResponse {
 
-    private final String studentId;
-    private final String name;
-    private final int present;
-    private final int late;
-    private final int absent;
-    private final int total;
-    private final double rate;
+    private String studentId;
+    private String name;
+    private String status;
 
-    public AttendanceStudentResponse(String studentId, String name, int present, int late, int absent, int total, double rate) {
+    private int present;
+    private int late;
+    private int absent;
+    private int total;
+    private double rate;
+
+    private List<SessionData> sessions;
+
+    public AttendanceStudentResponse(
+            String studentId,
+            String name,
+            String status,
+            int present,
+            int late,
+            int absent,
+            int total,
+            double rate,
+            List<SessionData> sessions
+    ) {
         this.studentId = studentId;
         this.name = name;
+        this.status = status;
         this.present = present;
         this.late = late;
         this.absent = absent;
         this.total = total;
         this.rate = rate;
+        this.sessions = sessions;
     }
 
     public String getStudentId() {
@@ -26,6 +46,10 @@ public class AttendanceStudentResponse {
 
     public String getName() {
         return name;
+    }
+
+    public String getStatus() {
+        return status;
     }
 
     public int getPresent() {
@@ -46,5 +70,9 @@ public class AttendanceStudentResponse {
 
     public double getRate() {
         return rate;
+    }
+
+    public List<SessionData> getSessions() {
+        return sessions;
     }
 }

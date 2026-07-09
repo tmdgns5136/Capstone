@@ -13,4 +13,5 @@ public class AbsenceDetailData {
     private String requestData;
     private Long sessionId;
     private String evidenceFileUrl;
+    private String rejectedReason;
 }

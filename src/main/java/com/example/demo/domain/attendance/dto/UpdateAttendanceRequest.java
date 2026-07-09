@@ -5,6 +5,8 @@ public class UpdateAttendanceRequest {
     private String studentId;
     private String lectureId;
     private String status;
+    private String date;
+    private Long sessionNum;
 
     public UpdateAttendanceRequest() {
     }
@@ -20,4 +22,8 @@ public class UpdateAttendanceRequest {
     public String getStatus() {
         return status;
     }
+
+    public String getDate() { return date; }
+
+    public Long getSessionNum() { return sessionNum; }
 }

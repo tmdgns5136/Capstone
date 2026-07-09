@@ -95,6 +95,7 @@ public class MasterService {
                 .lectureDivision(courseRequest.getDivision()).build();
 
         lectureRepository.save(lecture);
+        createLectureSessions(lecture);
 
         return ActionResponse.success(201, "강의가 등록되었습니다.", "/api/home");
     }
@@ -105,8 +106,7 @@ public class MasterService {
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
         LocalTime startTime = LocalTime.parse(lecture.getLectureStart(), timeFormatter);
         LocalTime endTime = LocalTime.parse(lecture.getLectureEnd(), timeFormatter);
-        DayOfWeek targetDay = DayOfWeek.valueOf(lecture.getLectureDay().toUpperCase());
-
+        DayOfWeek targetDay = getDayOfWeekFromKorean(lecture.getLectureDay());
         // A. 개강일 계산: 해당 연도 3월 1일부터 시작하여 첫 번째 평일(월~금) 찾기
         LocalDate startDate = LocalDate.of(lecture.getLectureYear().intValue(), 3, 1);
         while (startDate.getDayOfWeek() == DayOfWeek.SATURDAY || startDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
@@ -121,31 +121,68 @@ public class MasterService {
 
         long sessionCount = 1; // SESSION_NUM 관리용
 
-        // C. 15주간 반복
+        // 세션 시간 50분
+//        for (int week = 0; week < 16; week++) {
+//            LocalDate currentDay = firstClassDate.plusWeeks(week);
+//            LocalTime currentPeriodStart = startTime;
+//
+//            // D. 시간 분할 (50분 수업, 10분 휴식 = 1시간 간격)
+//            // 다음 수업 시작+50분이 전체 종료시간을 넘지 않을 때까지 생성
+//            while (!currentPeriodStart.plusMinutes(50).isAfter(endTime)) {
+//
+//                LectureSession session = LectureSession.builder()
+//                        .lecture(lecture)
+//                        .sessionNum(sessionCount++) // 세션 번호 증가
+//                        .scheduledAt(currentDay)
+//                        .sessionStart(LocalDateTime.of(currentDay, currentPeriodStart))
+//                        .sessionEnd(LocalDateTime.of(currentDay, currentPeriodStart.plusMinutes(50)))
+//                        .status(SessionStatus.NOT_STARTED)
+//                        .build();
+//
+//                lectureSessionRepository.save(session);
+//
+//                // 다음 교시 시작 (1시간 뒤)
+//                currentPeriodStart = currentPeriodStart.plusHours(1);
+//            }
+//        }
+
+        // 세션시간 15분, 쉬는 시간 없음
         for (int week = 0; week < 16; week++) {
             LocalDate currentDay = firstClassDate.plusWeeks(week);
             LocalTime currentPeriodStart = startTime;
 
-            // D. 시간 분할 (50분 수업, 10분 휴식 = 1시간 간격)
-            // 다음 수업 시작+50분이 전체 종료시간을 넘지 않을 때까지 생성
-            while (!currentPeriodStart.plusMinutes(50).isAfter(endTime)) {
+            // D. 시간 분할 (15분 수업, 휴식 없음)
+            // 현재 교시의 종료 시간(시작 + 15분)이 전체 종료시간(endTime)을 넘지 않을 때까지 반복
+            while (!currentPeriodStart.plusMinutes(15).isAfter(endTime)) {
 
                 LectureSession session = LectureSession.builder()
                         .lecture(lecture)
                         .sessionNum(sessionCount++) // 세션 번호 증가
                         .scheduledAt(currentDay)
                         .sessionStart(LocalDateTime.of(currentDay, currentPeriodStart))
-                        .sessionEnd(LocalDateTime.of(currentDay, currentPeriodStart.plusMinutes(50)))
+                        .sessionEnd(LocalDateTime.of(currentDay, currentPeriodStart.plusMinutes(15)))
                         .status(SessionStatus.NOT_STARTED)
                         .build();
 
                 lectureSessionRepository.save(session);
 
-                // 다음 교시 시작 (1시간 뒤)
-                currentPeriodStart = currentPeriodStart.plusHours(1);
+                // 다음 교시 시작 (쉬는 시간 없이 바로 15분 뒤 시작)
+                currentPeriodStart = currentPeriodStart.plusMinutes(15);
             }
         }
     }
+
+    private DayOfWeek getDayOfWeekFromKorean(String dayText) {
+        if (dayText.contains("월")) return DayOfWeek.MONDAY;
+        if (dayText.contains("화")) return DayOfWeek.TUESDAY;
+        if (dayText.contains("수")) return DayOfWeek.WEDNESDAY;
+        if (dayText.contains("목")) return DayOfWeek.THURSDAY;
+        if (dayText.contains("금")) return DayOfWeek.FRIDAY;
+        if (dayText.contains("토")) return DayOfWeek.SATURDAY;
+        if (dayText.contains("일")) return DayOfWeek.SUNDAY;
+        throw new CustomException(400, "올바르지 않은 요일 형식입니다: " + dayText);
+    }
+
 
     // 교수별 강의 목록 조회
     public ApiResponse<List<CourseData>> getProfessorLecture(Authentication authentication, String professorNum, Long year, String semester){
@@ -254,11 +291,13 @@ public class MasterService {
 
         Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "해당 강의를 찾을 수 없습니다."));
 
+        enrollmentRepository.deleteByLecture(lecture);
+
         lectureRepository.delete(lecture);
 
         return ActionResponse.success(200, "강의가 삭제되었습니다.", "/api/admin/lectures/" + lecture.getProfessor().getProfessorNum());
     }
-    
+
     // 강의별 학생 추가
     @Transactional
     public ActionResponse addStudent(Authentication authentication, Long lectureId, AddRequest addRequest){
@@ -295,7 +334,7 @@ public class MasterService {
 
         Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "해당 강의를 찾을 수 없습니다."));
 
-        Page<Enrollment> enrollments = enrollmentRepository.findByLecture_LectureId(lectureId, pageable);
+        Page<Enrollment> enrollments = enrollmentRepository.findByLecture_LectureIdAndStudentIsNotNull(lectureId, pageable);
 
         Page<CourseStudent> courseStudents = enrollments.map(enrollment -> {
             Student student = enrollment.getStudent();
@@ -661,13 +700,13 @@ public class MasterService {
         );
 
         Page<PhotoComplete> photoCompletes = completedCenterImages.map(image -> {
-                Student student = image.getStudent();
-                return PhotoComplete.builder()
-                        .studentNum(student.getStudentNum())
-                        .studentName(student.getStudentName())
-                        .accessDate(image.getImageModified().toString())
-                        .status(image.getStatus().toString())
-                        .rejectReason(image.getRejectReason() != null ? image.getRejectReason() : "").build();
+            Student student = image.getStudent();
+            return PhotoComplete.builder()
+                    .studentNum(student.getStudentNum())
+                    .studentName(student.getStudentName())
+                    .accessDate(image.getImageModified().toString())
+                    .status(image.getStatus().toString())
+                    .rejectReason(image.getRejectReason() != null ? image.getRejectReason() : "").build();
         });
 
         return ApiResponse.success(200, photoCompletes);

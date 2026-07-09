@@ -1,6 +1,7 @@
 package com.example.demo.domain.student.lecture.attendance.repository;
 
 import com.example.demo.domain.enumerate.Status;
+import com.example.demo.domain.professor.entity.Professor;
 import com.example.demo.domain.student.home.entity.user.Student;
 import com.example.demo.domain.student.lecture.attendance.entity.Official;
 import com.example.demo.domain.student.lecture.entity.Lecture;
@@ -16,5 +17,7 @@ public interface OfficialRepository extends JpaRepository<Official, Long> {
 
     int countByLecture_Professor_ProfessorIdAndStatus(Long professorId, Status status);
 
-    Page<Official> Professor_ProfessorId(Long professorId, Pageable pageable);
+    Page<Official> findByProfessor(Professor professor, Pageable pageable);
+
+    Page<Official> findByProfessorAndLecture(Professor professor, Lecture lecture, Pageable pageable);
 }

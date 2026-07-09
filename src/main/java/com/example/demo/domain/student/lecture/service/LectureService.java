@@ -3,6 +3,7 @@ package com.example.demo.domain.student.lecture.service;
 import com.example.demo.domain.enumerate.AttendStatus;
 import com.example.demo.domain.enumerate.NoticeType;
 import com.example.demo.domain.enumerate.Status;
+import com.example.demo.domain.professor.repository.ProfessorRepository;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceData;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceDetailData;
 import com.example.demo.domain.student.lecture.attendance.dto.AbsenceRequest;
@@ -39,6 +40,10 @@ import com.example.demo.domain.student.lecture.repository.LectureRepository;
 import com.example.demo.domain.student.lecture.repository.LectureSessionRepository;
 import com.example.demo.domain.student.notification.entity.Notification;
 import com.example.demo.domain.student.notification.repository.NotificationRepository;
+
+import java.util.Map;
+import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import com.example.demo.global.exception.CustomException;
 import com.example.demo.global.response.ActionResponse;
 import com.example.demo.global.response.ApiResponse;
@@ -65,6 +70,7 @@ public class LectureService {
     private final LectureSessionRepository lectureSessionRepository;
     private final AttendanceRepository attendanceRepository;
     private final FileService fileService;
+    private final ProfessorRepository professorRepository;
     private final FileUtil fileUtil;
     private final NoticeBoardRepository noticeBoardRepository;
     private final QuestionBoardRepository questionBoardRepository;
@@ -81,7 +87,7 @@ public class LectureService {
         List<LectureData>lectureDataList = enrollments.stream()
                 .map(Enrollment::getLecture)
                 .filter(lecture -> lecture.getLectureYear().equals(year))
-                .filter(lecture -> lecture.getLectureSemester().equals(semester))
+                .filter(lecture -> isSameSemester(lecture.getLectureSemester(), semester))
                 .map(lecture -> {
                     Professor professor = lecture.getProfessor();
 
@@ -157,6 +163,8 @@ public class LectureService {
         LectureSession session = lectureSessionRepository.findById(request.getSessionId())
                 .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
 
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
         String savedPath = fileService.saveEvidenceFile(evidenceFile, "official");
         Official official = Official.builder()
                 .officialTitle(request.getTitle())
@@ -165,7 +173,8 @@ public class LectureService {
                 .status(Status.PENDING)
                 .lectureSession(session)
                 .student(student)
-                .lecture(lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."))).build();
+                .professor(professorRepository.findByLectures_LectureId(lecture.getLectureId()))
+                .lecture(lecture).build();
 
 
         Official savedOfficial = officialRepository.save(official);
@@ -232,7 +241,8 @@ public class LectureService {
                 .status(official.getStatus().getCode())
                 .requestData(official.getOfficialCreated().toLocalDate().toString())
                 .sessionId(official.getLectureSession() != null ? official.getLectureSession().getSessionId() : null)
-                .evidenceFileUrl(official.getEvidencePath()).build();
+                .evidenceFileUrl(official.getEvidencePath())
+                .rejectedReason(official.getRejectedReason()).build();
 
         return ApiResponse.success(200, absenceDetailData);
 
@@ -336,6 +346,8 @@ public class LectureService {
         LectureSession session = lectureSessionRepository.findById(request.getSessionId())
                 .orElseThrow(() -> new CustomException(404, "해당 수업 세션을 찾을 수 없습니다."));
 
+        Lecture lecture = lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."));
+
         String savedPath = fileService.saveEvidenceFile(evidenceFile, "objection");
         Objection objection = Objection.builder()
                 .objectionTitle(request.getTitle())
@@ -344,7 +356,8 @@ public class LectureService {
                 .status(Status.PENDING)
                 .lectureSession(session)
                 .student(student)
-                .lecture(lectureRepository.findById(lectureId).orElseThrow(() -> new CustomException(404, "존재하지 않는 강의입니다."))).build();
+                .professor(professorRepository.findByLectures_LectureId(lecture.getLectureId()))
+                .lecture(lecture).build();
 
         Objection savedObjection = objectionRepository.save(objection);
 
@@ -410,7 +423,8 @@ public class LectureService {
                 .status(objection.getStatus().getCode())
                 .requestData(objection.getObjectionCreated().toLocalDate().toString())
                 .sessionId(objection.getLectureSession() != null ? objection.getLectureSession().getSessionId() : null)
-                .evidenceFileUrl(objection.getEvidencePath()).build();
+                .evidenceFileUrl(objection.getEvidencePath())
+                .rejectedReason(objection.getRejectedReason()).build();
 
         return ApiResponse.success(200, absenceDetailData);
 
@@ -508,20 +522,25 @@ public class LectureService {
 
         List<Attendance> myAttendances = attendanceRepository.findByLectureSession_LectureAndStudent(lecture, student);
 
+        // 날짜별로 그룹핑하여 교시 번호(1-based index)를 계산
+        Map<java.time.LocalDate, java.util.concurrent.atomic.AtomicLong> dateCounterMap = new java.util.HashMap<>();
         List<SessionData> sessionDataList = lectureSessions.stream()
+                .sorted(java.util.Comparator.comparing(LectureSession::getScheduledAt, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                        .thenComparing(LectureSession::getSessionStart, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
                 .map(session -> {
                     AttendStatus currentStatus = myAttendances.stream()
                             .filter((attendance -> attendance.getLectureSession().getSessionId().equals(session.getSessionId())))
                             .map(Attendance::getAttendStatus)
                             .findFirst().orElse(AttendStatus.TBD);
 
+                    long periodNum = dateCounterMap.computeIfAbsent(session.getScheduledAt(), k -> new java.util.concurrent.atomic.AtomicLong(0)).incrementAndGet();
 
                     return SessionData.builder()
                             .sessionId(session.getSessionId())
-                            .sessionNum(session.getSessionNum())
-                            .sessionDate(session.getScheduledAt().toString())
-                            .startTime(session.getSessionStart().toLocalTime().toString())
-                            .endTime(session.getSessionEnd().toLocalTime().toString())
+                            .sessionNum(periodNum)
+                            .sessionDate(session.getScheduledAt() != null ? session.getScheduledAt().toString() : null)
+                            .startTime(session.getSessionStart() != null ? session.getSessionStart().toLocalTime().toString() : null)
+                            .endTime(session.getSessionEnd() != null ? session.getSessionEnd().toLocalTime().toString() : null)
                             .status(currentStatus.toString()).build();
                 }).toList();
 
@@ -541,7 +560,11 @@ public class LectureService {
 
         List<Attendance> myAttendances = attendanceRepository.findByLectureSession_LectureAndStudent(lecture, student);
 
+        // 날짜별로 그룹핑하여 교시 번호(1-based index)를 계산
+        Map<java.time.LocalDate, java.util.concurrent.atomic.AtomicLong> statsDateCounterMap = new java.util.HashMap<>();
         List<SessionData> sessionDataList = lectureSessions.stream()
+                .sorted(java.util.Comparator.comparing(LectureSession::getScheduledAt, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                        .thenComparing(LectureSession::getSessionStart, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
                 .map(session -> {
                     AttendStatus currentStatus = myAttendances.stream()
                             .filter((attendance -> attendance.getLectureSession().getSessionId().equals(session.getSessionId())))
@@ -552,10 +575,11 @@ public class LectureService {
                     String sStart = (session.getSessionStart() != null) ? session.getSessionStart().toLocalTime().toString() : "00:00";
                     String sEnd = (session.getSessionEnd() != null) ? session.getSessionEnd().toLocalTime().toString() : "00:00";
 
+                    long periodNum = statsDateCounterMap.computeIfAbsent(session.getScheduledAt(), k -> new java.util.concurrent.atomic.AtomicLong(0)).incrementAndGet();
 
                     return SessionData.builder()
                             .sessionId(session.getSessionId())
-                            .sessionNum(session.getSessionNum())
+                            .sessionNum(periodNum)
                             .sessionDate(sDate)
                             .startTime(sStart)
                             .endTime(sEnd)
@@ -592,7 +616,7 @@ public class LectureService {
         List<LectureTimeTable> LectureTimeTables = enrollments.stream()
                 .map(Enrollment::getLecture)
                 .filter(lecture -> lecture.getLectureYear().equals(year))
-                .filter(lecture -> lecture.getLectureSemester().equals(semester))
+                .filter(lecture -> isSameSemester(lecture.getLectureSemester(), semester))
                 .map(lecture -> {
 
                     return LectureTimeTable.builder()
@@ -620,7 +644,8 @@ public class LectureService {
         Page<NoticeData> noticeData = noticePage.map(notice -> NoticeData.builder()
                 .noticeId(notice.getNoticeId())
                 .title(notice.getNoticeTitle())
-                .createdDate(notice.getNoticeCreated().toString()).build());
+                .createdDate(notice.getNoticeCreated().toString())
+                .views(notice.getNoticeViews() != null ? notice.getNoticeViews() : 0L).build());
 
         return ApiResponse.success(200, noticeData, noticeData.getTotalElements(), noticeData.getTotalPages());
 
@@ -769,5 +794,23 @@ public class LectureService {
         questionBoardRepository.delete(question);
 
         return ActionResponse.success(200, "질문이 삭제되었습니다.");
+    }
+
+    private boolean isSameSemester(String savedSemester, String requestSemester) {
+        return normalizeSemester(savedSemester).equals(normalizeSemester(requestSemester));
+    }
+
+    private String normalizeSemester(String semester) {
+        if (semester == null) {
+            return "";
+        }
+
+        String value = semester.trim();
+
+        if (value.endsWith("학기")) {
+            value = value.substring(0, value.length() - 2);
+        }
+
+        return value;
     }
 }

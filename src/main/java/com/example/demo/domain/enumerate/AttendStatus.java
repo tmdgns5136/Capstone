@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 @Getter
 @AllArgsConstructor
 public enum AttendStatus {
-
     ATTEND("ATTEND", "출석"),
     LATENESS("LATENESS", "지각"),
     ABSENCE("ABSENCE", "결석"),

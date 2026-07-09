@@ -1,5 +1,6 @@
 package com.example.demo.domain.student.lecture.attendance.dto;
 
+
 import com.example.demo.domain.enumerate.Status;
 import lombok.Builder;
 import lombok.Data;

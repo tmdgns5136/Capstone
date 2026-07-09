@@ -19,5 +19,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
     Enrollment findByStudentAndLecture(Student student, Lecture lecture);
 
-    Page<Enrollment> findByLecture_LectureId(Long lectureId, Pageable pageable);
+    Page<Enrollment> findByLecture_LectureIdAndStudentIsNotNull(Long lectureId, Pageable pageable);
+
+    void deleteByLecture(Lecture lecture);
 }
