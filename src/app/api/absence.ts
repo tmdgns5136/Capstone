@@ -13,7 +13,7 @@ export interface AbsenceRequest {
   reason: string;
   status: AbsenceStatus;
   fileName: string;         // 백엔드에서 필드명 확인됨
-  rejectReason?: string;
+  rejectedReason?: string;
   // requestDate, hasDocument는 백엔드 응답에 없으므로 필요 시 추가 확인
 }
 
@@ -39,18 +39,21 @@ export async function processAbsenceRequest(
   });
 }
 
-// 10-2. 공결 증빙서류 다운로드 (인증 토큰 주입 헤더 보완)
+// 10-2. 공결 증빙서류 다운로드 (Blob 처리)
 export async function downloadAbsenceDocument(officialId: number): Promise<Blob> {
-  // 🌟 [핵심] 스토리지에 저장된 토큰명을 확인해서 가져옵니다 (필요시 'token' 등으로 변경)
-  const token = sessionStorage.getItem("token") || localStorage.getItem("token") || "";
+  const token = sessionStorage.getItem("accessToken") || localStorage.getItem("accessToken") || "";
 
   const response = await fetch(`/api/professors/absences/${officialId}/document`, {
     method: "GET",
     headers: {
-      // 백엔드 Spring Security가 검증할 수 있도록 Bearer 토큰 주입
       "Authorization": token ? `Bearer ${token}` : "",
       "Accept": "*/*"
     }
   });
-  return await response.blob(); 
+
+  if (!response.ok) {
+    throw new Error("서버로부터 공결 증빙 서류를 읽어오지 못했습니다.");
+  }
+
+  return await response.blob();
 }

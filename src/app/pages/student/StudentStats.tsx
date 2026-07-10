@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Calendar, MoreHorizontal, ArrowRight, AlertCircle, CheckCircle, XCircle, Clock, Trash2, Upload, Loader2, FileText, X, Paperclip } from "lucide-react";
+import { Calendar, MoreHorizontal, ArrowRight, AlertCircle, CheckCircle, XCircle, Clock, Trash2, Upload, Loader2, FileText, X, Paperclip, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { ScrollableCardList } from "../../components/ScrollableCardList";
 import { ATTENDANCE_STATUS_COLORS } from "../../constants/attendance";
@@ -51,6 +51,7 @@ interface DetailedRecord {
   lectureId: string;
   status: "출석" | "지각" | "결석";
   note: string;
+  sessionId?: number;
 }
 
 function mapStatus(s: string): "출석" | "지각" | "결석" {
@@ -65,11 +66,11 @@ function mapStatus(s: string): "출석" | "지각" | "결석" {
 export default function StudentStats() {
   const navigate = useNavigate();
   const [semester, setSemester] = useState(`${new Date().getFullYear()}년 ${new Date().getMonth() + 1 >= 7 ? "2학기" : "1학기"}`);
-  const [filter, setFilter] = useState<"전체" | "출석" | "결석">("전체");
+  const [filter, setFilter] = useState<"전체" | "출석" | "지각" | "결석">("전체");
 
   // 이의 신청 모달
   const [showAppealModal, setShowAppealModal] = useState(false);
-  const [appealRecord, setAppealRecord] = useState<{ course: string; date: string } | null>(null);
+  const [appealRecord, setAppealRecord] = useState<{ course: string; date: string; time: string } | null>(null);
   const [appealReason, setAppealReason] = useState("");
   const [appealTitle, setAppealTitle] = useState("");
   const [appealFile, setAppealFile] = useState<File | null>(null);
@@ -149,6 +150,9 @@ export default function StudentStats() {
                   lectureId: lecture.lectureId,
                   status: mapStatus(sess.status),
                   note: sess.status === "ATTEND" ? "정상 인증" : "-",
+                  sessionId: sess.sessionId,
+                  sessionNum: sess.sessionNum,
+                  startTime: sess.startTime || "",
                 });
               });
           } else {
@@ -166,7 +170,13 @@ export default function StudentStats() {
 
         setCoursesSummary(summaries);
         // 날짜 내림차순 정렬
-        records.sort((a, b) => b.date.localeCompare(a.date));
+        records.sort((a, b) => {
+          const dateCmp = b.date.localeCompare(a.date);
+          if (dateCmp !== 0) return dateCmp;
+          const timeCmp = (b.startTime || "").localeCompare(a.startTime || "");
+          if (timeCmp !== 0) return timeCmp;
+          return (b.sessionNum || 0) - (a.sessionNum || 0);
+        });
         setDetailedRecords(records);
       })
       .catch(() => {
@@ -323,22 +333,22 @@ export default function StudentStats() {
                 <p className="text-xs text-zinc-400 mb-4">{course.professor}</p>
                 <div className="flex items-center justify-around">
                   <div className="flex flex-col items-center gap-1">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-bold text-primary">{course.attendance}</span>
+                    <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-emerald-900 flex items-center justify-center">
+                      <span className="text-sm font-bold text-primary dark:text-emerald-300">{course.attendance}</span>
                     </div>
-                    <span className="text-[11px] text-zinc-500">출석</span>
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">출석</span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
-                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
-                      <span className="text-sm font-bold text-amber-600">{course.late}</span>
+                    <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
+                      <span className="text-sm font-bold text-amber-700 dark:text-amber-300">{course.late}</span>
                     </div>
-                    <span className="text-[11px] text-zinc-500">지각</span>
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">지각</span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
-                    <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center">
-                      <span className="text-sm font-bold text-rose-600">{course.absence}</span>
+                    <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900 flex items-center justify-center">
+                      <span className="text-sm font-bold text-rose-600 dark:text-rose-300">{course.absence}</span>
                     </div>
-                    <span className="text-[11px] text-zinc-500">결석</span>
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">결석</span>
                   </div>
                 </div>
               </div>
@@ -356,7 +366,7 @@ export default function StudentStats() {
         <div className="lg:col-span-7 bg-white rounded-xl border border-zinc-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-4">
             <h2 className="text-lg font-bold text-zinc-900">상세 출결 내역</h2>
-            <FilterTabs options={["전체", "출석", "결석"] as const} value={filter} onChange={(v) => { setFilter(v); setPage(1); }} />
+            <FilterTabs options={["전체", "출석", "지각", "결석"] as const} value={filter} onChange={(v) => { setFilter(v); setPage(1); }} />
           </div>
 
           {/* Mobile Cards */}
@@ -368,27 +378,24 @@ export default function StudentStats() {
                   <StatusBadge status={record.status} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-400">{record.date}</span>
-                  {record.status === "결석" ? (
+                  <span className="text-xs text-zinc-400">{record.date}{record.sessionNum ? ` (${record.sessionNum}교시)` : ""}</span>
+                  {(record.status === "결석" || record.status === "지각") ? (
                     <button
-                      onClick={async () => {
-                                  setAppealRecord({ course: record.course, date: record.date });
+                      onClick={() => {
+                                  setAppealRecord({ course: record.course, date: record.date, time: record.startTime || "" });
                                   setSelectedAppealLectureId(record.lectureId);
-                                  try {
-                                    const res = await getLectureSessions(record.lectureId);
-                                    setSessions(res.data);
-                                    const matched = res.data.find((s: SessionData) => s.sessionDate === record.date);
-                                    if (matched) setSelectedAppealSessionId(String(matched.sessionId));
-                                  } catch {}
+                                  if (record.sessionId) {
+                                    setSelectedAppealSessionId(String(record.sessionId));
+                                  } else {
+                                    setSelectedAppealSessionId("");
+                                  }
                                   setShowAppealModal(true);
                                 }}
-                      className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800"
+                      className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800 dark:bg-amber-500/80 dark:hover:bg-amber-400/80"
                     >
                       이의 신청
                     </button>
-                  ) : (
-                    <span className="text-xs text-zinc-400">{record.note}</span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -399,12 +406,12 @@ export default function StudentStats() {
           <div className="hidden lg:block">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50/50">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-zinc-500">날짜</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-zinc-500">강의명</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-zinc-500">상태</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-zinc-500">비고</th>
-                  <th className="text-right px-5 py-3 text-xs font-medium text-zinc-500">관리</th>
+                <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800">
+                  <th className="text-left px-5 py-3 text-xs font-medium text-zinc-600 dark:text-zinc-300">날짜</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-zinc-600 dark:text-zinc-300">강의명</th>
+                  <th className="text-center px-5 py-3 text-xs font-medium text-zinc-600 dark:text-zinc-300">교시</th>
+                  <th className="text-center px-5 py-3 text-xs font-medium text-zinc-600 dark:text-zinc-300">상태</th>
+                  <th className="text-center px-5 py-3 text-xs font-medium text-zinc-600 dark:text-zinc-300">관리</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
@@ -412,25 +419,24 @@ export default function StudentStats() {
                   <tr key={i} className="hover:bg-zinc-50/50 transition-colors">
                     <td className="px-5 py-4 text-sm text-zinc-600 whitespace-nowrap">{record.date}</td>
                     <td className="px-5 py-4 text-sm font-medium text-zinc-900">{record.course}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-sm text-zinc-600 text-center">{record.sessionNum ? `${record.sessionNum}교시` : "-"}</td>
+                    <td className="px-5 py-4 text-center">
                       <StatusBadge status={record.status} />
                     </td>
-                    <td className="px-5 py-4 text-sm text-zinc-400">{record.note}</td>
-                    <td className="px-5 py-4 text-right">
-                      {record.status === "결석" ? (
+                    <td className="px-5 py-4 text-center">
+                      {(record.status === "결석" || record.status === "지각") ? (
                         <button
-                          onClick={async () => {
-                                  setAppealRecord({ course: record.course, date: record.date });
+                          onClick={() => {
+                                  setAppealRecord({ course: record.course, date: record.date, time: record.startTime || "" });
                                   setSelectedAppealLectureId(record.lectureId);
-                                  try {
-                                    const res = await getLectureSessions(record.lectureId);
-                                    setSessions(res.data);
-                                    const matched = res.data.find((s: SessionData) => s.sessionDate === record.date);
-                                    if (matched) setSelectedAppealSessionId(String(matched.sessionId));
-                                  } catch {}
+                                  if (record.sessionId) {
+                                    setSelectedAppealSessionId(String(record.sessionId));
+                                  } else {
+                                    setSelectedAppealSessionId("");
+                                  }
                                   setShowAppealModal(true);
                                 }}
-                          className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800"
+                          className="text-xs font-medium bg-zinc-900 text-white px-3 py-1.5 rounded-md hover:bg-zinc-800 dark:bg-amber-500/80 dark:hover:bg-amber-400/80"
                         >
                           이의 신청
                         </button>
@@ -461,18 +467,21 @@ export default function StudentStats() {
               )}
             </div>
             {/* 강의 선택 */}
-            <select
-              value={selectedAppealLectureId}
-              onChange={(e) => setSelectedAppealLectureId(e.target.value)}
-              className="w-full appearance-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="" disabled>강의를 선택하세요</option>
-              {lectures.map((l) => (
-                <option key={l.lectureId} value={l.lectureId}>
-                  {l.lectureName}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedAppealLectureId}
+                onChange={(e) => setSelectedAppealLectureId(e.target.value)}
+                className="w-full appearance-none rounded-lg border border-zinc-200 bg-white px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="" disabled>강의를 선택하세요</option>
+                {lectures.map((l) => (
+                  <option key={l.lectureId} value={l.lectureId}>
+                    {l.lectureName}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+            </div>
           </div>
 
           {loadingAppeals ? (
@@ -481,47 +490,52 @@ export default function StudentStats() {
             </div>
           ) : appealRequests.length > 0 ? (
             <div className="p-4 space-y-3 flex-1 overflow-y-auto">
-              {appealRequests.map((appeal) => (
-                <div
+              {appealRequests.map((appeal, index) => (
+                <motion.div
                   key={appeal.requestId}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ type: "spring", stiffness: 100, damping: 20, delay: index * 0.06 }}
                   onClick={() => handleShowAppealDetail(appeal.requestId)}
-                  className="bg-zinc-50 rounded-lg p-4 cursor-pointer hover:bg-zinc-100 transition-colors"
+                  className="rounded-xl border border-zinc-100 dark:border-zinc-700 p-4 shadow-[0_2px_4px_-1px_rgba(0,0,0,0.08)] hover:border-zinc-200 hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.12)] dark:hover:border-primary/50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-zinc-900">{appeal.title}</span>
-                      <p className="text-xs text-zinc-400 mt-1.5">신청일: {appeal.requestDate}</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-xs font-medium text-primary-dark">{getCourseName(selectedAppealLectureId)}</p>
+                      <h4 className="text-sm font-semibold text-zinc-900 mt-0.5">{appeal.title}</h4>
                     </div>
-                    <div className="shrink-0">
-                      <div className="flex flex-col items-end gap-1.5">
-                        {appeal.status === "APPROVED" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
-                            <CheckCircle className="w-3 h-3" /> 승인
-                          </span>
-                        ) : appeal.status === "REJECTED" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-700">
-                            <XCircle className="w-3 h-3" /> 반려
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
-                            <Clock className="w-3 h-3" /> 대기
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center pt-2 mt-2 border-t border-zinc-200">
-                    {appeal.status === "PENDING" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteAppeal(appeal.requestId); }}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" /> 삭제
-                      </button>
+                    {appeal.status === "APPROVED" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary-dark">
+                        <CheckCircle className="w-3 h-3" /> 승인
+                      </span>
+                    ) : appeal.status === "REJECTED" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-700">
+                        <XCircle className="w-3 h-3" /> 반려
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700">
+                        <Clock className="w-3 h-3" /> 대기
+                      </span>
                     )}
-                    <span className="text-xs text-primary font-medium ml-auto">상세보기 &rarr;</span>
                   </div>
-                </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-zinc-100">
+                    <span className="text-xs text-zinc-400">
+                      신청일: {appeal.requestDate}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {appeal.status === "PENDING" && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteAppeal(appeal.requestId); }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" /> 삭제
+                        </button>
+                      )}
+                      <span className="text-xs text-primary font-medium">상세보기 &rarr;</span>
+                    </div>
+                  </div>
+                </motion.div>
               ))}
             </div>
           ) : (
@@ -591,7 +605,7 @@ export default function StudentStats() {
                         <p className="text-sm text-zinc-800 mt-0.5">{getProfessorName(selectedAppealLectureId)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-zinc-400 font-medium">수업 날짜</p>
+                        <p className="text-xs text-zinc-400 font-medium">강의 날짜</p>
                         <p className="text-sm text-zinc-800 mt-0.5">{appealDetailSessionDate || "-"}</p>
                       </div>
                       <div>
@@ -647,7 +661,10 @@ export default function StudentStats() {
                     )}
                     {appealDetailData.status === "REJECTED" && (
                       <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
-                        <p className="text-sm text-rose-700">반려되었습니다. 사유를 확인 후 재신청해 주세요.</p>
+                        <p className="text-sm font-medium text-rose-700 mb-1">반려되었습니다. 사유 확인 후 재신청 바랍니다.</p>
+                        {appealDetailData.rejectedReason && (
+                          <p className="text-sm text-rose-600">사유: {appealDetailData.rejectedReason}</p>
+                        )}
                       </div>
                     )}
                     {appealDetailData.status === "PENDING" && (
@@ -718,13 +735,9 @@ export default function StudentStats() {
           </div>
           <div>
             <label className="text-sm font-medium text-zinc-700 mb-1 block flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5" /> 수업 날짜 <span className="text-red-500">*</span>
+              <Calendar className="w-3.5 h-3.5" /> 강의 날짜
             </label>
-            <input
-              value={appealRecord?.date || ""}
-              disabled
-              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 text-sm text-zinc-500"
-            />
+            <input value={appealRecord?.time ? `${appealRecord.date} (${appealRecord.time})` : appealRecord?.date || ""} disabled className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 text-sm text-zinc-500" />
           </div>
         </div>
         <div>

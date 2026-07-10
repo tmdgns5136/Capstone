@@ -12,18 +12,27 @@ const spring = { type: "spring", stiffness: 100, damping: 20 }as const;
 function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
   switch (type) {
     case "ABSENCE_OFFICIAL":
+    case "ABSENCE_REQUEST":
       return { title: "공결 신청", uiType: "info" };
     case "ABSENCE_OBJECTION":
+    case "APPEAL_REQUEST":
       return { title: "출결 이의신청", uiType: "warning" };
     case "NOTICE":
       return { title: "공지사항", uiType: "info" };
     case "ANSWER":
+    case "ANSWER_REGISTER":
       return { title: "답변 등록", uiType: "success" };
     case "PHOTO_RESULT":
       return { title: "사진 변경 요청", uiType: "info" };
     default:
+      if (type?.includes("PHOTO")) return { title: "사진 변경 요청", uiType: "info" };
       return { title: "시스템 알림", uiType: "info" };
   }
+}
+
+function formatDateTime(dt: string): string {
+  if (!dt) return "";
+  return dt.replace(/T/, " ").replace(/\.\d+$/, "").slice(0, 19);
 }
 
 function toNotification(n: NotificationData): Notification {
@@ -36,7 +45,7 @@ function toNotification(n: NotificationData): Notification {
     title: title,
     message: n.message,
     isRead: isRead,
-    createdAt: n.createdAt,
+    createdAt: formatDateTime(n.createdAt),
     type: uiType,
   };
 }
@@ -52,12 +61,9 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
       .then((res) => {
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
         
-        // 🌟 [수정 2] 새로고침(F5) 시 이미 읽은 알림은 히스토리창에 다시 안 나오도록 필터링 처리
-        const unreadList = list
-          .map(toNotification)
-          .filter((n: Notification) => !n.isRead);
-          
-        setNotifications(unreadList);
+        const mapped = list.map(toNotification);
+        mapped.sort((a: Notification, b: Notification) => b.createdAt.localeCompare(a.createdAt));
+        setNotifications(mapped);
       })
       .catch(() => setNotifications([]))
       .finally(() => setLoading(false));
@@ -66,20 +72,19 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
   const markAsRead = (id: string) => {
     markNotificationRead(Number(id))
       .then(() => {
-        // 읽은 알림은 목록에서 즉시 지워줍니다.
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       })
       .catch(() => { });
   };
 
-  // 🌟 [수정 3] 모두 읽음 버튼 클릭 시 백엔드 DB 상태도 전부 업데이트
   const markAllAsRead = () => {
-    if (notifications.length === 0) return;
-    
-    notifications.forEach(n => {
+    const unread = notifications.filter(n => !n.isRead);
+    if (unread.length === 0) return;
+
+    unread.forEach(n => {
       markNotificationRead(Number(n.id)).catch(() => { });
     });
-    setNotifications([]);
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     toast.success("모든 알림을 읽음 처리했습니다.");
   };
 
@@ -110,7 +115,13 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
   const mapRedirectUrl = (url: string): string | null => {
     if (!url) return null;
     
-    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/master") || url.startsWith("/admin")) {
+    if (url.startsWith("/master")) {
+      const converted = url.replace("/master", "/admin");
+      if (converted === "/admin/dashboard") return "/admin";
+      return converted;
+    }
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/admin")) {
+      if (url === "/admin/dashboard") return "/admin";
       return url;
     }
 
@@ -120,24 +131,52 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
     if (url.includes("/questions/") && lectureId) return `/${role}/courses/${lectureId}`;
     if (url.includes("/official-requests/")) return `/${role}/absence-request`;
     if (url.includes("/objection-requests/")) return `/${role}/stats`;
-    if (url.includes("mypage")) return `/${role}/profile`;
+    if (url.includes("mypage")) {
+      if (role === "admin") return "/admin/photo-requests";
+      return `/${role}/profile`;
+    }
     return null;
   };
 
+  const getFallbackLink = (notification: Notification): string => {
+    if (notification.title === "사진 변경 요청") {
+      return role === "admin" ? "/admin/photo-requests" : `/${role}/profile`;
+    }
+    if (notification.title === "공결 신청") {
+      return role === "professor" ? "/professor/absence-management" : "/student/absence-request";
+    }
+    if (notification.title === "출결 이의신청") {
+      return role === "professor" ? "/professor/appeal-management" : "/student/stats";
+    }
+    if (notification.title === "공지사항" || notification.title === "답변 등록") {
+      return role === "professor" ? "/professor/courses" : "/student/courses";
+    }
+    return `/${role}`;
+  };
+
+  const isGenericHome = (url: string) => ["/admin", "/student", "/professor"].includes(url);
+
   const handleNotificationClick = (id: string) => {
+    const notification = notifications.find(n => n.id === id);
     markNotificationRead(Number(id))
       .then((res) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
         const url = res.data?.redirectUrl;
         const frontRoute = url ? mapRedirectUrl(url) : null;
-        if (frontRoute) {
+        if (frontRoute && !isGenericHome(frontRoute)) {
+          navigate(frontRoute);
+        } else if (notification) {
+          navigate(getFallbackLink(notification));
+        } else if (frontRoute) {
           navigate(frontRoute);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (notification) navigate(getFallbackLink(notification));
+      });
   };
 
-  const unreadCount = notifications.length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const typeConfig = {
     info: { icon: Info, bg: "bg-sky-50", text: "text-sky-600", border: "border-l-sky-400" },
@@ -240,9 +279,9 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                     exit={{ opacity: 0, x: -40 }}
                     transition={{ ...spring, delay: index * 0.04 }}
                     onClick={() => handleNotificationClick(notification.id)}
-                    className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${config.border} bg-white hover:bg-zinc-50/80 ${
-                      index < notifications.length - 1 ? "border-b border-zinc-100" : ""
-                    }`}
+                    className={`relative px-4 sm:px-6 py-3 sm:py-4 cursor-pointer group transition-colors border-l-[3px] ${
+                      notification.isRead ? "border-l-zinc-200 bg-zinc-50/50 opacity-60 hover:opacity-80" : `${config.border} bg-white hover:bg-zinc-50/80`
+                    } ${index < notifications.length - 1 ? "border-b border-zinc-100" : ""}`}
                   >
                     <div className="flex gap-3 sm:gap-4 items-start">
                       {/* Icon */}
@@ -253,8 +292,8 @@ export default function NotificationsPage({ role }: { role: "student" | "profess
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className="text-sm font-semibold text-zinc-800 truncate">{notification.title}</h3>
-                          <span className="flex-shrink-0 w-2 h-2 bg-primary rounded-full" />
+                          <h3 className={`text-sm font-semibold truncate ${notification.isRead ? "text-zinc-400" : "text-zinc-800"}`}>{notification.title}</h3>
+                          {!notification.isRead && <span className="flex-shrink-0 w-2 h-2 bg-primary rounded-full" />}
                         </div>
                         <p className="text-sm text-zinc-500 leading-relaxed">{notification.message}</p>
                         <span className="text-xs text-zinc-300 mt-1 block">{notification.createdAt}</span>

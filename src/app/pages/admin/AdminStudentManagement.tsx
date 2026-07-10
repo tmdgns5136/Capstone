@@ -238,7 +238,7 @@ export default function AdminStudentManagement() {
           >
             <Download className="w-4 h-4" strokeWidth={1.5} /> 목록 내보내기
           </button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <button className="bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors flex items-center gap-2">
                 <Plus className="w-4 h-4" strokeWidth={1.5} /> 학생 추가

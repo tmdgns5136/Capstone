@@ -14,30 +14,17 @@ interface ProfessorCourseAttendanceProps {
 
 export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendanceProps) {
   const { courses } = useProfessorCourses();
-  
-  // 🌟 [수정 1] 강의 시간표를 분석하여 해당 강의가 총 몇 교시짜리 수업인지 동적으로 계산합니다.
-  const maxPeriods = useMemo(() => {
-    const currentCourse = courses.find(c => String(c.lectureId) === String(lectureId));
-    if (!currentCourse) return 2; // 기본값
 
-    // schedule 예시: "화 13:00-15:00" 또는 "월 09:00-12:00"
-    const timeMatch = currentCourse.schedule?.match(/(\d{2}):(\d{2})-(\d{2}):(\d{2})/);
-    if (timeMatch) {
-      const startHour = parseInt(timeMatch[1], 10);
-      const endHour = parseInt(timeMatch[3], 10);
-      const diff = endHour - startHour;
-      return diff > 0 ? diff : 2; // 시간 차이가 곧 총 교시 수
-    }
-    return 2;
-  }, [courses, lectureId]);
+  // 🌟 [수정 1] API 응답에서 실제 세션 개수를 가져와 교시 수를 결정합니다. (15분/50분 세션 모두 자동 대응)
+  const [maxPeriods, setMaxPeriods] = useState(2);
 
   const SCHEDULE = useMemo(() => {
     const currentCourse = courses.find(c => String(c.lectureId) === String(lectureId));
     if (!currentCourse) return [];
 
-    const dayMap: Record<string, number> = { 
+    const dayMap: Record<string, number> = {
       '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6, '일': 0,
-      MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 0 
+      MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 0
     };
 
     const rawDays = (currentCourse as any)?.lecture_day || (currentCourse as any)?.lectureDay;
@@ -62,7 +49,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
         const targetDay = dayMap[dayName] || 3;
         const d = new Date(startDate);
         d.setDate(startDate.getDate() + (targetDay - 1) + (i * 7));
-        
+
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
@@ -115,38 +102,41 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
 
   // 🌟 [수정 3] 백엔드는 주차와 무관하게 당일 '1교시, 2교시' 순으로 세션을 판정하므로 복잡한 누적 곱셈을 지우고 선택된 교시를 그대로 매핑합니다.
   const absoluteSessionNum = selectedPeriod;
-  
+
   const key = useMemo(() => {
     return `${selectedSessionId || "initial"}-p${absoluteSessionNum}`;
   }, [selectedSessionId, absoluteSessionNum]);
 
   const fetchAttendance = useCallback(async () => {
     if (!lectureId || !sessionDate) return;
-    
+
     setLoading(true);
     try {
-      const response = await getAttendanceMonitoring(lectureId, { 
-        date: sessionDate, 
-        sessionNum: absoluteSessionNum 
+      const response = await getAttendanceMonitoring(lectureId, {
+        date: sessionDate,
+        sessionNum: absoluteSessionNum
       });
-      
+
       if (response.success) {
-        const mapped = (response.data.students || []).map((s: any) => {
-          const matched = s.sessions.find((sess: any) => sess.sessionNum === absoluteSessionNum);
-          const statusMap: Record<string, string> = {
-            "ATTEND": "출석", "LATENESS": "지각", "ABSENCE": "결석", "TBD": "미정"
-          };
-          return {
-            ...s,
-            status: matched ? (statusMap[matched.status] || "미정") : "미정"
-          };
-        });
+        const students = response.data.students || [];
+        // API 응답의 첫 학생 세션 배열 길이로 교시 수 자동 결정
+        if (students.length > 0 && students[0].sessions?.length > 0) {
+          setMaxPeriods(students[0].sessions.length);
+        }
+        const statusMap: Record<string, string> = {
+          "ATTEND": "출석", "LATENESS": "지각", "ABSENCE": "결석",
+          "AWAY": "결석", "TBD": "미진행"
+        };
+        const mapped = students.map((s: any) => ({
+          ...s,
+          status: statusMap[s.status] || "미진행"
+        }));
         setSavedMap(prev => ({ ...prev, [key]: mapped }));
       }
-    } catch { 
-      toast.error("데이터 로드 실패"); 
-    } finally { 
-      setLoading(false); 
+    } catch {
+      toast.error("데이터 로드 실패");
+    } finally {
+      setLoading(false);
     }
   }, [lectureId, sessionDate, absoluteSessionNum, key]);
 
@@ -159,20 +149,23 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
     setLoading(true);
     try {
       const modified = students.filter((s, i) => s.status !== baseStudents[i].status);
-      
-      const results = await Promise.allSettled(modified.map(s => {
-        const dbStat = s.status === "출석" ? "ATTEND" : s.status === "지각" ? "LATENESS" : "ABSENCE";
-        return updateAttendance({ 
-          studentId: s.studentId, 
-          lectureId: String(lectureId), 
-          status: dbStat, 
-          date: sessionDate, 
-          sessionNum: absoluteSessionNum 
-        });
-      }));
 
-      const failedCount = results.filter(r => r.status === 'rejected').length;
-      
+      let failedCount = 0;
+      for (const s of modified) {
+        try {
+          const dbStat = s.status === "출석" ? "ATTEND" : s.status === "지각" ? "LATENESS" : "ABSENCE";
+          await updateAttendance({
+            studentId: s.studentId,
+            lectureId: String(lectureId),
+            status: dbStat,
+            date: sessionDate,
+            sessionNum: absoluteSessionNum
+          });
+        } catch {
+          failedCount++;
+        }
+      }
+
       if (failedCount > 0) {
         toast.error(`${failedCount}명의 출결 저장에 실패했습니다. 다시 시도해주세요.`);
       } else {
@@ -181,10 +174,10 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
 
       await fetchAttendance();
       setPendingMap((prev) => { const n = { ...prev }; delete n[key]; return n; });
-    } catch { 
-      toast.error("저장 중 오류가 발생했습니다."); 
-    } finally { 
-      setLoading(false); 
+    } catch {
+      toast.error("저장 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -231,12 +224,13 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
   const filteredStudents = students.filter(s => s.name.includes(searchQuery) || s.studentId.includes(searchQuery));
   const pagedStudents = filteredStudents.slice((page - 1) * 8, page * 8);
 
+
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-      
+
       {/* 주차 및 일시 선택 통합 패널 */}
       <div className="px-4 sm:px-6 py-5 border-b border-zinc-100 bg-zinc-50">
-        
+
         {/* 주차 선택 UI */}
         <div className="mb-4">
           <p className="text-xs font-bold text-zinc-400 mb-2 uppercase tracking-tighter">주차 선택</p>
@@ -264,18 +258,18 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
             ))}
           </div>
         </div>
-          
+
         {/* 🌟 [수정 4] 하드코딩을 없애고 위에서 계산한 maxPeriods 만큼 동적으로 교시 버튼 생성 */}
         <div>
           <p className="text-xs font-bold text-zinc-400 mb-2 uppercase tracking-tighter">교시 선택</p>
           <div className="flex flex-wrap gap-1.5">
             {Array.from({ length: maxPeriods }, (_, i) => i + 1).map((num) => (
-              <button 
-                key={num} 
+              <button
+                key={num}
                 onClick={() => { setSelectedPeriod(num); setPage(1); }}
                 className={`w-9 h-8 flex items-center justify-center rounded text-[11px] font-bold transition-all ${
-                  selectedPeriod === num 
-                  ? "bg-zinc-900 text-white shadow-md" 
+                  selectedPeriod === num
+                  ? "bg-zinc-900 text-white shadow-md"
                   : "bg-white border border-zinc-200 text-zinc-500 hover:border-zinc-400"
                 }`}
               >
@@ -305,7 +299,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
       <div className="min-h-[60px]">
         <AnimatePresence>
           {hasPending ? (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -320,7 +314,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
                   <RotateCcw className="w-3.5 h-3.5" /> 되돌리기
                 </button>
                 <button onClick={handleSave} disabled={loading} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-800 transition-all shadow-md">
-                  {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} 
+                  {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   {loading ? "저장 중" : "저장하기"}
                 </button>
               </div>
@@ -401,7 +395,7 @@ export function ProfessorCourseAttendance({ lectureId }: ProfessorCourseAttendan
           </table>
         </div>
       </div>
-      
+
       <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(filteredStudents.length / 8))} onPageChange={setPage} className="py-5 border-t border-zinc-100" />
     </div>
   );

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { FileCheck, CheckCircle, XCircle, Clock, Download, FileText, X, AlertTriangle, User, Search, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAppealRequests } from "../../hooks/useAppealRequests";
-import { downloadAppealDocument, type AppealRequest } from "../../api/appeal"; // 🌟 수정한 순정 Blob 다운로드 API 연동
+import { downloadAppealDocument, type AppealRequest } from "../../api/appeal";
 
 const spring = { type: "spring", stiffness: 100, damping: 20 } as const;
 
@@ -25,7 +25,7 @@ export default function ProfessorAppealManagement() {
   const processedRequests = filteredRequests.filter(r => r.status !== "PENDING");
 
   // 승인 처리
-  const handleApprove = async (id: number) => { 
+  const handleApprove = async (id: number) => {
     const success = await updateStatus(id, "APPROVED");
     if (success) {
       toast.success("이의 신청이 승인되었습니다. 출결 상태가 출석으로 변경됩니다.");
@@ -53,18 +53,18 @@ export default function ProfessorAppealManagement() {
     try {
       // 1. api/appeal.ts에 만들어 둔 Blob 리턴 함수 호출
       const blob = await downloadAppealDocument(objectionId);
-      
+
       // 2. 브라우저 메모리에 가상 URL 생성
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       // 3. 파일명 지정 및 다운로드 트리거
       link.download = fileName || "이의신청증빙서류.jpg";
       document.body.appendChild(link);
       link.click();
       link.remove();
-      
+
       // 4. 가상 URL 메모리 해제
       window.URL.revokeObjectURL(url);
       toast.success("파일 다운로드가 완료되었습니다.");
@@ -184,7 +184,7 @@ export default function ProfessorAppealManagement() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pendingRequests.map((request, index) => (
                   <motion.div
-                    key={request.objectionId} 
+                    key={request.objectionId}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
@@ -205,7 +205,7 @@ export default function ProfessorAppealManagement() {
                     </div>
 
                     <div className="bg-zinc-50 rounded-xl p-3 flex-1 mb-4">
-                      <div className="text-xs text-zinc-400 mb-1">결석 처리일: {request.date}</div>
+                      <div className="text-xs text-zinc-400 mb-1">결석 처리일: {request.date}{request.sessionNum ? ` (${request.sessionNum}교시)` : ""}</div>
                       <p className="text-sm text-zinc-700 line-clamp-2">{request.reason}</p>
                     </div>
 
@@ -232,11 +232,12 @@ export default function ProfessorAppealManagement() {
               {processedRequests.length > 0 ? (
                 processedRequests.map((request, index) => (
                   <motion.div
-                    key={request.objectionId} 
+                    key={request.objectionId}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ ...spring, delay: index * 0.05 }}
-                    className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-50 rounded-xl items-center hover:bg-zinc-100 transition-colors"
+                    onClick={() => setSelectedRequest(request)}
+                    className="flex flex-col md:flex-row gap-4 p-4 bg-zinc-50 rounded-xl items-center hover:bg-zinc-100 transition-colors cursor-pointer"
                   >
                     <div className="flex-1 grid md:grid-cols-4 gap-3 w-full items-center">
                       <div className="text-sm font-semibold text-zinc-800 flex items-center gap-2">
@@ -246,13 +247,13 @@ export default function ProfessorAppealManagement() {
                         {request.studentName} <span className="text-zinc-400 text-xs font-normal">({request.studentId})</span>
                       </div>
                       <div className="text-sm text-zinc-600">{request.course}</div>
-                      <div className="text-sm text-zinc-500">{request.date}</div>
+                      <div className="text-sm text-zinc-500">{request.date}{request.sessionNum ? ` (${request.sessionNum}교시)` : ""}</div>
                       <div className="flex justify-end">{getStatusBadge(request.status)}</div>
                     </div>
 
-                    {request.rejectReason && (
+                    {request.rejectedReason && (
                       <div className="w-full md:w-auto bg-rose-50 text-rose-700 rounded-lg p-2 text-xs font-medium">
-                        <span className="text-rose-500">반려 사유:</span> {request.rejectReason}
+                        <span className="text-rose-500">반려 사유:</span> {request.rejectedReason}
                       </div>
                     )}
                   </motion.div>
@@ -306,7 +307,7 @@ export default function ProfessorAppealManagement() {
                   <div className="bg-zinc-50 rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">강의 정보</div>
                     <div className="font-semibold text-zinc-900">{selectedRequest.course}</div>
-                    <div className="text-sm text-zinc-500 mt-0.5">{selectedRequest.date}</div>
+                    <div className="text-sm text-zinc-500 mt-0.5">{selectedRequest.date}{selectedRequest.sessionNum ? ` (${selectedRequest.sessionNum}교시)` : ""}</div>
                   </div>
                 </div>
 
@@ -341,31 +342,42 @@ export default function ProfessorAppealManagement() {
                   )}
                 </div>
 
-                <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-medium text-zinc-700">반려 사유 (반려 시 필수 입력)</label>
-                  <textarea
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    rows={2}
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder:text-zinc-400"
-                    placeholder="반려 사유를 구체적으로 입력하세요..."
-                  />
-                </div>
+                {selectedRequest.status === "REJECTED" && selectedRequest.rejectedReason && (
+                  <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+                    <p className="text-sm font-medium text-rose-700 mb-1">반려 사유</p>
+                    <p className="text-sm text-rose-600">{selectedRequest.rejectedReason}</p>
+                  </div>
+                )}
 
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => handleReject(selectedRequest.objectionId)}
-                    className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
-                  </button>
-                  <button
-                    onClick={() => handleApprove(selectedRequest.objectionId)}
-                    className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)
-                  </button>
-                </div>
+                {selectedRequest.status === "PENDING" && (
+                  <>
+                    <div className="space-y-2 pt-2">
+                      <label className="block text-xs font-medium text-zinc-700">반려 사유 (반려 시 필수 입력)</label>
+                      <textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        rows={2}
+                        className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder:text-zinc-400"
+                        placeholder="반려 사유를 구체적으로 입력하세요..."
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => handleReject(selectedRequest.objectionId)}
+                        className="flex-1 py-2.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <XCircle className="w-4 h-4" strokeWidth={1.5} /> 반려하기
+                      </button>
+                      <button
+                        onClick={() => handleApprove(selectedRequest.objectionId)}
+                        className="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" strokeWidth={1.5} /> 승인 (출석 변경)
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>

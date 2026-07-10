@@ -22,6 +22,7 @@ export interface SessionData {
   sessionDate: string;
   startTime: string;
   endTime: string;
+  status?: string;
 }
 
 // 1-13 학기별 출결 통계
@@ -77,6 +78,7 @@ export interface AbsenceDetailData {
   requestData: string; // 신청일
   sessionId: number | null;
   evidenceFileUrl: string | null;
+  rejectedReason?: string | null;
 }
 
 // ActionResponse (삭제용)
@@ -300,6 +302,7 @@ export interface NoticeData {
   noticeId: number;
   title: string;
   createdDate: string;
+  views: number;
 }
 
 export interface NoticeDetailData {

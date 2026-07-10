@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { BookOpen, Plus, Search, Edit, Trash2, Users, Clock, MapPin, Loader2, UserPlus, UserMinus } from "lucide-react";
+import { BookOpen, Plus, Search, Edit, Trash2, Users, Clock, MapPin, Loader2, UserPlus, UserMinus, ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import {
 import { Label } from "../../components/ui/label";
 import { toast } from "sonner";
 import { api } from "../../api/client";
-import { CURRENT_YEAR, CURRENT_SEMESTER_NUM } from "../../constants/semester";
+import { CURRENT_YEAR, CURRENT_SEMESTER_NUM, SEMESTER_OPTIONS, CURRENT_SEMESTER_CODE } from "../../constants/semester";
 
 const DAY_KO: Record<string, string> = {
   MONDAY: "월", TUESDAY: "화", WEDNESDAY: "수", THURSDAY: "목",
@@ -56,6 +56,7 @@ const minuteOptions = ["00", "10", "20", "30", "40", "50"];
 
 export default function AdminCourseManagement() {
   const [courses, setCourses] = useState<Lecture[]>([]);
+  const [selectedSemester, setSelectedSemester] = useState(CURRENT_SEMESTER_CODE);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Lecture | null>(null);
@@ -111,6 +112,10 @@ export default function AdminCourseManagement() {
 
   const fetchLectures = useCallback(async () => {
     setLoading(true);
+    // selectedSemester는 "2026-2학기" 형태 → year와 semester 분리
+    const [selYear, selSem] = selectedSemester.includes("-")
+      ? [selectedSemester.split("-")[0], selectedSemester.split("-")[1]]
+      : [String(CURRENT_YEAR), CURRENT_SEMESTER_NUM];
     try {
       const profRes = await api<any>("/api/admin/professors?size=100", { method: "GET" });
       const professors = profRes.data?.content || profRes.data?.data || profRes.data || [];
@@ -121,8 +126,8 @@ export default function AdminCourseManagement() {
       }
 
       const lecturePromises = professors.map((prof: any) =>
-        api(`/api/admin/lectures/${prof.userNum}?year=${CURRENT_YEAR}&semester=${encodeURIComponent("1학기")}`, { 
-        method: "GET" 
+        api(`/api/admin/lectures/${prof.userNum}?year=${selYear}&semester=${encodeURIComponent(selSem)}`, {
+        method: "GET"
         }).catch(() => null)
       );
 
@@ -149,7 +154,7 @@ export default function AdminCourseManagement() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedSemester]);
 
   useEffect(() => {
     fetchLectures();
@@ -367,12 +372,25 @@ export default function AdminCourseManagement() {
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">강의 관리</h1>
           <p className="text-sm text-zinc-400 mt-1">전체 강의 정보를 조회하고 관리할 수 있습니다.</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if(!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <button className="bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors flex items-center gap-2">
-              <Plus className="w-4 h-4" /> 강의 추가
-            </button>
-          </DialogTrigger>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <select
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
+              className="appearance-none border border-zinc-200 rounded-xl px-4 py-2.5 pr-9 text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
+            >
+              {SEMESTER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+          </div>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if(!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <button className="bg-primary text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors flex items-center gap-2">
+                <Plus className="w-4 h-4" /> 강의 추가
+              </button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>새 강의 추가</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4 text-left">
@@ -447,6 +465,7 @@ export default function AdminCourseManagement() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </motion.div>
 
       {/* Search */}

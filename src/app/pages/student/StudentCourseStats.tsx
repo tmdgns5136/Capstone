@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ArrowLeft, BookOpen, AlertTriangle, XCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { getLectureStats, getMyLectures, StatsData, StatsSessionData, MyLectureData } from "../../api/studentLecture";
+import { getLectureStats, getMyLectures, getLectureTimeTable, StatsData, StatsSessionData, MyLectureData } from "../../api/studentLecture";
 
 function statusType(status: string) {
   switch (status) {
@@ -30,6 +30,8 @@ export default function StudentCourseStats() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [courseName, setCourseName] = useState("");
+  const [professorName, setProfessorName] = useState("");
+  const [lectureRoom, setLectureRoom] = useState("");
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -40,14 +42,22 @@ export default function StudentCourseStats() {
 
     setLoading(true);
 
-    // 강의명 가져오기 + 통계 가져오기
+    const currentYear = new Date().getFullYear();
+    const currentSemester = new Date().getMonth() + 1 >= 7 ? "2학기" : "1학기";
+
+    // 강의명 가져오기 + 통계 가져오기 + 시간표(강의실)
     Promise.all([
-      getMyLectures(new Date().getFullYear(), new Date().getMonth() + 1 >= 7 ? "2학기" : "1학기").catch(() => ({ data: [] as MyLectureData[] })),
+      getMyLectures(currentYear, currentSemester).catch(() => ({ data: [] as MyLectureData[] })),
       getLectureStats(courseId),
+      getLectureTimeTable(currentYear, currentSemester).catch(() => ({ data: [] })),
     ])
-      .then(([lecturesRes, statsRes]) => {
+      .then(([lecturesRes, statsRes, timetableRes]) => {
         const lecture = lecturesRes.data.find((l) => String(l.lectureId) === String(courseId));
         setCourseName(lecture?.lectureName || `강의 ${courseId}`);
+        setProfessorName(lecture?.professorName || "");
+        // 시간표에서 강의실 매칭
+        const ttMatch = timetableRes.data.find((t: any) => t.lectureName === lecture?.lectureName);
+        setLectureRoom(ttMatch?.room || "");
         setStats(statsRes.data);
       })
       .catch(() => {
@@ -132,7 +142,11 @@ export default function StudentCourseStats() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{courseName}</h1>
-            <p className="text-sm text-zinc-400 mt-0.5">과목 상세 출결 통계 (출석률 {stats.attendanceRate.toFixed(1)}%)</p>
+            <div className="flex items-center gap-3 mt-1 text-sm text-zinc-400">
+              {professorName && <span>{professorName}</span>}
+              {professorName && lectureRoom && <span className="text-zinc-300">|</span>}
+              {lectureRoom && <span>{lectureRoom}</span>}
+            </div>
           </div>
         </div>
       </div>

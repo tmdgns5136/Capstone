@@ -251,13 +251,13 @@ export default function ProfessorProfile() {
         )}
       </div>
 
-      {/* 서비스 탈퇴 */}
+      {/* 회원탈퇴 */}
       <div className="text-right pb-8">
         <button 
           onClick={handleWithdraw}
           className="text-xs text-zinc-400 hover:text-rose-500 transition-colors underline underline-offset-2"
         >
-          서비스 탈퇴
+          회원탈퇴
         </button>
       </div>
 

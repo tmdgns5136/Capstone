@@ -9,10 +9,11 @@ export interface AppealRequest {
   studentName: string;
   course: string;
   sessionId: number;        // 추가
+  sessionNum?: number;      // 교시 번호
   date: string;
   reason: string;
   status: AppealStatus;
-  rejectReason?: string;
+  rejectedReason?: string;
   fileName?: string;
 }
 
@@ -28,7 +29,7 @@ export async function getAppeals(page: number = 1, size: number = 10) {
 
 // 11-1. 이의 신청 처리 (승인/반려)
 export async function processAppeal(
-  objectionId: number, 
+  objectionId: number,
   status: AppealStatus,
   rejectReason: string = ""
 ) {
@@ -41,7 +42,6 @@ export async function processAppeal(
 export async function downloadAppealDocument(objectionId: number): Promise<Blob> {
   const token = sessionStorage.getItem("accessToken") || localStorage.getItem("accessToken") || "";
 
-  // 🌟 공결 신청을 호출하던 주소 패턴과 완벽하게 일치시킵니다.
   const response = await fetch(`/api/professors/appeals/${objectionId}/document`, {
     method: "GET",
     headers: {

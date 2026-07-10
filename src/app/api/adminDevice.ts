@@ -72,3 +72,16 @@ export async function checkAdminPassword(currentPassword: string) {
     body: JSON.stringify({ currentPassword }),
   });
 }
+
+//관리자 카메라테스트
+export async function startAdminDeviceCameraTest(deviceId: string) {
+  return api(`/api/admin/devices/${encodeURIComponent(deviceId)}/camera-test/start`, {
+    method: "POST",
+  });
+}
+
+export async function stopAdminDeviceCameraTest(deviceId: string) {
+  return api(`/api/admin/devices/${encodeURIComponent(deviceId)}/camera-test/stop`, {
+    method: "POST",
+  });
+}

@@ -22,18 +22,27 @@ interface NotificationBellProps {
 function mapTypeToUI(type: string): { title: string; uiType: "info" | "warning" | "success" } {
   switch (type) {
     case "ABSENCE_OFFICIAL":
+    case "ABSENCE_REQUEST":
       return { title: "공결 신청", uiType: "info" };
     case "ABSENCE_OBJECTION":
+    case "APPEAL_REQUEST":
       return { title: "출결 이의신청", uiType: "warning" };
     case "NOTICE":
       return { title: "공지사항", uiType: "info" };
     case "ANSWER":
+    case "ANSWER_REGISTER":
       return { title: "답변 등록", uiType: "success" };
     case "PHOTO_RESULT":
       return { title: "사진 변경 요청", uiType: "info" };
     default:
+      if (type?.includes("PHOTO")) return { title: "사진 변경 요청", uiType: "info" };
       return { title: "시스템 알림", uiType: "info" };
   }
+}
+
+function formatDateTime(dt: string): string {
+  if (!dt) return "";
+  return dt.replace(/T/, " ").replace(/\.\d+$/, "").slice(0, 19);
 }
 
 function toNotification(n: NotificationData, role: string): Notification {
@@ -42,14 +51,16 @@ function toNotification(n: NotificationData, role: string): Notification {
   const isAdmin = role === "admin";
 
   let link = `/${role}`;
-  if (n.type === "ABSENCE_OFFICIAL") {
+  if (n.type === "ABSENCE_OFFICIAL" || n.type === "ABSENCE_REQUEST") {
     link = isAdmin ? "/admin" : isProfessor ? "/professor/absence-management" : "/student/absence-request";
-  } else if (n.type === "ABSENCE_OBJECTION") {
+  } else if (n.type === "ABSENCE_OBJECTION" || n.type === "APPEAL_REQUEST") {
     link = isAdmin ? "/admin" : isProfessor ? "/professor/appeal-management" : "/student/stats";
-  } else if (n.type === "NOTICE" || n.type === "ANSWER") {
+  } else if (n.type === "NOTICE" || n.type === "ANSWER" || n.type === "ANSWER_REGISTER") {
     link = isProfessor ? "/professor/courses" : "/student/courses";
-  } else if (n.type === "PHOTO_RESULT") {
+  } else if (n.type === "PHOTO_RESULT" || n.type?.includes("PHOTO")) {
     link = isAdmin ? "/admin/photo-requests" : `/${role}/profile`;
+  } else if (isAdmin && n.message?.includes("사진")) {
+    link = "/admin/photo-requests";
   }
 
   const notifId = n.id ?? n.notificationId ?? 0;
@@ -60,7 +71,7 @@ function toNotification(n: NotificationData, role: string): Notification {
     title: title,
     message: n.message,
     isRead: isRead,
-    createdAt: n.createdAt,
+    createdAt: formatDateTime(n.createdAt),
     type: uiType,
     link: link
   };
@@ -73,21 +84,30 @@ export function NotificationBell({ role }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const failCountRef = useRef(0);
 
   const fetchNotifications = useCallback(() => {
+    // 연속 3회 실패 시 폴링 중단 (Network 탭 오류 스팸 방지)
+    if (failCountRef.current >= 3) return;
+
     getNotifications()
       .then((res) => {
+        failCountRef.current = 0;
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-        
-        // 🌟 [수정 1] 백엔드에서 받아온 알림 중 '안 읽은 알림'만 남기고 필터링합니다.
-        // 이렇게 하면 이미 읽은 알림은 F5를 눌러도 리스트에 다시 나타나지 않습니다.
-        const unreadList = list
-          .map((n: NotificationData) => toNotification(n, role))
-          .filter((n: Notification) => !n.isRead);
-          
-        setNotifications(unreadList);
+
+        const mapped = list.map((n: NotificationData) => toNotification(n, role));
+        mapped.sort((a: Notification, b: Notification) => b.createdAt.localeCompare(a.createdAt));
+        setNotifications(mapped);
       })
-      .catch(() => {});
+      .catch((err) => {
+        failCountRef.current += 1;
+        if (failCountRef.current === 1) {
+          console.warn("알림 API 호출 실패:", err.message || err);
+        }
+        if (failCountRef.current >= 3) {
+          console.warn("알림 API 연속 실패 — 폴링을 중단합니다.");
+        }
+      });
   }, [role]);
 
   useEffect(() => {
@@ -96,7 +116,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  const unreadCount = notifications.length; // 🌟 필터링되므로 리스트 개수가 곧 안읽은 개수
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -108,26 +128,24 @@ export function NotificationBell({ role }: NotificationBellProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 개별 읽음 처리 시 리스트에서 즉시 제거
   const markAsRead = (id: string) => {
     markNotificationRead(Number(id))
       .then(() => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       })
       .catch(() => {});
   };
 
-  // 🌟 [수정 2] 모두 읽음 버튼 클릭 시 백엔드 연동 및 화면에서 즉시 제거
   const markAllAsRead = () => {
-    notifications.forEach(n => {
+    const unread = notifications.filter(n => !n.isRead);
+    if (unread.length === 0) return;
+    unread.forEach(n => {
       markNotificationRead(Number(n.id)).catch(() => {});
     });
-    setNotifications([]);
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     toast.success("모든 알림을 읽음 처리했습니다.");
   };
 
-  // 🌟 [수정 3] 모두 지우기(휴지통) 버튼 클릭 시 백엔드 DB 상태도 '읽음'으로 동기화
-  // DB 상태를 바꿔버리기 때문에 F5를 눌러도 절대 다시 나오지 않습니다.
   const clearAll = () => {
     notifications.forEach(n => {
       markNotificationRead(Number(n.id)).catch(() => {});
@@ -138,7 +156,13 @@ export function NotificationBell({ role }: NotificationBellProps) {
 
   const mapRedirectUrl = (url: string): string | null => {
     if (!url) return null;
-    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/master") || url.startsWith("/admin")) {
+    if (url.startsWith("/master")) {
+      const converted = url.replace("/master", "/admin");
+      if (converted === "/admin/dashboard") return "/admin";
+      return converted;
+    }
+    if (url.startsWith("/professor") || url.startsWith("/student") || url.startsWith("/admin")) {
+      if (url === "/admin/dashboard") return "/admin";
       return url;
     }
     const lectureMatch = url.match(/mylecture\/(\d+)/);
@@ -154,20 +178,23 @@ export function NotificationBell({ role }: NotificationBellProps) {
     return null;
   };
 
+  const isGenericHome = (url: string) => ["/admin", "/student", "/professor"].includes(url);
+
   const handleNotificationClick = (id: string, fallbackLink?: string) => {
     setIsOpen(false);
     markNotificationRead(Number(id))
       .then((res: any) => {
-        // 읽었으므로 리스트에서 즉시 제외
-        setNotifications(prev => prev.filter(n => n.id !== id));
-        
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+
         const redirectUrl = res.data?.redirectUrl;
         const frontRoute = redirectUrl ? mapRedirectUrl(redirectUrl) : null;
-        
-        if (frontRoute) {
+
+        if (frontRoute && !isGenericHome(frontRoute)) {
           navigate(frontRoute);
         } else if (fallbackLink) {
           navigate(fallbackLink);
+        } else if (frontRoute) {
+          navigate(frontRoute);
         }
       })
       .catch(() => {
@@ -258,24 +285,26 @@ export function NotificationBell({ role }: NotificationBellProps) {
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-100">
-                  {notifications.map((notification) => (
+                  {notifications.slice(0, 4).map((notification) => (
                     <div
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification.id, notification.link)}
-                      className="px-5 py-3.5 cursor-pointer transition-colors hover:bg-zinc-50/80"
+                      className={`px-5 py-3.5 transition-colors ${
+                        notification.isRead ? "opacity-50 bg-zinc-50/50 cursor-pointer hover:bg-zinc-100/80" : "cursor-pointer hover:bg-zinc-50/80"
+                      }`}
                     >
                       <div className="flex gap-3">
                         {typeIcon(notification.type)}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-0.5">
-                            <h4 className="text-sm font-medium text-zinc-800 truncate">{notification.title}</h4>
+                            <h4 className={`text-sm font-medium truncate ${notification.isRead ? "text-zinc-400" : "text-zinc-800"}`}>{notification.title}</h4>
                             <span className="text-[11px] text-zinc-400 shrink-0">{notification.createdAt}</span>
                           </div>
                           <p className="text-xs text-zinc-500 leading-relaxed line-clamp-2">
                             {notification.message}
                           </p>
                         </div>
-                        <div className="w-2 h-2 rounded-full bg-primary self-center shrink-0" />
+                        {!notification.isRead && <div className="w-2 h-2 rounded-full bg-primary self-center shrink-0" />}
                       </div>
                     </div>
                   ))}
