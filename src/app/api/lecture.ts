@@ -22,6 +22,8 @@ export interface Lecture {
   room: string;
   students: number;
   status?: string;
+  year?: number; 
+  semester?: string;
 }
 
 export interface LectureSession {
@@ -43,6 +45,8 @@ export interface TodayLecture {
   time: string;
   status: "WAIT" | "IN_PROGRESS" | "DONE" | string; 
   students: number;
+  year?: number;
+  semester?: string;
 }
 
 // 6. 대시보드 통계 타입

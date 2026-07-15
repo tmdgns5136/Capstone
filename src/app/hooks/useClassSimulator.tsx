@@ -24,6 +24,9 @@ interface ClassSimulatorState {
   startSimulation: () => Promise<void>;
   stopSimulation: () => Promise<void>;
   triggerSensorPing: () => Promise<void>;
+  // 🌟 학기 관련 상태 추가
+  semester: string;
+  setSemester: (val: string) => void;
 }
 
 const ClassSimulatorContext = createContext<ClassSimulatorState | null>(null);
@@ -68,8 +71,27 @@ function getTodayString() {
   return `${year}-${month}-${day}`;
 }
 
+// 🌟 현재 날짜를 기준으로 이번 년도와 학기를 자동 계산하는 함수
+function getCurrentSemester() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; 
+  
+  // 3월 ~ 8월은 1학기, 9월 ~ 2월은 2학기 (1, 2월은 작년 2학기로 취급)
+  if (month >= 3 && month <= 8) {
+    return `${year}-1`;
+  } else {
+    return month <= 2 ? `${year - 1}-2` : `${year}-2`;
+  }
+}
+
 export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
-  const { courses, loading: coursesLoading } = useProfessorCourses();
+  // 🌟 자동으로 계산된 이번 학기를 기본값으로 설정
+  const [semester, setSemester] = useState(getCurrentSemester());
+
+  // 🌟 학기 값을 넘겨서 서버로부터 해당 학기 강의만 받아옴
+  const { courses, loading: coursesLoading } = useProfessorCourses(semester);
+  
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [scheduledCourse, setScheduledCourse] = useState<Course | null>(null);
   const [isActive, setIsActive] = useState(false);
@@ -78,7 +100,10 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
   const [attendanceData, setAttendanceData] = useState<AttendanceData>({ present: 0, away: 0, absent: 0, total: 0 });
 
   useEffect(() => {
-    if (courses.length === 0) return;
+    if (courses.length === 0) {
+      setScheduledCourse(null);
+      return;
+    }
     const check = () => {
       const found = findCurrentCourse(courses);
       setScheduledCourse(found);
@@ -89,11 +114,14 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
   }, [courses]);
 
   useEffect(() => {
-    if (courses.length > 0 && !selectedCourse) {
+    // 강의 목록이 바뀌거나 처음 로드될 때 선택된 강의 초기화
+    if (courses.length > 0) {
       const current = findCurrentCourse(courses);
       setSelectedCourse(current || courses[0]);
+    } else {
+      setSelectedCourse(null);
     }
-  }, [courses, selectedCourse]);
+  }, [courses]);
 
   useEffect(() => {
     if (!selectedCourse || isActive) return;
@@ -253,6 +281,9 @@ export function ClassSimulatorProvider({ children }: { children: ReactNode }) {
         startSimulation,
         stopSimulation,
         triggerSensorPing,
+        // 🌟 Provider value에 추가됨
+        semester,
+        setSemester,
       }}
     >
       {children}
