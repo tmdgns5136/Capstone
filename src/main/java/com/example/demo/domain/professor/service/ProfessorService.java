@@ -159,7 +159,9 @@ public class ProfessorService {
                     lecture.getLectureRoom(),
                     lecture.getLectureStart() + "-" + lecture.getLectureEnd(),
                     status,
-                    studentCount
+                    studentCount,
+                    lecture.getLectureYear(),
+                    lecture.getLectureSemester()
             ));
         }
         return result;

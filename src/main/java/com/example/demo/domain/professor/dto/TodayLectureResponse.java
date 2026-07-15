@@ -10,6 +10,9 @@ public class TodayLectureResponse {
     private final String status;
     private final Long students;
 
+    private final Long lectureYear;
+    private final String lectureSemester;
+
     public TodayLectureResponse(
             String lectureId,
             String lectureCode,
@@ -17,7 +20,9 @@ public class TodayLectureResponse {
             String location,
             String time,
             String status,
-            Long students
+            Long students,
+            Long lectureYear,
+            String lectureSemester
     ) {
         this.lectureId = lectureId;
         this.lectureCode = lectureCode;
@@ -26,6 +31,8 @@ public class TodayLectureResponse {
         this.time = time;
         this.status = status;
         this.students = students;
+        this.lectureYear = lectureYear;
+        this.lectureSemester = lectureSemester;
     }
 
     public String getLectureId() {
@@ -54,5 +61,13 @@ public class TodayLectureResponse {
 
     public Long getStudents() {
         return students;
+    }
+
+    public Long getLectureYear() {
+        return lectureYear;
+    }
+
+    public String getLectureSemester() {
+        return lectureSemester;
     }
 }
