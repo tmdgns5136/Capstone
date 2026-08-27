@@ -1,0 +1,22 @@
+jwt:
+  secret: replace-with-at-least-32-random-characters
+
+spring:
+  datasource:
+    password: replace-with-database-password
+  mail:
+    username: your-email@example.com
+    password: replace-with-mail-app-password
+
+device:
+  mqtt:
+    broker-url: tcp://localhost:1883
+
+stream:
+  public-base-url: http://localhost:8889
+  yolo:
+    worker:
+      command: python
+      directory: ./yolo-stream
+      server-base-url: http://localhost:8080
+      ffmpeg-command: ffmpeg

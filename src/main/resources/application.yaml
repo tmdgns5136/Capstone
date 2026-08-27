@@ -1,0 +1,99 @@
+jwt:
+  secret: ${JWT_SECRET}
+
+spring:
+  application:
+    name: demo
+
+  config:
+    import: optional:file:./application-local.yaml
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 30MB
+      max-request-size: 60MB
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/attendance_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+com:
+  example:
+    upload:
+      path:
+        profileImg: ${UPLOAD_PATH:./uploads}
+
+device:
+  upload:
+    path: ${DEVICE_UPLOAD_PATH:./uploads/device-attendance}
+  default-timezone: Asia/Seoul
+  mqtt:
+    broker-url: ${DEVICE_MQTT_BROKER_URL:tcp://localhost:1883}
+    username: ${DEVICE_MQTT_USERNAME:}
+    password: ${DEVICE_MQTT_PASSWORD:}
+    tls-enabled: ${DEVICE_MQTT_TLS_ENABLED:false}
+    qos: ${DEVICE_MQTT_QOS:1}
+
+mqtt:
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: ${MQTT_CLIENT_ID:capstone-server}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
+
+aws:
+  rekognition:
+    region: ${AWS_REKOGNITION_REGION:ap-northeast-2}
+    similarity-threshold: ${AWS_REKOGNITION_SIMILARITY_THRESHOLD:50}
+
+stream:
+  public-base-url: ${STREAM_PUBLIC_BASE_URL:http://localhost:8889}
+  yolo:
+    worker:
+      enabled: ${YOLO_WORKER_ENABLED:true}
+      command: ${YOLO_WORKER_COMMAND:python}
+      script: ${YOLO_WORKER_SCRIPT:yolo_stream_worker.py}
+      directory: ${YOLO_WORKER_DIRECTORY:./yolo-stream}
+      source-template: ${YOLO_WORKER_SOURCE_TEMPLATE:rtsp://127.0.0.1:8554/{deviceId}}
+      server-base-url: ${YOLO_WORKER_SERVER_BASE_URL:http://localhost:8080}
+      model: ${YOLO_WORKER_MODEL:yolo26n.pt}
+      device: ${YOLO_WORKER_DEVICE:cpu}
+      display: ${YOLO_WORKER_DISPLAY:false}
+      output-enabled: ${YOLO_WORKER_OUTPUT_ENABLED:true}
+      output-template: ${YOLO_WORKER_OUTPUT_TEMPLATE:rtsp://127.0.0.1:8554/{deviceId}-yolo}
+      output-fps: ${YOLO_WORKER_OUTPUT_FPS:10}
+      output-bitrate: ${YOLO_WORKER_OUTPUT_BITRATE:2500k}
+      ffmpeg-command: ${YOLO_WORKER_FFMPEG_COMMAND:ffmpeg}
+
+attendance:
+  away:
+    # YOLO EXIT is already stabilized in the worker; one post-event capture
+    # per active camera is enough to confirm that the student is absent.
+    confirmation-rounds: ${ATTENDANCE_AWAY_CONFIRMATION_ROUNDS:1}
