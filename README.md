@@ -2,6 +2,7 @@
 > **ASaaS** (Attendance Software as a Service) | Team 천천히, 꾸준히
 
 AWS Rekognition 얼굴 인식 기반 대학교 자동 출결 관리 웹 애플리케이션
+<<<<<<< HEAD
 
 ## 기술 스택
 - **Language**: Java
@@ -65,3 +66,5 @@ global/ (전역 설정 및 공통 컴포넌트)
 -  jwt/ : 인증 및 JWT 토큰 처리
 -  mqtt/ : MQTT 통신 로직
 -  response/ : 공통 API 응답 규격
+=======
+>>>>>>> origin/backend
